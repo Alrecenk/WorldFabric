@@ -23,5 +23,8 @@ class Timeline{
         // If not overridden getObserved returns the raw value of the object
         TObject getObserved(const TObject& last_observed);
 
+
+        // Data and functions below this point are used for maintining the timeline continuity
+        vector<*TEvent> readers ; // events that have read this object instant
 };
 #endif // #ifndef _TOBJECT_H_

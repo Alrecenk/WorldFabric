@@ -51,7 +51,6 @@ class TEvent{
         bool run_pending = true; //whether the event still needs to be run
         vector<*TEvent> spawned_events ; //events spawen by this event when it was last run
         bool wrote_anchor=false; // whether this event wrote to its anchor object last time it ran
-        bool read_collisions = false; // whether this event read its anchor's collision data last time it ran
 
 };
 #endif // #ifndef _TEVENT_H_
