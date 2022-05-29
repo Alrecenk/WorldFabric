@@ -1,4 +1,4 @@
-class PaintMode extends ExecutionMode{
+class ScanMode extends ExecutionMode{
     /* Input trackers. */
 
     // Mouse position
@@ -17,12 +17,18 @@ class PaintMode extends ExecutionMode{
     
     rotating = false;
     camera_zoom;
+    camera_focus = [0,0,0];
+
+    axis_total = 0 ;
+
+    model_pose = null;
 
     // Tools is an object with string keys that may include things such as the canvas,
     // API WASM Module, an Interface manager, and/or a mesh manager for shared webGL functionality
     constructor(tools){
         super(tools) ;
-
+        this.model_pose = mat4.create();
+        mat4.identity(this.model_pose);
     }
 
     // Called when the mode is becoming active (previous mode will have already exited)
@@ -41,17 +47,26 @@ class PaintMode extends ExecutionMode{
 
     // Called when the app should be redrawn
     // Note: the elements to draw onto or with should be included in the tools on construction and saved for the duration of the mode
-    draw(){
-        tools.renderer.clearViewport();
+    drawFrame(frame_id){
         // Get any mesh updates pending in the module
-
-        let new_buffer_data = tools.API.call("getUpdatedBuffers", null, new Serializer());
-        for(let id in new_buffer_data){
-            tools.renderer.prepareBuffer(id, new_buffer_data[id]);
+        if(frame_id == 0){
+            let new_buffer_data = tools.API.call("getUpdatedBuffers", null, new Serializer());
+            for(let id in new_buffer_data){
+                tools.renderer.prepareBuffer(id, new_buffer_data[id]);
+            }
         }
         // Draw the models
-        tools.renderer.drawMeshes();
-		tools.renderer.finishFrame();
+        tools.renderer.drawMesh("MAIN", this.model_pose);
+        /*for(let dz = -1; dz <=1; dz++){
+            for(let dy = -1; dy <=1; dy++){
+                for(let dx = -1; dx <=1; dx++){
+                    let M = mat4.create();
+                    mat4.translate(M, this.model_pose,[dx*1.5,dy*1.5,dz*1.5]);
+                    tools.renderer.drawMesh("MAIN", M);
+                }
+            }
+        }*/
+        
     }
 
 
@@ -64,21 +79,16 @@ class PaintMode extends ExecutionMode{
 		this.mouse_down = true ;
 		this.mouse_button = pointers[0].button ;
         
-        if(this.mouse_button == 2){
+        if(this.mouse_button != 2){
             this.rotating = true;
-            this.tools.renderer.startRotate([0,0,0], pointers[0]);
+            this.tools.renderer.startRotate(this.camera_focus, pointers[0]);
         }else{
+
             let ray = tools.renderer.getRay([this.mouse_down_x,this.mouse_down_y]);
-            let trace_data = tools.API.call("rayTrace", ray, new Serializer()); 
-            let t = trace_data.t ;
-            if(t > 0){
-                let params = {};
-                params.center = trace_data.x;
-                params.radius = tools.brush_size ; 
-                params.color = new Float32Array(tools.paint_color);
-                tools.API.call("paint", params, new Serializer())
-                this.dragging = true;
-            }
+            console.log(tools.API.call("scan", ray, new Serializer())); 
+            
+            
+            
         }
     }
 
@@ -87,17 +97,14 @@ class PaintMode extends ExecutionMode{
 		this.mouse_y = pointers[0].y;
 		if(this.mouse_down){
             if(this.dragging){
+                /*
                 let ray = tools.renderer.getRay([this.mouse_x,this.mouse_y]);
                 let trace_data = tools.API.call("rayTrace", ray, new Serializer()); 
                 let t = trace_data.t ;
                 if(t > 0){
-                    let params = {};
-                    params.center = trace_data.x;
-                    params.radius = tools.brush_size ; 
-                    params.color = new Float32Array(tools.paint_color);
-                    tools.API.call("paint", params, new Serializer());
-                    this.dragging = true;
+                    
                 }
+                */
             }else if(this.rotating){
                this.tools.renderer.continueRotate(pointers[0]);
             }
@@ -120,11 +127,8 @@ class PaintMode extends ExecutionMode{
         // Firefox and Chrome get different numbers from different events. One is 3 the other is -120 per notch.
         var scroll = event.wheelDelta ? -event.wheelDelta*.2 : event.detail*8; 
         // Adjust camera zoom by mouse wheel scroll.
-		this.camera_zoom += scroll/15.0;
-		if(this.camera_zoom < 5){
-			this.camera_zoom = 5;
-		}
-        renderer.setZoom(this.camera_zoom, 0) ;
+		this.camera_zoom *= Math.pow(1.005,scroll);
+        tools.renderer.setZoom(this.camera_zoom) ;
     }
 
 	keyDownListener(event){
@@ -144,5 +148,52 @@ class PaintMode extends ExecutionMode{
 
 	keyUpListener(event){
 
+    }
+
+    vrInputSourcesUpdated(xr_input){
+        let any_grab = false;
+        //console.log(xr_input);
+        for (let input_source of xr_input) {
+            if(input_source.grip_pose){
+                let grabbing = false; 
+                for(let button of input_source.buttons){
+                    grabbing = grabbing || button.pressed;
+                    if(button.pressed){
+                        console.log("scanmode saw button press!");
+                        console.log(button);
+                    }
+                }
+                for(let axis of input_source.axes){
+                    this.axis_total += axis ;
+                }
+            
+                any_grab = any_grab || grabbing ;
+                
+                // start of grab, fetch starting poses
+                if(grabbing && !this.grab_pose){
+                    this.grab_pose = mat4.create();
+                    this.grab_pose.set(input_source.grip_pose);
+                    this.grab_model_pose = mat4.create();
+                    this.grab_model_pose.set(this.model_pose) ;
+                    this.grab_axis_total = this.axis_total ;
+                }
+                
+                if(grabbing){
+                    let MP = mat4.create();
+                    let inv = mat4.create();
+                    mat4.invert(inv, this.grab_pose); // TODO cache at grab time
+                    mat4.multiply(MP,inv, MP);
+                    mat4.multiply(MP,input_source.grip_pose, MP);
+                    let scale = Math.pow(1.05, (this.axis_total - this.grab_axis_total)*0.3);
+                    mat4.scale(MP, MP,[scale,scale,scale]);
+                    mat4.multiply(this.model_pose, MP, this.grab_model_pose);
+                    break ; // don't check next controllers
+                }
+            }
+        }
+        if(!any_grab){// stopped grabbing, clear saved poses
+            this.grab_pose = null;
+            this.grab_model_pose = null;
+        }
     }
 }

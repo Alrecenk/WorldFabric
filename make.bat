@@ -19,7 +19,7 @@ set EXPORTED_FUNCTIONS=['_setPacketPointer',^
 '_malloc',^
 '_free']
 set EXPORTED_RUNTIME_METHODS=['ccall']
-set API_SRC=%API_DIR%source/Variant.cpp %API_DIR%source/TriangleMesh.cpp
+set API_SRC=%API_DIR%source/Variant.cpp %API_DIR%source/GLTF.cpp
 
 @echo on
 emcc -std=c++17 -g -s ALLOW_MEMORY_GROWTH=1 -O3 -s ASSERTIONS=1 -s EXPORT_NAME="initializeCPPAPI" -s MODULARIZE=1 -s MAXIMUM_MEMORY=4GB %API_DIR%source/api.cpp %API_SRC% --post-js %API_DIR%source/api_post.js -o %WASM_OUT%api.js %API_INC% -s "EXPORTED_FUNCTIONS=%EXPORTED_FUNCTIONS%" -s "EXPORTED_RUNTIME_METHODS=%EXPORTED_RUNTIME_METHODS%"

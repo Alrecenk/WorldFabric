@@ -6,12 +6,10 @@ class Renderer{
     camera_pos;
     mvMatrix = mat4.create(); // Model view matrix
     pMatrix = mat4.create();  // Perspective matrix
+    bgColor = [220,220,220];
 
-    meshes_per_batch = 200; // Number of meshes to put in each openGL buffer
     buffers = {} ; // current active mesh buffers maps id to object with position,color, and normal
-    buffer_batches = []; // array of maps from index to mesh buffer
-    changed_buffer = {}; // which batched buffers have changed sincde the last frame
-
+ 
     start_camera ; // A clone of the camera mvMatrix made when a camera operation starts
     action_focus = [0,0,0]; // the focal point of the current camera operation
     start_pointer ; // Mouse or touch pointers saved whena camera operation starts
@@ -20,6 +18,16 @@ class Renderer{
     xOrbitSpeed=-0.004;
     yOrbitSpeed=0.007;
     rotate_speed=0.01;
+
+    frame = 0 ;
+    last_time = new Date().getTime();
+    framerate = 0 ;
+
+    next_texture_id=2 ;
+
+    xr_input = [];
+    has_new_xr_input = false;
+
     
     // Performs the set-up for openGL canvas and shaders on construction
     constructor(webgl_canvas_id, ui_canvas_id , fragment_shader_id, vertex_shader_id, space_underneath_app){
@@ -32,25 +40,31 @@ class Renderer{
         
         this.initGL(canvas);
         this.initShaderProgram(fragment_shader_id, vertex_shader_id);
-        this.gl.clearColor(0.0, 0.0, 0.0, 1.0);
-        this.gl.enable(this.gl.DEPTH_TEST);
-        this.gl.enable(this.gl.CULL_FACE);
-        this.gl.cullFace(this.gl.BACK);
-        console.log(this.gl.getParameter(this.gl.VERSION));
-        console.log(this.gl.getParameter(this.gl.SHADING_LANGUAGE_VERSION));
-        console.log(this.gl.getParameter(this.gl.VENDOR));
-        this.gl.getExtension('OES_texture_float');
-        this.setLightPosition([0,0,250]);
+        let gl = this.gl ;
+        gl.clearColor(0.0, 0.0, 0.0, 1.0);
+        gl.enable(gl.DEPTH_TEST);
+        gl.enable(gl.CULL_FACE);
+        gl.cullFace(gl.BACK);
+        console.log(gl.getParameter(gl.VERSION));
+        console.log(gl.getParameter(gl.SHADING_LANGUAGE_VERSION));
+        console.log(gl.getParameter(gl.VENDOR));
+        gl.getExtension('OES_texture_float');
+        
 
-        mat4.perspective(this.pMatrix, 45, this.gl.viewportWidth / this.gl.viewportHeight, 0.1, 3000.0);
-        this.camera_pos = [20,20,20];
+        mat4.perspective(this.pMatrix, 45, gl.viewportWidth / gl.viewportHeight, 0.1, 3000.0);
+        this.camera_pos = [1,1,1];
         mat4.lookAt(this.mvMatrix, this.camera_pos, [0,0,0], [0,1,0] );
+
+        //console.log(gl);
+        this.setLightPosition([this.camera_pos[0], this.camera_pos[1] , this.camera_pos[2]]);
+
+        requestAnimationFrame(Renderer.onFrame); // Timer at 60 hertz.
     }
 
     // Initialize webGL on a canvas
     initGL(canvas){
         try {
-            this.gl = canvas.getContext("webgl2");
+            this.gl = canvas.getContext("webgl2",{ xrCompatible: true });
             this.gl.viewportWidth = canvas.width;
             this.gl.viewportHeight = canvas.height;
         } catch (e) {
@@ -93,48 +107,85 @@ class Renderer{
     }
 
     // Initialize shaders defined in html script elements into shaderProgram for webGL
-    //TODO this is matched to a specific simple sahder, should be generalized
     initShaderProgram(fragment_shader_id, vertex_shader_id) {
-        var fragmentShader = this.getShader(this.gl, fragment_shader_id);
-        var vertexShader = this.getShader(this.gl, vertex_shader_id);
+        let gl = this.gl ;
+        var fragmentShader = this.getShader(gl, fragment_shader_id);
+        var vertexShader = this.getShader(gl, vertex_shader_id);
 
-        this.shaderProgram = this.gl.createProgram();
-        this.gl.attachShader(this.shaderProgram, vertexShader);
-        this.gl.attachShader(this.shaderProgram, fragmentShader);
-        this.gl.linkProgram(this.shaderProgram);
+        this.shaderProgram = gl.createProgram();
+        gl.attachShader(this.shaderProgram, vertexShader);
+        gl.attachShader(this.shaderProgram, fragmentShader);
+        gl.linkProgram(this.shaderProgram);
 
-        if (!this.gl.getProgramParameter(this.shaderProgram, this.gl.LINK_STATUS)) {
+        if (!gl.getProgramParameter(this.shaderProgram, gl.LINK_STATUS)) {
             console.error("Could not initialize shaders!");
         }
 
-        this.gl.useProgram(this.shaderProgram);
-        this.shaderProgram.vertexPositionAttribute = this.gl.getAttribLocation(this.shaderProgram, "aVertexPosition");
-        this.gl.enableVertexAttribArray(this.shaderProgram.vertexPositionAttribute);
-        this.shaderProgram.vertexNormalAttribute = this.gl.getAttribLocation(this.shaderProgram, "aNormal");
-        this.gl.enableVertexAttribArray(this.shaderProgram.vertexNormalAttribute);
-        this.shaderProgram.vertexColorAttribute = this.gl.getAttribLocation(this.shaderProgram, "aVertexColor");
-        this.gl.enableVertexAttribArray(this.shaderProgram.vertexColorAttribute);
-        this.shaderProgram.pMatrixUniform = this.gl.getUniformLocation(this.shaderProgram, "uPMatrix");
-        this.shaderProgram.mvMatrixUniform = this.gl.getUniformLocation(this.shaderProgram, "uMVMatrix");
-        this.shaderProgram.light_point = this.gl.getUniformLocation(this.shaderProgram, "light_point");
+        gl.useProgram(this.shaderProgram);
+        this.shaderProgram.vertexPositionAttribute = gl.getAttribLocation(this.shaderProgram, "aVertexPosition");
+        gl.enableVertexAttribArray(this.shaderProgram.vertexPositionAttribute);
+        this.shaderProgram.vertexNormalAttribute = gl.getAttribLocation(this.shaderProgram, "aNormal");
+        gl.enableVertexAttribArray(this.shaderProgram.vertexNormalAttribute);
+        this.shaderProgram.vertexTexcoordAttribute = gl.getAttribLocation(this.shaderProgram, "aTexcoord");
+        gl.enableVertexAttribArray(this.shaderProgram.vertexTexcoordAttribute);
+        this.shaderProgram.vertexColorAttribute = gl.getAttribLocation(this.shaderProgram, "aVertexColor");
+        gl.enableVertexAttribArray(this.shaderProgram.vertexColorAttribute);
+        this.shaderProgram.jointsAttribute = gl.getAttribLocation(this.shaderProgram, "aJoints");
+        gl.enableVertexAttribArray(this.shaderProgram.jointsAttribute);
+        this.shaderProgram.weightsAttribute = gl.getAttribLocation(this.shaderProgram, "aWeights");
+        gl.enableVertexAttribArray(this.shaderProgram.weightsAttribute);
+        this.shaderProgram.pMatrixUniform = gl.getUniformLocation(this.shaderProgram, "uPMatrix");
+        this.shaderProgram.mvMatrixUniform = gl.getUniformLocation(this.shaderProgram, "uMVMatrix");
+        this.shaderProgram.light_point = gl.getUniformLocation(this.shaderProgram, "u_light_point");
+        this.shaderProgram.texture = gl.getUniformLocation(this.shaderProgram, "u_texture");
+        this.shaderProgram.bones_texture = gl.getUniformLocation(this.shaderProgram, "bones_texture");
+        this.shaderProgram.has_texture = gl.getUniformLocation(this.shaderProgram, "u_has_texture");
+        this.shaderProgram.alpha_cutoff = gl.getUniformLocation(this.shaderProgram, "u_alpha_cutoff");
     }
 
-    // Push current matrices to the shader
-    setMatrixUniforms() {
-        this.gl.uniformMatrix4fv(this.shaderProgram.pMatrixUniform, false, this.pMatrix);
-        this.gl.uniformMatrix4fv(this.shaderProgram.mvMatrixUniform, false, this.mvMatrix);
+    static onFrame(){
+
+        var r = tools.renderer ;
+        //Update FPS label
+        r.frame++;
+        if(r.frame >= 30){
+            var time = new Date().getTime();
+            r.framerate = (r.frame*1000/ (time-r.last_time));
+            r.last_time = time;
+            r.frame = 0 ;
+            if(tools.buttons["fps_label"]){ // TODO not really the responsibility of the general rendering
+                tools.buttons["fps_label"].text = "FPS:" + Math.round(r.framerate);
+            }
+        }
+        
+        var context = tools.canvas.getContext("2d");
+        context.clearRect(0, 0, context.canvas.width, context.canvas.height);
+        // Draw any buttons currently on the interface.
+        for (let button_name in tools.buttons) {
+            if (tools.buttons.hasOwnProperty(button_name)) {
+                tools.buttons[button_name].draw(context);
+            }
+        }
+
+        if(tools.current_mode){
+            let gl = r.gl ;
+            gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
+            gl.clearColor(r.bgColor[0]/255.0, r.bgColor[1]/255.0, r.bgColor[2]/255.0, 1.0);
+            gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+            gl.uniformMatrix4fv(r.shaderProgram.pMatrixUniform, false, r.pMatrix);
+            tools.current_mode.drawFrame(0);
+            gl.finish();
+        }
+        if(!r.xr_session){ // Stop drawing regular frames when VR sessions is entered
+            requestAnimationFrame(Renderer.onFrame);
+        }
     }
 
-    // Clear the viewport
-    clearViewport(){
-        this.gl.viewport(0, 0, this.gl.viewportWidth, this.gl.viewportHeight);
-        this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT);
-    }
 
     // Returns the point at which the ray through the centero fthe screen intersects the ground
     getCameraFocus(ground_height){
         // Get a ray through the center of the screen
-        let ray = this.getRay([this.gl.viewportWidth*0.5, this.gl.viewportHeight*0.5]) ;
+        let ray = this.getRay([gl.viewportWidth*0.5, gl.viewportHeight*0.5]) ;
         //intersect it with the ground
         return Renderer.getGroundIntersect(ray, ground_height) ;
     }
@@ -187,6 +238,9 @@ class Renderer{
         this.start_position = [this.camera_pos[0], this.camera_pos[1], this.camera_pos[2]] ;
         this.start_pointer = pointer ;
         this.start_camera = mat4.clone(this.mvMatrix);
+
+        this.setLightPosition([this.camera_pos[0], this.camera_pos[1] , this.camera_pos[2]]);
+
     }
 
     moveCamera(move){
@@ -197,6 +251,9 @@ class Renderer{
     }
 
     setZoom(zoom, ground_height){
+        if(!ground_height){
+            ground_height = this.action_focus[1] ;
+        }
         // Send a ray through the center of the screen
         let ray = this.getRay([this.gl.viewportWidth*0.5, this.gl.viewportHeight*0.5]) ;
         //intersect it with the ground then back up by zoom
@@ -217,21 +274,7 @@ class Renderer{
     //TODO very shader specific, not a fan, needed it to migrate old code
     setLightPosition(light_point){
         this.gl.uniform3fv(this.shaderProgram.light_point, light_point);
-    }
-
-    drawMeshes(){
-        this.setMatrixUniforms();
-        for(let id in this.buffers){
-            if(this.changed_buffer[id]){
-                this.prepareBatchBuffer(id);
-                this.changed_buffer[id] = false;
-            }
-            this.drawModel(this.buffers[id]);
-        }
-    }
-
-    finishFrame(){
-        this.gl.finish();
+        this.light_point = light_point ;
     }
 
     // Given a 3D point return the point on the canvas it would be on
@@ -246,7 +289,7 @@ class Renderer{
             np[0]/=np[3];
             np[1]/=np[3];
             np[2]/=np[3];
-            return [(np[0]+1) * this.gl.viewportWidth * 0.5, (-np[1]+1) * this.gl.viewportHeight * 0.5];
+            return [(np[0]+1) * gl.viewportWidth * 0.5, (-np[1]+1) * gl.viewportHeight * 0.5];
         }
     }
 
@@ -276,14 +319,24 @@ class Renderer{
         return {p:pos,v:v};
     }
 
+    clearBuffers(){
+        this.buffers = {} ;
+        //TODO delete textures?
+    }
+
     // Binds a webGl buffer to the buffer data provided and puts it in buffers[id]
-    //TODO make more general for different shaders
     prepareBuffer(id, buffer_data){
+        let gl = tools.renderer.gl ;
         if(!(id in this.buffers)){ // New buffer
             this.buffers[id] = {};
-            this.buffers[id].position = this.gl.createBuffer();
-            this.buffers[id].color = this.gl.createBuffer();
-            this.buffers[id].normal = this.gl.createBuffer();
+            this.buffers[id].position = gl.createBuffer();
+            this.buffers[id].color = gl.createBuffer();
+            this.buffers[id].normal = gl.createBuffer();
+            this.buffers[id].tex_coord = gl.createBuffer();
+            this.buffers[id].texture_id = -1;
+            this.buffers[id].double_sided = 0 ;
+            this.buffers[id].joints = gl.createBuffer();
+            this.buffers[id].weights= gl.createBuffer();
         }
         let num_vertices = buffer_data.vertices ;
         if(num_vertices == 0){
@@ -291,42 +344,326 @@ class Renderer{
             return ;
         }
         if(buffer_data.position){
-            this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffers[id].position );
-            this.gl.bufferData(this.gl.ARRAY_BUFFER, buffer_data.position, this.gl.STATIC_DRAW);
+            gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers[id].position );
+            gl.bufferData(gl.ARRAY_BUFFER, buffer_data.position, gl.STATIC_DRAW);
             this.buffers[id].position.itemSize = 3;
             this.buffers[id].position.numItems = num_vertices;
         }
 
         if(buffer_data.color){
-            this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffers[id].color );
-            this.gl.bufferData(this.gl.ARRAY_BUFFER, buffer_data.color, this.gl.STATIC_DRAW);
-            this.buffers[id].color.itemSize = 3;
+            gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers[id].color );
+            gl.bufferData(gl.ARRAY_BUFFER, buffer_data.color, gl.STATIC_DRAW);
+            this.buffers[id].color.itemSize = 4;
             this.buffers[id].color.numItems = num_vertices;
         }
 
         if(buffer_data.normal){
-            this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffers[id].normal );
-            this.gl.bufferData(this.gl.ARRAY_BUFFER, buffer_data.normal, this.gl.STATIC_DRAW);
+            gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers[id].normal );
+            gl.bufferData(gl.ARRAY_BUFFER, buffer_data.normal, gl.STATIC_DRAW);
             this.buffers[id].normal.itemSize = 3;
             this.buffers[id].normal.numItems = num_vertices;
         }
 
+        if(buffer_data.tex_coord){
+            gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers[id].tex_coord );
+            gl.bufferData(gl.ARRAY_BUFFER, buffer_data.tex_coord, gl.STATIC_DRAW);
+            this.buffers[id].tex_coord.itemSize = 2;
+            this.buffers[id].tex_coord.numItems = num_vertices;
+        }
+
+        if(buffer_data.weights){
+            gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers[id].weights );
+            gl.bufferData(gl.ARRAY_BUFFER, buffer_data.weights, gl.STATIC_DRAW);
+            this.buffers[id].weights.itemSize = 4;
+            this.buffers[id].weights.numItems = num_vertices;
+        }
+
+        if(buffer_data.joints){
+            
+            gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers[id].joints );
+            gl.bufferData(gl.ARRAY_BUFFER, buffer_data.joints, gl.STATIC_DRAW);
+            this.buffers[id].joints.itemSize = 4;
+            this.buffers[id].joints.numItems = num_vertices;
+        }
+
+        if(buffer_data.material){
+            //console.log("Javascript preparebuffer got material:\n");
+            let mat = buffer_data.material ;
+            //console.log(mat);
+            this.buffers[id].double_sided = (mat.double_sided == 1) ;
+            if(mat.has_texture == 1){
+                this.buffers[id].texture = gl.createTexture();
+                gl.bindTexture(gl.TEXTURE_2D, this.buffers[id].texture);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+
+                if(mat.image_channels == 3){
+                    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, 
+                        mat.image_width, mat.image_height, 
+                        0, gl.RGB, gl.UNSIGNED_BYTE, mat.image_data);
+                }else if(mat.image_channels == 4){
+                    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 
+                        mat.image_width, mat.image_height, 
+                        0, gl.RGBA, gl.UNSIGNED_BYTE, mat.image_data);
+                }else{
+                    console.log("Failed to load texture because of number of channels (" + mat.image_channels +")");
+                }
+
+
+                //console.log(buffer_data.materials);
+                this.buffers[id].texture_id = this.next_texture_id; // TODO would conflict if more than one gltf at a time
+                this.next_texture_id++;
+                //console.log("binding Texture id: " + this.buffers[id].texture_id + " \n");
+                gl.activeTexture(gl.TEXTURE0 + this.buffers[id].texture_id );
+                gl.bindTexture(gl.TEXTURE_2D, this.buffers[id].texture );
+                gl.uniform1i(this.shaderProgram.texture, this.buffers[id].texture_id );
+                
+            }
+        }
+
+        this.buffers[id].bones = buffer_data.bones ;
         this.buffers[id].ready = true;
     }
 
-    drawModel(buffer){
+    drawModel(buffer, bones = null){
+        //console.log(buffer);
+        let gl = this.gl ;
         if(buffer.ready){
             let position_buffer = buffer.position;
             let color_buffer = buffer.color;
             let normal_buffer = buffer.normal;
-            this.gl.bindBuffer(this.gl.ARRAY_BUFFER, position_buffer);
-            this.gl.vertexAttribPointer(this.shaderProgram.vertexPositionAttribute, position_buffer.itemSize, this.gl.FLOAT, false, 0, 0);
-            this.gl.bindBuffer(this.gl.ARRAY_BUFFER, normal_buffer);
-            this.gl.vertexAttribPointer(this.shaderProgram.vertexNormalAttribute, normal_buffer.itemSize, this.gl.FLOAT, false, 0, 0);
-            this.gl.bindBuffer(this.gl.ARRAY_BUFFER, color_buffer);
-            this.gl.vertexAttribPointer(this.shaderProgram.vertexColorAttribute, color_buffer.itemSize, this.gl.FLOAT, false, 0, 0);
-            this.gl.drawArrays(this.gl.TRIANGLES, 0, position_buffer.numItems);
+            let tex_coord_buffer = buffer.tex_coord;
+            let joints_buffer = buffer.joints;
+            let weights_buffer = buffer.weights;
+            gl.bindBuffer(gl.ARRAY_BUFFER, position_buffer);
+            gl.vertexAttribPointer(this.shaderProgram.vertexPositionAttribute, position_buffer.itemSize, gl.FLOAT, false, 0, 0);
+            gl.bindBuffer(gl.ARRAY_BUFFER, normal_buffer);
+            gl.vertexAttribPointer(this.shaderProgram.vertexNormalAttribute, normal_buffer.itemSize, gl.FLOAT, false, 0, 0);
+            gl.bindBuffer(gl.ARRAY_BUFFER, tex_coord_buffer);
+            gl.vertexAttribPointer(this.shaderProgram.vertexTexcoordAttribute, tex_coord_buffer.itemSize, gl.FLOAT, false, 0, 0);
+            gl.bindBuffer(gl.ARRAY_BUFFER, color_buffer);
+            gl.vertexAttribPointer(this.shaderProgram.vertexColorAttribute, color_buffer.itemSize, gl.FLOAT, false, 0, 0);
+            gl.bindBuffer(gl.ARRAY_BUFFER, joints_buffer);
+            gl.vertexAttribPointer(this.shaderProgram.jointsAttribute, joints_buffer.itemSize, gl.FLOAT, false, 0, 0);
+            gl.bindBuffer(gl.ARRAY_BUFFER, weights_buffer);
+            gl.vertexAttribPointer(this.shaderProgram.weightsAttribute, weights_buffer.itemSize, gl.FLOAT, false, 0, 0);
+
+            if(!bones){
+                bones = buffer.bones ;
+            }
+            if(bones){
+                var bone_tex = gl.createTexture();
+                gl.bindTexture(gl.TEXTURE_2D, bone_tex);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+                
+                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, 32, 32, 0, gl.RGBA, gl.FLOAT, bones);
+    
+                gl.activeTexture(gl.TEXTURE0 + 1);
+                gl.bindTexture(gl.TEXTURE_2D, bone_tex);
+                gl.uniform1i(this.shaderProgram.bones_texture, 1);
+            }
+
+            if(buffer.texture_id >= 0){
+                //console.log("Drawing texture for index " + (buffer.texture_id) +"\n");
+                gl.activeTexture(gl.TEXTURE0 + buffer.texture_id );
+                gl.bindTexture(gl.TEXTURE_2D, buffer.texture );
+                gl.uniform1i(this.shaderProgram.texture, buffer.texture_id );
+
+                gl.uniform1i(this.shaderProgram.has_texture, 1 );
+            }else{
+                //console.log("No texture for index " + (buffer.texture_id+2) +"\n");
+                gl.uniform1i(this.shaderProgram.has_texture, 0 );
+            }
+
+            gl.uniform1f(this.shaderProgram.alpha_cutoff, 0.5 );
+
+            if(buffer.double_sided){
+                gl.disable(gl.CULL_FACE);
+            }else{
+                gl.enable(gl.CULL_FACE);
+            }
+
+            gl.drawArrays(gl.TRIANGLES, 0, position_buffer.numItems);
         }
     }
 
+    drawMesh(mesh_name, transform = null, bones = null){
+        if(!transform){
+            transform = mat4.create();
+            mat4.identity(transform);
+        }
+        let M = mat4.create();
+        mat4.multiply(M,this.mvMatrix, transform);
+        this.gl.uniformMatrix4fv(this.shaderProgram.mvMatrixUniform, false, M);
+        for(let buffer_name in this.buffers){
+            //console.log(buffer_name);
+            //console.log(buffer_name.substring(0,mesh_name.length));
+            if(buffer_name.substring(0,mesh_name.length) == mesh_name){
+                this.drawModel(this.buffers[buffer_name],bones);
+            }
+        }
+    }
+
+    setMeshDoubleSided(mesh_name, double_sided){
+        for(let buffer_name in this.buffers){
+            if(buffer_name.substring(0,mesh_name.length) == mesh_name){
+                this.buffers[buffer_name].double_sided = double_sided
+            }
+        }
+    }
+
+    startXRSession(){
+        if(tools.renderer.xr_session == null && !this.started_vr){
+            this.started_vr = true ;
+            navigator.xr.requestSession('immersive-vr').then(tools.renderer.onXRSessionStarted);
+        }
+    }
+
+    onXRSessionStarted(session){
+        console.log("XR session started.");
+        if(tools.renderer.xr_session != null){ // prevent more than one Xr session at once
+            tools.renderer.xr_session.end().then(tools.renderer.onXRSessionEnded);
+        }
+
+        tools.renderer.xr_session = session;
+
+        //xrButton.textContent = 'Exit VR';
+
+        // Listen for the sessions 'end' event so we can respond if the user
+        // or UA ends the session for any reason.
+        session.addEventListener('end', tools.renderer.onXRSessionEnded);
+
+        // Create a WebGL context to render with, initialized to be compatible
+        // with the XRDisplay we're presenting to.
+        //let canvas = document.createElement('canvas');
+        //gl = canvas.getContext('webgl2', { xrCompatible: true });
+
+        // Use the new WebGL context to create a XRWebGLLayer and set it as the
+        // sessions baseLayer. This allows any content rendered to the layer to
+        // be displayed on the XRDevice.
+        session.updateRenderState({ baseLayer: new XRWebGLLayer(session, tools.renderer.gl) });
+
+        // Initialize the shaders
+        //initShaderProgram(gl, "shader-fs", "shader-vs");
+
+        // Get a reference space, which is required for querying poses. In this
+        // case an 'local' reference space means that all poses will be relative
+        // to the location where the XRDevice was first detected.
+        session.requestReferenceSpace('local').then((refSpace) => {
+            tools.renderer.xr_ref_space = refSpace;
+
+            // Inform the session that we're ready to begin drawing.
+            session.requestAnimationFrame(tools.renderer.onXRFrame);
+        });
+    }
+
+      // Called either when the user has explicitly ended the session by calling
+      // session.end() or when the UA has ended the session for any reason.
+      // At this point the session object is no longer usable and should be
+      // discarded.
+    onXRSessionEnded(event) {
+        tools.renderer.xr_session = null;
+        console.log("XR session ended.");
+        //requestAnimationFrame(Renderer.onFrame); // turn canvas rendering back on
+    }
+
+
+      // Called every time the XRSession requests that a new frame be drawn.
+    onXRFrame(time, frame) {
+        tools.xr_frame = frame;
+        
+        // console.log(time);
+        let session = frame.session;
+
+        // Inform the session that we're ready for the next frame.
+        if(tools.renderer.xr_session != null){
+
+            if(tools.renderer.xr_session.visibilityState == "hidden"){
+                // Kill the session if a user minimizes it (we can always make a new session, 
+                // but we don't want old ones piling up oif not properly closed)
+                tools.renderer.xr_session.end().then(tools.renderer.onXRSessionEnded);
+            }else{
+                session.requestAnimationFrame(tools.renderer.onXRFrame);
+            }
+        }else{
+            console.log("No xr sessions, not requesting frame");
+        }
+        let gl = tools.renderer.gl ;
+
+        // Get the XRDevice pose relative to the reference space we created
+        // earlier.
+        tools.renderer.head_pose = frame.getViewerPose(tools.renderer.xr_ref_space);
+
+        // Getting the pose may fail if, for example, tracking is lost. So we
+        // have to check to make sure that we got a valid pose before attempting
+        // to render with it. If not in this case we'll just leave the
+        // framebuffer cleared, so tracking loss means the scene will simply
+        // disappear.
+        if(tools.renderer.head_pose) {
+            let glLayer = frame.session.renderState.baseLayer;
+
+            // If we do have a valid pose, bind the WebGL layer's framebuffer,
+            // which is where any content to be displayed on the XRDevice must be
+            // rendered.
+            gl.bindFramebuffer(gl.FRAMEBUFFER, glLayer.framebuffer); // TODO do we need to do this every frame?
+
+            // Clear the framebuffer
+            gl.clearColor(tools.renderer.bgColor[0]/255.0, tools.renderer.bgColor[1]/255.0, tools.renderer.bgColor[2]/255.0, 1.0);
+            gl.enable(gl.DEPTH_TEST);
+            gl.enable(gl.CULL_FACE);
+            gl.cullFace(gl.BACK);
+            gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+            
+            let frame_id = 0 ;
+            for (let view of tools.renderer.head_pose.views) {
+                let viewport = glLayer.getViewport(view);
+                gl.viewport(viewport.x, viewport.y,
+                            viewport.width, viewport.height);
+
+                gl.uniformMatrix4fv(tools.renderer.shaderProgram.pMatrixUniform, false, view.projectionMatrix);
+
+                tools.renderer.mvMatrix = view.transform.inverse.matrix ;
+                tools.current_mode.drawFrame(frame_id);
+
+                frame_id++;
+            }
+
+            //Send VR controller data to the execution mode
+            tools.renderer.captureXRInput(frame.session.inputSources, frame);
+            //tools.current_mode.vrInputSourcesUpdated(frame.session.inputSources, frame);
+        }
+    }
+
+    captureXRInput(input_sources, frame){
+        tools.renderer.xr_input = [];
+        for (let inputSource of input_sources) {
+            let this_input = {};
+            let ray_pose = frame.getPose(inputSource.targetRaySpace, tools.renderer.xr_ref_space);
+            if(ray_pose && inputSource.gripSpace){
+                this_input.ray_pose = ray_pose.transform.matrix;
+                if(inputSource.gamepad){
+                    this_input.buttons=[];
+                    for(let button of inputSource.gamepad.buttons){
+                        this_input.buttons.push({pressed:button.pressed, touched:button.touched, value:button.value});
+                    }
+                    
+                    this_input.axes = [];
+                    for(let axis of inputSource.gamepad.axes){
+                        this_input.axes.push(axis);
+                    }
+                }
+                
+                
+                this_input.grip_pose = frame.getPose(inputSource.gripSpace, tools.renderer.xr_ref_space).transform.matrix;
+                tools.renderer.xr_input.push(this_input);
+            }
+        }
+
+        tools.renderer.has_new_xr_input = true;
+    }
 }

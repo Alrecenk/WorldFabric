@@ -1,6 +1,6 @@
 <html>
 <head>
-<title>Web Assembly Template</title>
+<title>GLB+VRM viewer</title>
 <meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1">
 <style>
@@ -26,24 +26,28 @@ body {
 </style>
 
 <script type="text/javascript" src="gl-matrix-min.js"></script>
-<script type="text/javascript" src="webgl-utils.js"></script>
 <script type="text/javascript" src="Renderer.js"></script>
 <script type="text/javascript" src="InterfaceButton.js"></script>
 <script type="text/javascript" src="ExecutionMode.js"></script>
 <script type="text/javascript" src="generated/api.js"></script>
 <script type="text/javascript" src="Serializer.js"></script>
-<script type="text/javascript" src="PaintMode.js"></script>
-<script type="text/javascript" src="CameraMode.js"></script>
+<script type="text/javascript" src="ScanMode.js"></script>
+<script type="text/javascript" src="PoseMode.js"></script>
+<script type="text/javascript" src="AvatarMode.js"></script>
 
 <script id="shader-fs" type="x-shader/x-fragment">#version 300 es
     // A simple fragment shader with a single point light
     precision mediump float;
 
-    in vec3 v_color;
+    in vec4 v_color;
 	in vec3 v_position;
 	in vec3 v_normal;
+    in vec2 v_texcoord;
 	
-	uniform vec3 light_point;
+	uniform vec3 u_light_point;
+    uniform sampler2D u_texture;
+    uniform int u_has_texture ;
+    uniform float u_alpha_cutoff ;
 	
 	out vec4 frag_color;
 
@@ -54,33 +58,84 @@ body {
 	}
 	
     void main(void) {
-		vec3 light_ray = v_position - light_point;
-		float direct = lightFrom(light_point) ;
+		float direct = lightFrom(u_light_point) ;
 		float indirect = 1.;
-		float l = 0.3*indirect + 0.7 * direct ; // Add some ambient light
-		frag_color = vec4(v_color*l ,1.0);	// Scale the color by the lighting
-		
+		float l = 0.5*indirect + 0.5 * direct ; // Add some ambient light
+        frag_color = vec4(l *v_color.r ,l * v_color.g,l*v_color.b , v_color.a) ;
+        if(u_has_texture > 0){
+            vec4 t_color = texture(u_texture, v_texcoord);
+            frag_color.r *= t_color.r ;
+            frag_color.g *= t_color.g ;
+            frag_color.b *= t_color.b ;
+            frag_color.a *= t_color.a ;
+        }
+
+        if(frag_color.a < u_alpha_cutoff){
+            discard ;
+        }		
     }
 </script>
 
 <script id="shader-vs" type="x-shader/x-vertex">#version 300 es
     // A Very simple passthrough vertex shader
 	in vec3 aVertexPosition;
-    in vec3 aVertexColor;
+    in vec4 aVertexColor;
 	in vec3 aNormal;
+    in vec2 aTexcoord;
+    in vec4 aJoints;
+    in vec4 aWeights;
 
     uniform mat4 uMVMatrix;
     uniform mat4 uPMatrix;
+    uniform sampler2D bones_texture;
 
-    out vec3 v_color;
+    out vec4 v_color;
 	out vec3 v_position;
 	out vec3 v_normal;
+    out vec2 v_texcoord;
+
+    vec4 getBoneElem(int index){
+        int y = index/32;
+		int x = index - (y*32) ;
+		return texelFetch(bones_texture, ivec2(x, y), 0);
+	}
+
+    mat4 getBone(float index){
+        int i = int(round(index));
+        mat4 bone ;
+        bone[0] = getBoneElem(4*i);
+        bone[1] = getBoneElem(4*i+1);
+        bone[2] = getBoneElem(4*i+2);
+        bone[3] = getBoneElem(4*i+3);
+        return bone ;
+    }
 
     void main(void) {
-        gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);
+        vec4 x = vec4(aVertexPosition, 1) ;
+
+        v_position = vec3(getBone(aJoints[0]) * x * aWeights[0] + 
+                        getBone(aJoints[1]) * x * aWeights[1] + 
+                        getBone(aJoints[2]) * x * aWeights[2] + 
+                        getBone(aJoints[3]) * x * aWeights[3] );
+
+        vec4 n = vec4(aNormal,0);
+
+        v_normal = vec3(getBone(aJoints[0]) * n * aWeights[0] + 
+                        getBone(aJoints[1]) * n * aWeights[1] + 
+                        getBone(aJoints[2]) * n * aWeights[2] + 
+                        getBone(aJoints[3]) * n * aWeights[3] );
+
+        v_normal = normalize(v_normal);               
         v_color = aVertexColor;
-		v_position = aVertexPosition; 
-		v_normal = aNormal;
+        if(length(v_position) < 0.01f){
+            v_position = aVertexPosition;
+            v_color = vec4(1.0,0.0,0.0, 1.0);            
+        }
+
+		//v_position = aVertexPosition; 
+		//v_normal = aNormal;
+        v_texcoord = aTexcoord;
+        gl_Position = uPMatrix * uMVMatrix * vec4(v_position, 1.0);
     }
 </script>
 
@@ -88,12 +143,7 @@ body {
 "use strict";
 const url_params = new URLSearchParams(window.location.search) ;
 var app; // The main app running on the CAD canvas
-var renderer ; // WebGl mesh_ renderer (mostly wraps C++ buffers)
-var current_mode ; // current execution mode
-var active_design_id = url_params.get("design") ? url_params.get("design") : "main";
 var imports = url_params.get("import") ? url_params.get("import").split(',') : [];
-//tools.sync_link = null; // SyncClient that runs the live synchronization socket interaction
-var buttons = {} ; // The canvas buttons on the UI canvas on top of the webGL canvas
 
 var tools  ; // a map containing several things above so execution modes can access them
 
@@ -105,9 +155,6 @@ function canvasApp() {
 
     var mouse_x, mouse_y, mouse_down_x, mouse_down_y ;
 
-    var last_time = new Date().getTime();
-	var frame = 0;
-	var framerate = 0;
 
 	function init() {
         // Add event listeners to the canvas or window as appropriate
@@ -125,58 +172,39 @@ function canvasApp() {
 		document.addEventListener("touchend", touchHandler, true);
 		document.addEventListener("touchcancel", touchHandler, true);
 
-		requestAnimationFrame(timeListener); // Timer at 60 hertz.
+
+        //document.addEventListener('pointermove', pointerMove, true) ;
+            
+	
+        window.setInterval(timeListener, 1000.0/120.0);
 	}
 
-    function draw() {
-
-        //Update FPS label
-        frame++;
-		if(frame >= 30){
-			var time = new Date().getTime();
-			framerate = (frame*1000/ (time-last_time));
-			last_time = time;
-			frame = 0 ;
-            buttons["fps_label"].text = "FPS:" + Math.round(framerate);
-        }
-        
-
-        context.clearRect(0, 0, context.canvas.width, context.canvas.height);
-        // Draw any buttons currently on the interface.
-		for (let button_name in buttons) {
-	        if (buttons.hasOwnProperty(button_name)) { // TODO is this really required?
-	        	buttons[button_name].draw(context);
-	        }
-        }
-
-        if(current_mode!=null){
-            current_mode.draw();
-        }
-}
-
     function timeListener(){
-        if(current_mode!=null){
-            current_mode.timer();
+        if(tools.current_mode!=null){
+            if(tools.renderer.has_new_xr_input){
+                tools.current_mode.vrInputSourcesUpdated(tools.renderer.xr_input);
+                tools.renderer.has_new_xr_input = false;
+            }
+            tools.current_mode.timer();
+            
         }
-        draw();
-        requestAnimationFrame(timeListener);
     }
 
 	function keyDownListener(evt) {
-        if(current_mode!=null){
-            current_mode.keyDownListener(evt);
+        if(tools.current_mode!=null){
+            tools.current_mode.keyDownListener(evt);
         }
 	}
 
 	function keyUpListener(evt) {
-        if(current_mode!=null){
-            current_mode.keyUpListener(evt);
+        if(tools.current_mode!=null){
+            tools.current_mode.keyUpListener(evt);
         }
     }
 
     // Map touchevents
 	function touchHandler(event){
-		event.preventDefault();
+		//event.preventDefault();
 		var touches = event.touches;
 		var pointers = [];
 		for(let k=0;k<touches.length;k++){
@@ -207,32 +235,39 @@ function canvasApp() {
 		pointerUp([]); // On mouse up there are no pointers down
 	}
 
+ 
+
 	function pointerDown(pointers) {
+
+        if(tools.renderer.xr_session != null){ // Kill XR session if interacting with canvas
+            tools.renderer.xr_session.end().then(tools.renderer.onXRSessionEnded);
+        }
+
 		mouse_down_x = pointers[0].x;
         mouse_down_y = pointers[0].y;
 
         // Buttons are executed in mouse up, this just prevents calling underlying mode when clicking a button.
         let pressed_button = false;
-        for (let button_name in buttons) {
-            if (buttons.hasOwnProperty(button_name)) {
-                var b = buttons[button_name];
+        for (let button_name in tools.buttons) {
+            if (tools.buttons.hasOwnProperty(button_name)) {
+                var b = tools.buttons[button_name];
                 if( b.inside(mouse_down_x, mouse_down_y)){
                     pressed_button = true;
                 }
             }
         }
 
-        if(current_mode!=null && !pressed_button){
-            current_mode.pointerDown(pointers);
+        if(tools.current_mode!=null && !pressed_button){
+            tools.current_mode.pointerDown(pointers);
         }
 	}
 
 	function pointerUp(pointers) {
         // Execute buttons if it was clicked (mouse down and up on it)
         let pressed_button = false;
-        for (let button_name in buttons) {
-            if (buttons.hasOwnProperty(button_name)) {
-                var b = buttons[button_name];
+        for (let button_name in tools.buttons) {
+            if (tools.buttons.hasOwnProperty(button_name)) {
+                var b = tools.buttons[button_name];
                 if(b.inside(mouse_x, mouse_y) && b.inside(mouse_down_x, mouse_down_y)){
                     b.execute();
                     pressed_button = true;
@@ -240,22 +275,26 @@ function canvasApp() {
             }
         }
 
-       if(current_mode!=null && !pressed_button){
-            current_mode.pointerUp(pointers);
+        if(tools.current_mode!=null && !pressed_button){
+            tools.current_mode.pointerUp(pointers);
         }
 	}
 
 	function pointerMove(pointers) {
+        if(pointers.x){ // not an array, must be a real pointer event
+            pointers.preventDefault()
+            pointers = [{x:pointers.x,y:pointers.y}];
+        }
         mouse_x = pointers[0].x;
 		mouse_y = pointers[0].y;
-        if(current_mode!=null){
-            current_mode.pointerMove(pointers);
+        if(tools.current_mode!=null){
+            tools.current_mode.pointerMove(pointers);
         }
     }
 
 	function mouseWheelListener(evt){
-        if(current_mode!=null){
-            current_mode.mouseWheelListener(evt);
+        if(tools.current_mode!=null){
+            tools.current_mode.mouseWheelListener(evt);
         }
 	}
 
@@ -266,40 +305,44 @@ function canvasApp() {
 
 // Switch main execution mode (expects mode to be an ExecutionMode)
 function switchExecutionMode(next_mode){
-    if(current_mode != null){
-        current_mode.exit(next_mode);
+    if(tools.current_mode != null){
+        tools.current_mode.exit(next_mode);
     }
-    var last_mode = current_mode ;
-    current_mode = next_mode ;
+    var last_mode = tools.current_mode ;
+    tools.current_mode = next_mode ;
     next_mode.enter(last_mode);
+
 }
 
 
 function initializeModes(){
     tools.modes = {} ;
-    tools.modes.paint_mode = new PaintMode(tools);
-    tools.modes.camera_mode = new CameraMode(tools);
-    switchExecutionMode(tools.modes.paint_mode) ;
+    tools.modes.scan_mode = new ScanMode(tools);
+    tools.modes.pose_mode = new PoseMode(tools);
+    tools.modes.avatar_mode = new AvatarMode(tools);
+    switchExecutionMode(tools.modes.scan_mode) ;
 }
 
 function setMainMenuButtons(){
-    buttons = {};
-    buttons["fps_label"] = new InterfaceButton(tools.canvas.width-80, 10, 80, 40, "FPS:?", 20, "#FFFFFF", "#000000", "#000000", 3, null);
-    buttons["Paint Mode"] = new InterfaceButton(5, 10, 100, 30, "Paint", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, () => {switchExecutionMode(tools.modes.paint_mode);});
-    buttons["Camera Mode"] = new InterfaceButton(105, 10, 100, 30, "Camera", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, () => {switchExecutionMode(tools.modes.camera_mode);});
-    tools.buttons = buttons ;
+    tools.buttons = {};
+    tools.buttons["fps_label"] = new InterfaceButton(tools.canvas.width-80, 10, 80, 40, "FPS:?", 20, "#FFFFFF", "#000000", "#000000", 3, null);
+    tools.buttons["enter_vr"] = new InterfaceButton(5, 10, 200, 40, "Enter VR", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, () => {tools.renderer.startXRSession();});
+    tools.buttons["next_animation"] = new InterfaceButton(5, 55, 200, 40, "Next Animation", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, () => {tools.API.call("nextAnimation");});
+    
+    tools.buttons["scan_mode"] = new InterfaceButton(5, 100, 200, 40, "View Mode", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, () => {switchExecutionMode(tools.modes.scan_mode) ;});
+    tools.buttons["pose_mode"] = new InterfaceButton(5, 145, 200, 40, "Pose Mode", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, () => {switchExecutionMode(tools.modes.pose_mode) ;});
+    tools.buttons["avatar_mode"] = new InterfaceButton(5, 190, 200, 40, "Avatar Mode", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, () => {switchExecutionMode(tools.modes.avatar_mode) ;});
+
 }
 
 function onBodyLoad(){
-    renderer = new Renderer("webgl", "ui", "shader-fs", "shader-vs", 100);
     tools = {};
-    tools.renderer = renderer;
+    tools.renderer = new Renderer("webgl", "ui", "shader-fs", "shader-vs", 100);
     tools.canvas = document.getElementById("ui"); ;
 
     // Wait for the WASM module to finish loading before booting up the socket and app
     window.initializeCPPAPI().then(function(Module){
         tools.API = Module ;
-        changeColor();
         tools.new_file = false;
         tools.brush_size = 1 ;
         app = canvasApp(); // Start the app
@@ -308,29 +351,21 @@ function onBodyLoad(){
     });
 }
 
-
-function changeColor(){
-    tools.paint_color = [Math.random(),Math.random(), Math.random()];
-    document.getElementById("range_size").style.background = "rgb(" + Math.floor(tools.paint_color[0]*255) +", " 
-    + Math.floor(tools.paint_color[1]*255) +", "+ Math.floor(tools.paint_color[2]*255) +")";
-}
-
-
-function loadSTLFile() {
-    var model_height = 40; // Model will be scaled to be this many millimeters tall
-	var file    = document.getElementById('loader').files[0];
+function loadGLBFile() {
+    var file    = document.getElementById('loader').files[0];
 	var reader  = new FileReader();
 	reader.onloadend = function () {
-        let load_data = reader.result;
+        let load_data = new Int8Array(reader.result);
+        //console.log(reader.result);
         if(load_data!= null){
             let params = {};
-            params.text = load_data;
-            params.model_size = 40.00001;
-            tools.API.call("setModel", params, new Serializer());
+            params.data = load_data;
+            let m = tools.API.call("setModel", params, new Serializer()) ;
         }
     }
+
 	if (file) {
-		reader.readAsText(file);
+		reader.readAsArrayBuffer(file);
 	} else {
 		console.log("Failed to read file");
 	}
@@ -344,9 +379,7 @@ function loadSTLFile() {
 	<canvas id="webgl" style="border: none;" width="1024" height="720" oncontextmenu="return false;"></canvas>
 	</div>
     <p align="center">
-        <input id="loader" type="file" onchange='loadSTLFile()' autocomplete="off">
-        <button onclick="changeColor()">Change Color</button>
-        Size: <input type="range" name="brush_size" id="range_size" value="20" min="1" max="100" oninput="tools.brush_size = range_size.value/20.0">
-    </p>
+        <input id="loader" type="file" onchange='loadGLBFile()' autocomplete="off">
+        </p>
 </body>
 </html>
