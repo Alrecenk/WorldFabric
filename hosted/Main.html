@@ -1,0 +1,352 @@
+<html>
+<head>
+<title>Web Assembly Template</title>
+<meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1">
+<style>
+.container {
+    position: relative;
+    overflow: hidden;
+}
+#ui {
+    background-color: transparent;  /* set 2D canvas to overlap webgl canvas and be transparent*/
+    position: absolute;
+    left: 0px;
+    top: 0px;
+    z-index: 10;
+    overflow: hidden;
+}
+
+body {
+  position: relative;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+</style>
+
+<script type="text/javascript" src="gl-matrix-min.js"></script>
+<script type="text/javascript" src="webgl-utils.js"></script>
+<script type="text/javascript" src="Renderer.js"></script>
+<script type="text/javascript" src="InterfaceButton.js"></script>
+<script type="text/javascript" src="ExecutionMode.js"></script>
+<script type="text/javascript" src="generated/api.js"></script>
+<script type="text/javascript" src="Serializer.js"></script>
+<script type="text/javascript" src="PaintMode.js"></script>
+<script type="text/javascript" src="CameraMode.js"></script>
+
+<script id="shader-fs" type="x-shader/x-fragment">#version 300 es
+    // A simple fragment shader with a single point light
+    precision mediump float;
+
+    in vec3 v_color;
+	in vec3 v_position;
+	in vec3 v_normal;
+	
+	uniform vec3 light_point;
+	
+	out vec4 frag_color;
+
+	float lightFrom(vec3 light_point){
+		vec3 light_ray = v_position - light_point;
+		float direct = max(0., -dot(light_ray, v_normal)/length(light_ray));
+		return direct ;
+	}
+	
+    void main(void) {
+		vec3 light_ray = v_position - light_point;
+		float direct = lightFrom(light_point) ;
+		float indirect = 1.;
+		float l = 0.3*indirect + 0.7 * direct ; // Add some ambient light
+		frag_color = vec4(v_color*l ,1.0);	// Scale the color by the lighting
+		
+    }
+</script>
+
+<script id="shader-vs" type="x-shader/x-vertex">#version 300 es
+    // A Very simple passthrough vertex shader
+	in vec3 aVertexPosition;
+    in vec3 aVertexColor;
+	in vec3 aNormal;
+
+    uniform mat4 uMVMatrix;
+    uniform mat4 uPMatrix;
+
+    out vec3 v_color;
+	out vec3 v_position;
+	out vec3 v_normal;
+
+    void main(void) {
+        gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);
+        v_color = aVertexColor;
+		v_position = aVertexPosition; 
+		v_normal = aNormal;
+    }
+</script>
+
+<script type="text/javascript">
+"use strict";
+const url_params = new URLSearchParams(window.location.search) ;
+var app; // The main app running on the CAD canvas
+var renderer ; // WebGl mesh_ renderer (mostly wraps C++ buffers)
+var current_mode ; // current execution mode
+var active_design_id = url_params.get("design") ? url_params.get("design") : "main";
+var imports = url_params.get("import") ? url_params.get("import").split(',') : [];
+//tools.sync_link = null; // SyncClient that runs the live synchronization socket interaction
+var buttons = {} ; // The canvas buttons on the UI canvas on top of the webGL canvas
+
+var tools  ; // a map containing several things above so execution modes can access them
+
+function canvasApp() {
+    //The canvas this app is running on.
+	var theCanvas = document.getElementById("ui");
+	// 2D context you can use to draw on.
+    var context = theCanvas.getContext("2d");
+
+    var mouse_x, mouse_y, mouse_down_x, mouse_down_y ;
+
+    var last_time = new Date().getTime();
+	var frame = 0;
+	var framerate = 0;
+
+	function init() {
+        // Add event listeners to the canvas or window as appropriate
+		theCanvas.addEventListener("mousedown", mouseDownListener, false);
+		window.addEventListener("mousemove", mouseMoveListener, false);
+		window.addEventListener("mouseup", mouseUpListener, false);
+		window.addEventListener('keydown',keyDownListener,false);
+		window.addEventListener('keyup',keyUpListener,false);
+		window.addEventListener('mousewheel', mouseWheelListener);//For Chrome
+        window.addEventListener('DOMMouseScroll', mouseWheelListener);// For Firefox
+
+        //touchHandler simulates mouse events on single touch
+		document.addEventListener("touchstart", touchHandler, true);
+		document.addEventListener("touchmove", touchHandler, true);
+		document.addEventListener("touchend", touchHandler, true);
+		document.addEventListener("touchcancel", touchHandler, true);
+
+		requestAnimationFrame(timeListener); // Timer at 60 hertz.
+	}
+
+    function draw() {
+
+        //Update FPS label
+        frame++;
+		if(frame >= 30){
+			var time = new Date().getTime();
+			framerate = (frame*1000/ (time-last_time));
+			last_time = time;
+			frame = 0 ;
+            buttons["fps_label"].text = "FPS:" + Math.round(framerate);
+        }
+        
+
+        context.clearRect(0, 0, context.canvas.width, context.canvas.height);
+        // Draw any buttons currently on the interface.
+		for (let button_name in buttons) {
+	        if (buttons.hasOwnProperty(button_name)) { // TODO is this really required?
+	        	buttons[button_name].draw(context);
+	        }
+        }
+
+        if(current_mode!=null){
+            current_mode.draw();
+        }
+}
+
+    function timeListener(){
+        if(current_mode!=null){
+            current_mode.timer();
+        }
+        draw();
+        requestAnimationFrame(timeListener);
+    }
+
+	function keyDownListener(evt) {
+        if(current_mode!=null){
+            current_mode.keyDownListener(evt);
+        }
+	}
+
+	function keyUpListener(evt) {
+        if(current_mode!=null){
+            current_mode.keyUpListener(evt);
+        }
+    }
+
+    // Map touchevents
+	function touchHandler(event){
+		event.preventDefault();
+		var touches = event.touches;
+		var pointers = [];
+		for(let k=0;k<touches.length;k++){
+            //TODO get position relative to canvas if canvas isn't whole screen?
+            /*
+            this.mouse_down_x = (event.clientX - bRect.left)*(tools.canvas.width/bRect.width);
+            this.mouse_down_y = (event.clientY - bRect.top)*(tools.canvas.height/bRect.height);
+            */
+			pointers.push({x: touches[k].clientX, y: touches[k].clientY, button:10}); // using 10 for touch events
+		}
+		switch(event.type)
+		{
+			case "touchstart": pointerDown(pointers); break;
+			case "touchmove":  pointerMove(pointers); break;
+			case "touchend":  pointerUp(pointers);   break;
+			default:           return;
+		}
+	}
+
+	function mouseDownListener(event) {
+		pointerDown([{x:event.clientX, y:event.clientY, button:event.button}]);
+    }
+
+	function mouseMoveListener(event){
+		pointerMove([{x:event.clientX, y:event.clientY, button:event.button}]);
+	}
+	function mouseUpListener(event){
+		pointerUp([]); // On mouse up there are no pointers down
+	}
+
+	function pointerDown(pointers) {
+		mouse_down_x = pointers[0].x;
+        mouse_down_y = pointers[0].y;
+
+        // Buttons are executed in mouse up, this just prevents calling underlying mode when clicking a button.
+        let pressed_button = false;
+        for (let button_name in buttons) {
+            if (buttons.hasOwnProperty(button_name)) {
+                var b = buttons[button_name];
+                if( b.inside(mouse_down_x, mouse_down_y)){
+                    pressed_button = true;
+                }
+            }
+        }
+
+        if(current_mode!=null && !pressed_button){
+            current_mode.pointerDown(pointers);
+        }
+	}
+
+	function pointerUp(pointers) {
+        // Execute buttons if it was clicked (mouse down and up on it)
+        let pressed_button = false;
+        for (let button_name in buttons) {
+            if (buttons.hasOwnProperty(button_name)) {
+                var b = buttons[button_name];
+                if(b.inside(mouse_x, mouse_y) && b.inside(mouse_down_x, mouse_down_y)){
+                    b.execute();
+                    pressed_button = true;
+                }
+            }
+        }
+
+       if(current_mode!=null && !pressed_button){
+            current_mode.pointerUp(pointers);
+        }
+	}
+
+	function pointerMove(pointers) {
+        mouse_x = pointers[0].x;
+		mouse_y = pointers[0].y;
+        if(current_mode!=null){
+            current_mode.pointerMove(pointers);
+        }
+    }
+
+	function mouseWheelListener(evt){
+        if(current_mode!=null){
+            current_mode.mouseWheelListener(evt);
+        }
+	}
+
+
+
+    init(); //TODO this a janky way to boot up an app, maybe change it?
+}
+
+// Switch main execution mode (expects mode to be an ExecutionMode)
+function switchExecutionMode(next_mode){
+    if(current_mode != null){
+        current_mode.exit(next_mode);
+    }
+    var last_mode = current_mode ;
+    current_mode = next_mode ;
+    next_mode.enter(last_mode);
+}
+
+
+function initializeModes(){
+    tools.modes = {} ;
+    tools.modes.paint_mode = new PaintMode(tools);
+    tools.modes.camera_mode = new CameraMode(tools);
+    switchExecutionMode(tools.modes.paint_mode) ;
+}
+
+function setMainMenuButtons(){
+    buttons = {};
+    buttons["fps_label"] = new InterfaceButton(tools.canvas.width-80, 10, 80, 40, "FPS:?", 20, "#FFFFFF", "#000000", "#000000", 3, null);
+    buttons["Paint Mode"] = new InterfaceButton(5, 10, 100, 30, "Paint", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, () => {switchExecutionMode(tools.modes.paint_mode);});
+    buttons["Camera Mode"] = new InterfaceButton(105, 10, 100, 30, "Camera", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, () => {switchExecutionMode(tools.modes.camera_mode);});
+    tools.buttons = buttons ;
+}
+
+function onBodyLoad(){
+    renderer = new Renderer("webgl", "ui", "shader-fs", "shader-vs", 100);
+    tools = {};
+    tools.renderer = renderer;
+    tools.canvas = document.getElementById("ui"); ;
+
+    // Wait for the WASM module to finish loading before booting up the socket and app
+    window.initializeCPPAPI().then(function(Module){
+        tools.API = Module ;
+        changeColor();
+        tools.new_file = false;
+        tools.brush_size = 1 ;
+        app = canvasApp(); // Start the app
+        initializeModes();
+        setMainMenuButtons();
+    });
+}
+
+
+function changeColor(){
+    tools.paint_color = [Math.random(),Math.random(), Math.random()];
+    document.getElementById("range_size").style.background = "rgb(" + Math.floor(tools.paint_color[0]*255) +", " 
+    + Math.floor(tools.paint_color[1]*255) +", "+ Math.floor(tools.paint_color[2]*255) +")";
+}
+
+
+function loadSTLFile() {
+    var model_height = 40; // Model will be scaled to be this many millimeters tall
+	var file    = document.getElementById('loader').files[0];
+	var reader  = new FileReader();
+	reader.onloadend = function () {
+        let load_data = reader.result;
+        if(load_data!= null){
+            let params = {};
+            params.text = load_data;
+            params.model_size = 40.00001;
+            tools.API.call("setModel", params, new Serializer());
+        }
+    }
+	if (file) {
+		reader.readAsText(file);
+	} else {
+		console.log("Failed to read file");
+	}
+}
+
+</script>
+</head>
+<body onload="onBodyLoad();">
+	<div class="container">
+	<canvas id="ui" style="border: none;" width="1024" height="720" oncontextmenu="return false;"></canvas>
+	<canvas id="webgl" style="border: none;" width="1024" height="720" oncontextmenu="return false;"></canvas>
+	</div>
+    <p align="center">
+        <input id="loader" type="file" onchange='loadSTLFile()' autocomplete="off">
+        <button onclick="changeColor()">Change Color</button>
+        Size: <input type="range" name="brush_size" id="range_size" value="20" min="1" max="100" oninput="tools.brush_size = range_size.value/20.0">
+    </p>
+</body>
+</html>
