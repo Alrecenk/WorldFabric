@@ -342,6 +342,8 @@ class Serializer {
                 return this.deserializeDoubleArray(array_buffer, ptr);
             case Serializer.TYPES.VARIANT_ARRAY:
                 return this.deserializeVariantArray(array_buffer, ptr);
+            case Serializer.TYPES.NULL_VARIANT:
+                return null ;
             default:
                 console.error("Unsupported serialization type:" + type);
                 console.trace();
@@ -447,7 +449,7 @@ class Serializer {
     deserializeByteArray(array_buffer, ptr) {
         let length = this.deserializeInt(array_buffer, ptr);
         this.last_deserialized_length = 4 + length;
-        return new Int8Array(array_buffer, ptr + 4, length);
+        return new Uint8Array(array_buffer, ptr + 4, length);
     }
 
     deserializeFloatArray(array_buffer, ptr) {

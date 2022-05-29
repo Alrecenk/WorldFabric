@@ -1,4 +1,4 @@
-var max_packet_size = 30000000; // maximum paramters or return size in bytes
+var max_packet_size = 100000000; // maximum paramters or return size in bytes
 var packet_ptr;
 
 function _serializeToHeap(thing, serializer) {
@@ -13,7 +13,7 @@ function _deserializeFromHeap(serializer, type) {
 Module["call"] = function (function_name, parameters = null, serializer = null, skip_output_deserialization = false) {
     if(!packet_ptr){
         packet_ptr = Module._malloc(max_packet_size);
-        console.log("APIPost call Packet pointer mallocated:" + packet_ptr);
+        //console.log("APIPost call Packet pointer mallocated:" + packet_ptr);
         return Module.ccall('setPacketPointer', 'number', ['number'], [packet_ptr]);
     }
     if (parameters != null)  {

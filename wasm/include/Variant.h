@@ -8,6 +8,7 @@
 
 typedef unsigned char byte;
 
+
 class Variant {
   public:
     enum Type {
@@ -29,9 +30,12 @@ class Variant {
         BYTE_OBJECT = 15
     };
     //TODO make const and use initializer lists on constructors or make private and provide accessors that give copies?
-    Type type_; // Type of object pointed to by ptr
-    byte* ptr; // Pointer to data
+    Type type_ = NULL_VARIANT; // Type of object pointed to by ptr
+    byte* ptr = nullptr; // Pointer to data
 
+
+    std::vector<Variant> cached_array = std::vector<Variant>();
+    std::map<std::string, Variant> cached_object = std::map<std::string, Variant>() ;
     /* Constructor is overloaded for every supported type
     Complex objects are built from other Variants so must be built from the bottom up
     Creation of new Variants always copy the source data in its entirety (use wisely)
@@ -142,6 +146,16 @@ class Variant {
     // Returns the array on a Variant holding a Variant array
     std::vector<Variant> getVariantArray() const;
 
+    Variant operator [](int i);
+
+    Variant operator [](std::string i);
+
+    Variant operator [](Variant i);
+
+    bool defined() const;
+    
+
+
     // Convenience functions for extracting raw types
     int getInt() const;
 
@@ -177,6 +191,11 @@ This function detects what type came in and converts it to a 32 bit float */
     // Prints this variant to the console using printf (no newline)
     void print() const;
 
+    // Prints this variant to the console using printf with nice formatting for nested JSON
+    void printFormatted() const;
+
+    static void printJSON(const std::string& json);
+
     // Prints a serialized object to a string
     static std::string deserializeToString(char type, byte* input_ptr);
 
@@ -185,8 +204,15 @@ This function detects what type came in and converts it to a 32 bit float */
     // Returns a deep copy of the given variant
     Variant clone() const;
 
+    static Variant parseJSON(const std::string& json);
+
+    static Variant parseJSONArray(const std::string& json);
+
+    static std::pair<Variant,int> parseJSONValue(const std::string& json, int value_start);
+
+
     // returns the hash of a variant
-    int hash();
+    int hash() const;
 
     // return hash of a string
     static int hash(std::string s);
@@ -196,6 +222,10 @@ This function detects what type came in and converts it to a 32 bit float */
     static uint32_t murmur(const uint8_t* key, size_t len, uint32_t seed);
 
     static inline uint32_t murmurscramble(uint32_t k);
+
+    void makeFillableIntArray(int size);
+
+    void makeFillableFloatArray(int size);
 };
 
 #endif // #ifndef _VARIANT_H_
