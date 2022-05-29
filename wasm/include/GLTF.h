@@ -278,4 +278,4 @@ class GLTF : public OptimizationProblem{
         
 
 };
-#endif // #ifndef _TRIANGLE_MESH_H_
+#endif // #ifndef _GLTF_H_
