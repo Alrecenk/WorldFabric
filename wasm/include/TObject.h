@@ -8,6 +8,7 @@ class Timeline{
 
         vec3 position;
         float radius;
+        double write_time ;
 
         // Serialize this object, so it can be efficiently moved between timelines
         virtual Variant serialize();
@@ -25,6 +26,6 @@ class Timeline{
 
 
         // Data and functions below this point are used for maintining the timeline continuity
-        vector<*TEvent> readers ; // events that have read this object instant
+        vector<std::pair<*TEvent, double>> readers ; // events that have read this object instant and when
 };
 #endif // #ifndef _TOBJECT_H_

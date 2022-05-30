@@ -44,9 +44,8 @@ class Timeline{
         // Returns a reference to the last observed value of a given ID
         const &TObject getLastObserved(int id);
 
-    private:
         EventQueue events;
-        std::unordered_map<int, ObjectHistory> ;
+        std::unordered_map<int, ObjectHistory> object;
         std::unordered_map<int, TObject> last_observed ;
 
 };
