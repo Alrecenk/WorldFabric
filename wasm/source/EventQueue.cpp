@@ -17,19 +17,20 @@ TEvent* EventQueue::next(vec3 vantage, double time, double info_speed){
     return e ;
 }
 
-EventQueue::addEvent(const TEvent& event){
+TEvent* EventQueue::addEvent(const TEvent& event){
     // Put it in the slot of a delted item if posible
     for(int k=0;k<events.size();k++){
         if(events[k].deleted){
             events[k] = event ;
-            return ;
+            return &events[k];
         }
     }
     // No free slots, push on the end
     events.push_back(event);
+    return &events[events.size()-1];
 }
 
-EventQueue::removeDependencies(TEvent* event){
+void EventQueue::removeDependencies(TEvent* event){
     // Delete any events this event spawned
     for(TEvent* s : event->spawned_events){
         if(!s->deleted){
@@ -45,12 +46,12 @@ EventQueue::removeDependencies(TEvent* event){
     event->wrote_anchor = false;
 }
 
-EventQueue::deleteEvent(TEvent* event){
+void EventQueue::deleteEvent(TEvent* event){
     removeDependencies(event);
     event->deleted = true;
 }
 
-EventQueue::rerunEvent(TEvent* event){
+void EventQueue::rerunEvent(TEvent* event){
     removeDependencies(event);
     event->run_pending = true;
 }

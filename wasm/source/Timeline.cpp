@@ -1,14 +1,25 @@
 #include "Timeline.h"
 
+
+// Set the functions to be used for generating typed timeline events and objects from serialized data
+void Timeline::setGenerators(TEvent(*event_generator)(Variant& serialized), TObject(*object_generator)(Variant& serialized)){
+    TEvent::generateTypedTEvent = event_generator;
+    TObject::generateTypedTObject = object_generator ;
+}
+
 // Adds an event to this timeline
 // Peforms rollback and correction as required
-void Timeline::addEvent(TEvent e){
-    events.addEvent(e);
+void Timeline::addEvent(TEvent e, double send_time){
+    e.time = send_time ;
+    vec3 vantage = timeline->objects[vantage_id].get(send_time).position; // TODO cache
+    vec3 new_loc = timeline->objects[vantage_id].get(send_time) ; //TODO is this sufficient or do we need to iterate to consider movement away?
+    e.time == send_time + glm::length(vantage-new_loc)/timeline->info_speed ;
+    pending_external_events.push_back(timeline->events.addEvent(e));
 }
 
 // Creates an event that creates an object at the earliest possible time
-void Timeline::createObject(TObject obj){
-    //TODO
+void Timeline::createObject(TObject obj, TEvent on_created, double send_time){
+    addEvent(CreateObject(obj, on_created), send_time));
 }
 
     // Creates an event that deletes an object at the earliest possible time

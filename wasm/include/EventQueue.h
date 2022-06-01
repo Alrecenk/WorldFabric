@@ -11,16 +11,16 @@ class EventQueue{
 
         // Adds an event to the queue
         // If event requies rollback this automatically clears affected events
-        addEvent(const TEvent& event);
+        TEvent* addEvent(const TEvent& event);
 
         // deletes an Event
         // This for internal use when a reran event has spawned events that need to be cleared
         // This is NOT SAFE to call unless any pointers to the event have already been cleared
-        deleteEvent(TEvent* event);
+        void deleteEvent(TEvent* event);
 
         // Marks an event to be rerun
         // This is for internal use when data has been changed after an event has already read it
-        rerunEvent(TEvent* event);
+        void rerunEvent(TEvent* event);
 
     private:
         vector<TEvent*> events;
