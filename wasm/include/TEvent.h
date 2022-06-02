@@ -2,8 +2,18 @@
 #define _TEVENT_H_ 1
 
 #include "Variant.h"
+#include "Timeline.h"
 #include "TObject.h"
+#include "glm/vec3.hpp"
+
+#include <map>
 #include <vector>
+#include <string>
+
+class TObject;
+class Timeline;
+class EventQueue;
+class ObjectHistory;
 
 class TEvent{
 
@@ -24,34 +34,34 @@ class TEvent{
         // This is what you need to override to implement your application
         // To maintain causality run should only interact with dynamic data by using the privided methods:
         // get(id), getMutable(), addEvent, createObject, deleteObject, and getCollisions
-        virtual run();
+        virtual void run();
 
         // Returns the latest data for the given object available to this event
-        const TObject& get(int id);
+        const TObject* get(int id);
 
         // Returns a mutable version of the object this event is anchored to
         // This is how you edit objects from inside events.
-        TObject& getMutable();
+        TObject* getMutable();
 
         // Adds an event to the Timeline this event is in
         // If no time is set on the event it will be run at the earliest possible time
         void addEvent(TEvent e);
 
         // Creates an event that creates an object at the earliest possible time
-        void createObject(TObject obj);
+        void createObject(TObject obj, TEvent on_created);
 
          // Creates an event that deletes an object at the earliest possible time
         void deleteObject(TObject obj);
 
         // Returns the IDs of all TObjects colliding with the bounding sphere of the anchor object
         // at the time of this event
-        vector<int> getCollisions();
+        std::vector<int> getCollisions();
 
 
         // Data and functions below this point are used for maintining the timeline continuity
 
         bool run_pending = true; //whether the event still needs to be run
-        vector<*TEvent> spawned_events ; //events spawen by this event when it was last run
+        std::vector<TEvent*> spawned_events ; //events spawen by this event when it was last run
         bool wrote_anchor=false; // whether this event wrote to its anchor object last time it ran
         bool deleted = false;
         Timeline* timeline ;

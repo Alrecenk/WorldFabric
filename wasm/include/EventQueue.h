@@ -2,12 +2,22 @@
 #define _EVENTQUEUE_H_ 1
 
 #include "Variant.h"
+#include "Timeline.h"
+#include "TEvent.h"
+#include "glm/vec3.hpp"
+#include <vector>
+
+class TObject;
+class TEvent;
+class Timeline;
+class ObjectHistory;
+
 class EventQueue{
 
     public:
         // Returns the next event to be run from the given perspective
         // returns null if the queue is up to date
-        TEvent* next(vec3 vantage, double time, double info_speed);
+        TEvent* next(glm::vec3 vantage, double time, double info_speed);
 
         // Adds an event to the queue
         // If event requies rollback this automatically clears affected events
@@ -22,8 +32,10 @@ class EventQueue{
         // This is for internal use when data has been changed after an event has already read it
         void rerunEvent(TEvent* event);
 
+        void removeDependencies(TEvent* event);
+
     private:
-        vector<TEvent*> events;
+        std::vector<TEvent> events;
         Timeline* timeline;
 
         

@@ -2,14 +2,27 @@
 #define _OBJECTHISTORY_H_ 1
 
 #include "Variant.h"
+#include "TObject.h"
+#include "Timeline.h"
+#include "glm/vec3.hpp"
 
+#include <vector>
+
+class TObject;
+class TEvent;
+class Timeline;
+class EventQueue;
 
 class ObjectHistory{
 
     public:
 
+        ObjectHistory();
+
+        ObjectHistory(TObject value, double make_time);
+
         //Returns the latest version of this oject that is observable from the given vantage point and time
-        TObject* get(vec3 vantage, double time, double info_speed);
+        TObject* get(glm::vec3 vantage, double time, double info_speed);
 
 
         //Returns the version of this oject at the given time, ignoring time warp
@@ -25,7 +38,7 @@ class ObjectHistory{
         TObject* getMutable(double time);
 
     private:
-        vector<TObject> history;
+        std::vector<TObject> history;
         double deleted_time = 99999999.0;//TODO max value
         Timeline* timeline;
 

@@ -1,16 +1,20 @@
-#ifndef _CREATEOBJECT_H_
-#define _CREATEOBJECT_H_ 1
+#ifndef _CHANGE_VELOCITY_H_
+#define _CHANGE_VELOCITY_H_ 1
 
 #include "TEvent.h"
-#include "Timeline.h"
 #include "TObject.h"
+#include "Variant.h"
 
-class CreateObject : TEvent{
+#include <string>
+#include <map>
+
+
+class ChangeVelocity : TEvent{
 
     public:
+        glm::vec3 new_velocity;
 
-        CreateObject();
-        CreateObject(TObject new_object, TEvent on_created);
+        ChangeVelocity(int moving_object, glm::vec3 v);
 
         // Serialize this event's data, so it can be efficiently moved between timelines
         std::map<std::string,Variant> serialize() override;
@@ -30,4 +34,4 @@ class CreateObject : TEvent{
 
         
 };
-#endif // #ifndef _CREATEOBJECT_H_
+#endif // #ifndef _CHANGE_VELOCITY_H_

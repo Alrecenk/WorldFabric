@@ -1,7 +1,16 @@
 #include "ObjectHistory.h"
 
+ObjectHistory::ObjectHistory(){
+
+}
+
+ObjectHistory::ObjectHistory(TObject value, double make_time){
+    value.write_time = make_time ;
+    history.push_back(value);
+}
+
 //Returns the latest version of this oject that is observable from the given vantage point and time
-TObject* ObjectHistory::get(vec3 vantage, double time, double info_speed){
+TObject* ObjectHistory::get(glm::vec3 vantage, double time, double info_speed){
 
     double time_to_deleted = deleted_time + glm::length(vantage-history[history.size()-1].position)/info_speed;
     if(time > deleted_time){// if it's past time you could read deletion
@@ -22,10 +31,10 @@ TObject* ObjectHistory::get(vec3 vantage, double time, double info_speed){
 // For internal use to get the position of events from their anchor
 TObject* ObjectHistory::get(double time){
     if(time > deleted_time){
-        return null_ptr;
+        return nullptr;
     }
     for(int k=history.size()-1;k>=0; k--){
-        if(history[k].time < time){
+        if(history[k].write_time < time){
             return &history[k];
         }
     }
@@ -37,7 +46,7 @@ void ObjectHistory::deleteAt(double time){
     deleted_time = time ;
     int delete_from = history.size();
     for(int k=history.size()-1;k>=0; k--){
-        if(history[k].time < deleted_time){
+        if(history[k].write_time < deleted_time){
             delete_from = k;
             break;
         }
@@ -46,19 +55,19 @@ void ObjectHistory::deleteAt(double time){
     for(int k=delete_from;k<history.size(); k++){
         for(auto& readers : history[k].readers){
             if(readers.second >= deleted_time && !readers.first->deleted && !readers.first.run_pending){
-                timeline.events.rerunEvent(readers.first);
+                timeline->events.rerunEvent(readers.first);
             }
         }
     }
 
-    v.erase(history.cbegin() + k +1 , v.cend());
+    history.erase(history.cbegin() + delete_from +1 , history.cend());// all after first should be completely removed
 }
 
 //Creates a new instant at the given time by deep copying the previous instant
 // and returns an editable version of it
 // deletes all data beyond that point and marks events appropriately
 TObject* ObjectHistory::getMutable(double time){
-    if(time < history[history.size()-1].time){
+    if(time < history[history.size()-1].write_time){
         deleteAt(time);
         deleted_time = 9999999.0 ;
     }

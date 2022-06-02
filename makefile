@@ -35,13 +35,24 @@ EXPORTED_FUNCTIONS =[\
 	'_applyPins',\
 	'_createRotationPin',\
 	'_setRotationPinTarget',\
+	'_runTimelineUnitTests',\
 	'_free']
 EXTRA_EXPORTED_RUNTIME_METHODS=['ccall']
 API_MAIN = ${API_DIR}source/api.cpp
 API_SRC    =${API_DIR}source/Variant.cpp \
 			${API_DIR}source/OptimizationProblem.cpp \
         	${API_DIR}source/GLTF.cpp \
-			${API_DIR}source/TableReader.cpp
+			${API_DIR}source/TableReader.cpp \
+			${API_DIR}source/UnitTests.cpp \
+			${API_DIR}source/Timeline.cpp \
+			${API_DIR}source/TObject.cpp \
+			${API_DIR}source/TEvent.cpp \
+			${API_DIR}source/CreateObject.cpp \
+			${API_DIR}source/EventQueue.cpp \
+			${API_DIR}source/ObjectHistory.cpp \
+			${API_DIR}source/MovingObject.cpp \
+			${API_DIR}source/ChangeVelocity.cpp
+
 			
 default: all
 
