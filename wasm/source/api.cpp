@@ -11,6 +11,7 @@
 #include <ctime>
 #include "glm/vec3.hpp"
 #include "TableReader.h"
+#include "UnitTests.h"
 
 using std::vector;
 using std::string;
@@ -413,6 +414,11 @@ byte* getNodeTransform(byte* ptr) {
         vm[k] = *(((float*)&m)+k) ;
     }
     return pack(ret_map);
+}
+
+byte* runTimelineUnitTests(byte* ptr) {
+    UnitTests::runAll();
+    return emptyReturn();
 }
 
 

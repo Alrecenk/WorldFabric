@@ -1,18 +1,23 @@
-#ifndef _CREATEOBJECT_H_
-#define _CREATEOBJECT_H_ 1
+#ifndef _MOVE_OBJECT_H_
+#define _MOVE_OBJECT_H_ 1
 
 #include "TEvent.h"
-#include "Timeline.h"
 #include "TObject.h"
+#include "Variant.h"
 
-class CreateObject : public TEvent{
+#include <string>
+#include <map>
+
+
+class MoveObject : public TEvent{
 
     public:
 
-        CreateObject();
-        CreateObject(std::unique_ptr<TObject> new_object, std::unique_ptr<TEvent> on_created);
+        MoveObject();
 
-        ~CreateObject() override;
+        MoveObject(int moving_object, double time_step);
+
+        ~MoveObject() override;
 
         // Serialize this event's data, so it can be efficiently moved between timelines
         std::map<std::string,Variant> serialize() const override;
@@ -27,9 +32,8 @@ class CreateObject : public TEvent{
         void run() override;
 
     private:
-        std::unique_ptr<TObject> new_object;
-        std::unique_ptr<TEvent> on_created;
+        double interval ;
 
         
 };
-#endif // #ifndef _CREATEOBJECT_H_
+#endif // #ifndef _MOVE_OBJECT_H_
