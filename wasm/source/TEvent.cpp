@@ -13,10 +13,19 @@ const TObject* TEvent::get(int id){
     if(timeline->objects.find(id) == timeline->objects.end()){
         return nullptr ;
     }
-    vec3 vantage = timeline->objects[anchor_id].get(time)->position; // TODO cache
+    printf("getting anchor in tevent...\n");
+    vec3 vantage(0,0,0);
+    TObject* vo = timeline->objects[anchor_id].get(time) ;
+    if(vo != nullptr){
+        vantage = vo->position; // TODO cache
+    }
+    printf("getting requested object in tevent...\n");
     TObject* obj = timeline->objects[id].get(vantage, time, timeline->info_speed) ;
-    double read_time = time - glm::length(obj->position-vantage)/timeline->info_speed ;
-    obj->readers.push_back(std::pair<TEvent*, double>(this, read_time));
+    if(obj != nullptr){ // if we read something
+        double read_time = time - glm::length(obj->position-vantage)/timeline->info_speed ;
+        obj->readers.push_back(std::pair<TEvent*, double>(this, read_time)); // mark that we read it
+    }
+    printf("returning from tevent get\n");
     return obj;
 }
 
@@ -42,6 +51,7 @@ void TEvent::addEvent(std::unique_ptr<TEvent> e){
         // delay event creation by time warp effect
         e->time = fmax(e->time, time + glm::length(vo->position - eo->position)/timeline->info_speed) ;
     }
+    e->timeline = timeline ;
     spawned_events.push_back(timeline->events.addEvent(std::move(e)));
 }
 

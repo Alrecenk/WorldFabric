@@ -13,6 +13,7 @@ class Timeline;
 class EventQueue{
 
     public:
+        Timeline* timeline;
         // Returns the next event to be run from the given perspective
         // returns null if the queue is up to date
         TEvent* next(glm::vec3 vantage, double time, double info_speed);
@@ -34,7 +35,7 @@ class EventQueue{
 
     private:
         std::vector<std::unique_ptr<TEvent>> events;
-        Timeline* timeline;
+        
 
         
 };

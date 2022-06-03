@@ -16,7 +16,11 @@ ObjectHistory::ObjectHistory(std::unique_ptr<TObject> value, double make_time){
 
 //Returns the latest version of this oject that is observable from the given vantage point and time
 TObject* ObjectHistory::get(glm::vec3 vantage, double time, double info_speed){
-
+    printf("entering objecthistory get...\n");
+    if(history.size() ==0){
+        printf("requested object has never existed...\n");
+        return nullptr ;
+    }
     double time_to_deleted = deleted_time + glm::length(vantage-history[history.size()-1]->position)/info_speed;
     if(time > deleted_time){// if it's past time you could read deletion
         return nullptr ; // read deletion

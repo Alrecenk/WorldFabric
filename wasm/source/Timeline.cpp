@@ -9,6 +9,11 @@ using std::vector;
 using std::map;
 using std::string ;
 
+
+Timeline::Timeline(){
+    events.timeline = this;
+}
+
 // Set the functions to be used for generating typed timeline events and objects from serialized data
 void Timeline::setGenerators(std::unique_ptr<TEvent> (*event_generator)(const Variant& serialized), 
                             std::unique_ptr<TObject>(*object_generator)(const Variant& serialized)){
@@ -27,6 +32,7 @@ void Timeline::addEvent(std::unique_ptr<TEvent> e, double send_time){
         // delay event creation by time warp effect
         e->time = send_time + glm::length(vo->position - eo->position)/info_speed ;
     }
+    e->timeline = this;
     pending_external_events.push_back(events.addEvent(std::move(e)));
 }
 
@@ -42,12 +48,23 @@ void Timeline::deleteObject(int id, double send_time){
 
 // Runs events in the timeline until the location at the vantage object reaches the given time
 void Timeline::run(double new_time){
-    vec3 vantage = objects[vantage_id].get(new_time)->position;
+    printf("timeline running......\n");
+
+    TObject* vo = objects[vantage_id].get(new_time) ;
+    vec3 vantage(0,0,0) ;
+    if(vo!= nullptr){ // if position data available
+        vantage = vo->position ;
+    }
+
     TEvent* current_event = events.next(vantage, new_time, info_speed) ;
     while(current_event != nullptr){
         current_event->run();
+        current_event->run_pending = false;
         if(current_event->anchor_id == vantage_id && current_event->wrote_anchor){ // if vantage object changed
-            vantage = objects[vantage_id].get(new_time)->position; // vantage point may have changed
+            TObject* eo = objects[current_event->anchor_id].get(new_time) ;
+            if(eo!=nullptr){
+                vantage = eo->position; // vantage point may have changed
+            }
         }
         current_event = events.next(vantage, new_time, info_speed) ;
     }
@@ -74,7 +91,13 @@ void Timeline::applyUpdate(Variant update){
 // Updates all observables to the current time, performing interpolation as required
 // and returnsa list of ID for all observables
 std::vector<int> Timeline::updateObservables(){
-    vec3 vantage = objects[vantage_id].get(current_time)->position;
+
+    TObject* vo = objects[vantage_id].get(current_time) ;
+    vec3 vantage(0,0,0) ;
+    if(vo!= nullptr){ // if position data available
+        vantage = vo->position ;
+    }
+
     vector<int> observed_ids;
     for(auto& [id, object_history] : objects){
         TObject* read = object_history.get(vantage,current_time, info_speed);

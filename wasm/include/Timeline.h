@@ -28,6 +28,8 @@ class Timeline{
         double time_kept = 1.0 ; //Amount of history kept in the timeline
         double min_spawned_event_delay = 1.0/120; // Minimum time between an event spawned by another event at the same anchor
 
+        Timeline();
+
         // Set the functions to be used for generating typed timeline events and objects from serialized data
         void setGenerators(std::unique_ptr<TEvent> (*event_generator)(const Variant& serialized), 
                                                     std::unique_ptr<TObject>(*object_generator)(const Variant& serialized));

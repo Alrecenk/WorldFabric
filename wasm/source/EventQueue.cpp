@@ -10,15 +10,21 @@
 // Returns the next event to be run from the given perspective
 // returns nullptr if the queue is up to date
 TEvent* EventQueue::next(glm::vec3 vantage, double time, double info_speed){
-
-    double best_time = time;// TODO double max;
+    printf("event queue next...\n");
+    double best_time = time;
     TEvent* best_event = nullptr;
     for(std::unique_ptr<TEvent>& e : events){
-        double dist = glm::length(vantage-timeline->objects[e->anchor_id].get(e->time)->position);
-        double time_to_run = e->time + dist/info_speed;
-        if(time_to_run <= best_time){
-            best_time = time_to_run;
-            best_event = e.get() ;
+        if(e.get() != nullptr && !e->deleted && e->run_pending){
+            TObject* eo = timeline->objects[e->anchor_id].get(e->time) ;
+            double time_to_run = e->time ;
+            if(eo !=nullptr){
+                double dist = glm::length(vantage- eo->position);
+                time_to_run = e->time + dist/info_speed;
+            }
+            if(time_to_run <= best_time){
+                best_time = time_to_run;
+                best_event = e.get() ;
+            }
         }
     }
     return best_event ;

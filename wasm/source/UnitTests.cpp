@@ -25,15 +25,24 @@ bool UnitTests::runAll(){
 }
 
 bool UnitTests::createAndMoveCircle(){
+    printf("createAndMoveCircle\n");
+    printf("Initializing timeline...\n");
     Timeline t = Timeline();
+    printf("setting generators...\n");
     t.setGenerators(&UnitTests::createEvent, &UnitTests::createObject);
-    t.createObject(std::make_unique<MovingObject>(vec3(1,0,0),vec3(0,2,0), 3.0f), std::unique_ptr<TEvent>(nullptr), 1.0);
+    printf("init circle...\n");
+    std::unique_ptr<MovingObject> o = std::make_unique<MovingObject>(vec3(1,0,0),vec3(0,2,0), 3.0f) ;
+    printf("create object event...\n");
+    t.createObject(std::move(o), std::unique_ptr<TEvent>(nullptr), 1.0);
+    printf("running...\n");
     t.run(2.0);
+    printf("updating observables...\n");
     vector<int> ob = t.updateObservables();
     if(ob.size() == 1){
         printf("Object 0:\n");
         Variant(t.getLastObserved(ob[0])->serialize()).printFormatted(); 
     }else{
+        printf("Error no objects!\n");
         return false;
     }
 

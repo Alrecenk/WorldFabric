@@ -16,6 +16,9 @@ class ObjectHistory{
 
     public:
 
+        double deleted_time = 99999999.0;//TODO max value
+        Timeline* timeline;
+
         ObjectHistory();
 
         ObjectHistory(std::unique_ptr<TObject> value, double make_time);
@@ -38,8 +41,7 @@ class ObjectHistory{
 
     private:
         std::vector<std::unique_ptr<TObject>> history;
-        double deleted_time = 99999999.0;//TODO max value
-        Timeline* timeline;
+        
 
 };
 #endif // #ifndef _OBJECTHISTORY_H_

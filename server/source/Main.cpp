@@ -29,6 +29,9 @@ void addModels(map<string, Variant>& table) {
     
 }
 
+void runUnitTests(){
+    bool g = UnitTests::runAll();
+}
 
 bool running = true;
 
@@ -39,6 +42,8 @@ void quit(int signum) {
 }
 
 int main(int argc, char** argv) {
+    runUnitTests();
+    /*
     map<string, Variant> table;
     addModels(table);
     // boot up a static webserver on a nonblocking thread to serve the frontend
@@ -61,4 +66,5 @@ int main(int argc, char** argv) {
     }
     web_server.stop();
     table_server.stop();
+    */
 }
