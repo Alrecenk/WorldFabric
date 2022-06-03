@@ -4,13 +4,19 @@
 using std::string ;
 using std::map ;
 
+
+ChangeVelocity::ChangeVelocity(){
+
+}
 ChangeVelocity::ChangeVelocity(int moving_object, glm::vec3 v){
     anchor_id = moving_object;
     new_velocity = v ;
 }
 
+ChangeVelocity::~ChangeVelocity() {}
+
 // Serialize this event's data, so it can be efficiently moved between timelines
-std::map<std::string,Variant> ChangeVelocity::serialize(){
+std::map<std::string,Variant> ChangeVelocity::serialize() const{
     map<string,Variant> serial;
     serial["v"] = Variant(new_velocity);
     serial["t"] = Variant(time);

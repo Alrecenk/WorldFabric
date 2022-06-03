@@ -4,14 +4,18 @@ using std::map;
 using std::string;
 using std::vector;
 
+MovingObject::MovingObject(){}
+
 MovingObject::MovingObject(glm::vec3 p, glm::vec3 v, float r){
     position = p ;
     velocity = v;
     radius = r ;
 }
 
+MovingObject::~MovingObject() {}
+
 // Serialize this object, so it can be efficiently moved between timelines
-std::map<std::string,Variant> MovingObject::serialize(){
+std::map<std::string,Variant> MovingObject::serialize() const{
     map<string,Variant> serial;
     serial["p"] = Variant(position);
     serial["v"] = Variant(velocity);
@@ -28,12 +32,12 @@ void MovingObject::set(std::map<std::string,Variant>& serial){
 
 // Override this to provide an efficient deep copy of this object
 // If not overridden serialize and set will be used to copy your object (which will be inefficent)
-TObject MovingObject::deepCopy(){
-    return MovingObject(position, velocity, radius);
+std::unique_ptr<TObject> MovingObject::deepCopy(){
+    return std::make_unique<MovingObject>(position, velocity, radius);
 }
 
 // Override this function to provide logic for interpolation after rollback or extrapolation for slowly updating objects
 // If not overridden getObserved returns the raw value of the object
-TObject MovingObject::getObserved(const TObject& last_observed){
+std::unique_ptr<TObject> MovingObject::getObserved(const TObject* last_observed){
     return deepCopy();
 }

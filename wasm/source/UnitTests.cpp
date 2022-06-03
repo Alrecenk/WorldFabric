@@ -8,6 +8,7 @@
 
 #include "MovingObject.h"
 #include "ChangeVelocity.h"
+
 #include <unordered_map>
 #include <vector>
 #include <map>
@@ -26,12 +27,12 @@ bool UnitTests::runAll(){
 bool UnitTests::createAndMoveCircle(){
     Timeline t = Timeline();
     t.setGenerators(&UnitTests::createEvent, &UnitTests::createObject);
-    t.createObject(MovingObject(vec3(1,0,0),vec3(0,2,0), 3.0f), 1.0);
+    t.createObject(std::make_unique<MovingObject>(vec3(1,0,0),vec3(0,2,0), 3.0f), std::unique_ptr<TEvent>(nullptr), 1.0);
     t.run(2.0);
     vector<int> ob = t.updateObservables();
     if(ob.size() == 1){
         printf("Object 0:\n");
-        Variant(t.getLastObserved(ob[0]).serialize()).printFormatted(); 
+        Variant(t.getLastObserved(ob[0])->serialize()).printFormatted(); 
     }else{
         return false;
     }
@@ -40,16 +41,16 @@ bool UnitTests::createAndMoveCircle(){
 
 }
 
-TObject* UnitTests::createObject(Variant& serialized){
+std::unique_ptr<TObject> UnitTests::createObject(const Variant& serialized){
     auto map = serialized.getObject() ;
-    MovingObject o = MovingObject();
-    o.set(map);
-    return &o;
+    auto o = std::make_unique<MovingObject>();
+    o->set(map);
+    return std::move(o);
 }
 
-TEvent* UnitTests::createEvent(Variant& serialized){
+std::unique_ptr<TEvent> UnitTests::createEvent(const Variant& serialized){
     auto map = serialized.getObject() ;
-    ChangeVelocity e = ChangeVelocity();
-    e.set(map);
-    return &e;
+    auto e = std::make_unique<ChangeVelocity>();
+    e->set(map);
+    return std::move(e);
 }

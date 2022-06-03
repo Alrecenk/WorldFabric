@@ -1,34 +1,41 @@
 #include "EventQueue.h"
 
+#include "ObjectHistory.h"
+#include "Timeline.h"
+#include "TObject.h"
+#include "TEvent.h"
+
+#include <memory>
+
 // Returns the next event to be run from the given perspective
 // returns nullptr if the queue is up to date
 TEvent* EventQueue::next(glm::vec3 vantage, double time, double info_speed){
 
-    double best_time = time// TODO double max;
+    double best_time = time;// TODO double max;
     TEvent* best_event = nullptr;
-    for(TEvent& e : events){
-        double dist = glm::length(vantage-timeline->objects[e.anchor_id].get(e.time)->position);
-        double time_to_run = e.time + dist/info_speed;
+    for(std::unique_ptr<TEvent>& e : events){
+        double dist = glm::length(vantage-timeline->objects[e->anchor_id].get(e->time)->position);
+        double time_to_run = e->time + dist/info_speed;
         if(time_to_run <= best_time){
             best_time = time_to_run;
-            best_event = &e ;
+            best_event = e.get() ;
         }
     }
     return best_event ;
 }
 
-TEvent* EventQueue::addEvent(const TEvent& event){
+TEvent* EventQueue::addEvent(std::unique_ptr<TEvent> event){
     // Put it in the slot of a delted item if posible
     for(int k=0;k<events.size();k++){
-        if(events[k].deleted){
-            events[k] = event ; // TODO could cause a memory leak if event being overwritten has an unowned pointer
-            return &events[k];
+        if(events[k]->deleted){
+            events[k] = std::move(event) ; // TODO could cause a memory leak if event being overwritten has an unowned pointer
+            return events[k].get();
         }
     }
     // No free slots, push on the end
 
-    events.push_back(event);
-    return &events[events.size()-1];
+    events.push_back(std::move(event));
+    return events[events.size()-1].get();
 }
 
 void EventQueue::removeDependencies(TEvent* event){
@@ -42,9 +49,9 @@ void EventQueue::removeDependencies(TEvent* event){
 
     if(event->wrote_anchor){
         timeline->objects[event->anchor_id].deleteAt(event->time);
+        event->wrote_anchor = false;
     }
 
-    event->wrote_anchor = false;
 }
 
 void EventQueue::deleteEvent(TEvent* event){

@@ -5,6 +5,9 @@
 using glm::vec3 ;
 using std::vector ;
 
+std::unique_ptr<TEvent>(*TEvent::generateTypedTEvent)(const Variant& serialized) ; 
+
+
 // Returns the latest data for the given object available to this event
 const TObject* TEvent::get(int id){
     if(timeline->objects.find(id) == timeline->objects.end()){
@@ -31,22 +34,24 @@ TObject* TEvent::getMutable(){
 
 // Adds an event to the Timeline this event is in
 // If no time is set on the event it will be run at the earliest possible time
-void TEvent::addEvent(TEvent e){
-    e.time = fmax(e.time, time + timeline->min_spawned_event_delay);
-    vec3 vantage = timeline->objects[anchor_id].get(time)->position; // TODO cache
-    vec3 new_loc = timeline->objects[e.anchor_id].get(e.time)->position ; //TODO is this sufficient or do we need to iterate to consider movement away?
-    double earliest_time = time + glm::length(vantage-new_loc)/timeline->info_speed ;
-    e.time =  fmax(e.time, earliest_time);
-    spawned_events.push_back(timeline->events.addEvent(e));
+void TEvent::addEvent(std::unique_ptr<TEvent> e){
+    e->time = fmax(e->time, time + timeline->min_spawned_event_delay); // enforce minimum delay
+    TObject* vo = timeline->objects[anchor_id].get(e->time) ;
+    TObject* eo = timeline->objects[e->anchor_id].get(e->time) ;
+    if(vo!= nullptr && eo !=nullptr){ // if position data available
+        // delay event creation by time warp effect
+        e->time = fmax(e->time, time + glm::length(vo->position - eo->position)/timeline->info_speed) ;
+    }
+    spawned_events.push_back(timeline->events.addEvent(std::move(e)));
 }
 
 // Creates an event that creates an object at the earliest possible time
-void TEvent::createObject(TObject obj, TEvent on_create){
-    addEvent(CreateObject(obj, on_create));
+void TEvent::createObject(std::unique_ptr<TObject> obj, std::unique_ptr<TEvent> on_created){
+    addEvent(std::make_unique<CreateObject>(std::move(obj), std::move(on_created)));
 }
 
     // Creates an event that deletes an object at the earliest possible time
-void TEvent::deleteObject(TObject obj){
+void TEvent::deleteObject(int id){
     printf("Delete object is not implemented yet!\n");
 }
 

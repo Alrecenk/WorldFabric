@@ -5,6 +5,7 @@
 #include "Timeline.h"
 #include "TObject.h"
 #include "TEvent.h"
+#include <memory>
 
 class UnitTests{
 public:
@@ -12,8 +13,8 @@ public:
 
     static bool createAndMoveCircle();
 
-    static TObject createObject(Variant& serialized);
+    static std::unique_ptr<TObject> createObject(const Variant& serialized);
 
-    static TEvent createEvent(Variant& serialized);
+    static std::unique_ptr<TEvent> createEvent(const Variant& serialized);
 };
 #endif // #ifndef _UNIT_TESTS_H_

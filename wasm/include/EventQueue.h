@@ -1,16 +1,14 @@
 #ifndef _EVENTQUEUE_H_
 #define _EVENTQUEUE_H_ 1
 
-#include "Variant.h"
-#include "Timeline.h"
-#include "TEvent.h"
 #include "glm/vec3.hpp"
+
 #include <vector>
+#include <memory>
 
 class TObject;
 class TEvent;
 class Timeline;
-class ObjectHistory;
 
 class EventQueue{
 
@@ -20,8 +18,8 @@ class EventQueue{
         TEvent* next(glm::vec3 vantage, double time, double info_speed);
 
         // Adds an event to the queue
-        // If event requies rollback this automatically clears affected events
-        TEvent* addEvent(const TEvent& event);
+        // If event requires rollback, this automatically clears affected events
+        TEvent* addEvent(std::unique_ptr<TEvent> event);
 
         // deletes an Event
         // This for internal use when a reran event has spawned events that need to be cleared
@@ -35,7 +33,7 @@ class EventQueue{
         void removeDependencies(TEvent* event);
 
     private:
-        std::vector<TEvent> events;
+        std::vector<std::unique_ptr<TEvent>> events;
         Timeline* timeline;
 
         
