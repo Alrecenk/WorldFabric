@@ -8,11 +8,13 @@
 
 #include "MovingObject.h"
 #include "ChangeVelocity.h"
+#include "MoveObject.h"
 
 #include <unordered_map>
 #include <vector>
 #include <map>
 #include <string>
+#include <memory>
 
 
 using std::vector;
@@ -28,6 +30,7 @@ bool UnitTests::createAndMoveCircle(){
     printf("createAndMoveCircle\n");
     printf("Initializing timeline...\n");
     Timeline t = Timeline();
+    t.time_kept = 10000; // Domn't delete things for this unit test
     printf("setting generators...\n");
     t.setGenerators(&UnitTests::createEvent, &UnitTests::createObject);
     printf("init circle...\n");
@@ -39,10 +42,50 @@ bool UnitTests::createAndMoveCircle(){
     printf("updating observables...\n");
     vector<int> ob = t.updateObservables();
     if(ob.size() == 1){
-        printf("Object 0:\n");
+        printf("Object 0: %d\n", ob[0]);
         Variant(t.getLastObserved(ob[0])->serialize()).printFormatted(); 
     }else{
-        printf("Error no objects!\n");
+        printf("Error no object found after creation!\n");
+        return false;
+    }
+
+    printf("Adding first move event...\n");
+    t.addEvent(std::make_unique<MoveObject>(ob[0], 1.0), 2.0) ;
+    t.run(5.0);
+
+    ob = t.updateObservables();
+    if(ob.size() == 1){
+        printf("Object 0: %d\n", ob[0]);
+        Variant(t.getLastObserved(ob[0])->serialize()).printFormatted(); 
+    }else{
+        printf("Error no object found!");
+        return false;
+    }
+
+    printf("Adding change direction event...\n");
+    t.addEvent(std::make_unique<ChangeVelocity>(ob[0], vec3(0,0,1.0)), 5.5) ;
+    t.run(10.0);
+
+    ob = t.updateObservables();
+    if(ob.size() == 1){
+        printf("Object 0: %d\n", ob[0]);
+        Variant(t.getLastObserved(ob[0])->serialize()).printFormatted(); 
+    }else{
+        printf("Error no object found!");
+        return false;
+    }
+
+    printf("Adding retroactive change direction event...\n");
+    t.addEvent(std::make_unique<ChangeVelocity>(ob[0], vec3(0,0,-1.0)), 5.5) ;
+    t.run(10.0);
+
+
+    ob = t.updateObservables();
+    if(ob.size() == 1){
+        printf("Object 0: %d\n", ob[0]);
+        Variant(t.getLastObserved(ob[0])->serialize()).printFormatted(); 
+    }else{
+        printf("Error no object found!");
         return false;
     }
 

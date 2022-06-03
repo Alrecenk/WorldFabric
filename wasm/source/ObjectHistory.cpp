@@ -37,7 +37,7 @@ TObject* ObjectHistory::get(glm::vec3 vantage, double time, double info_speed){
 
 
 //Returns the version of this oject at the given time, ignoring time warp
-// For internal use to get the position of events from their anchor
+// For internal use to get the position of events from their anchor or when no vantage object exists
 TObject* ObjectHistory::get(double time){
     if(time > deleted_time){
         return nullptr;
@@ -52,6 +52,10 @@ TObject* ObjectHistory::get(double time){
 
 // Deletes the object at the given time
 void ObjectHistory::deleteAt(double time){
+    if(time > deleted_time){
+        return ; //don't need to redelete something deleted earlier
+    }
+    printf("deleting from time %f\n", time);
     deleted_time = time ;
     int delete_from = history.size();
     for(int k=history.size()-1;k>=0; k--){
@@ -60,15 +64,18 @@ void ObjectHistory::deleteAt(double time){
             break;
         }
     }
+
+    //printf("deleting from index %d\n", delete_from);
     
     for(int k=delete_from;k<history.size(); k++){
-        for(auto& [reader,read_time] : history[k]->readers){
-            if(read_time >= deleted_time && !reader->deleted && !reader->run_pending){
+        for(auto& [reader, read_time] : history[k]->readers){
+            if(read_time > deleted_time && !reader->deleted && !reader->run_pending){
                 timeline->events.rerunEvent(reader);
             }
         }
     }
 
+    //printf("erasing from index %d\n", delete_from+1);
     history.erase(history.cbegin() + delete_from +1 , history.cend());// all after first should be completely removed
 }
 
@@ -76,10 +83,16 @@ void ObjectHistory::deleteAt(double time){
 // and returns an editable version of it
 // deletes all data beyond that point and marks events appropriately
 TObject* ObjectHistory::getMutable(double time){
+    //printf("getting mutable at time %f\n", time);
+    //printf("most recent write time %f\n", history[history.size()-1]->write_time);
     if(time < history[history.size()-1]->write_time){
+        printf("retroactive write detected!\n");
         deleteAt(time);
         deleted_time = 9999999.0 ;
     }
-    history.push_back(history[history.size()-1]->deepCopy());
+    std::unique_ptr<TObject> new_instant = history[history.size()-1]->deepCopy() ;
+    new_instant->write_time = time ;
+    history.push_back(std::move(new_instant));
+
     return history[history.size()-1].get() ;
 }

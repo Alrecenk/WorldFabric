@@ -91,16 +91,15 @@ void Timeline::applyUpdate(Variant update){
 // Updates all observables to the current time, performing interpolation as required
 // and returnsa list of ID for all observables
 std::vector<int> Timeline::updateObservables(){
-
     TObject* vo = objects[vantage_id].get(current_time) ;
-    vec3 vantage(0,0,0) ;
-    if(vo!= nullptr){ // if position data available
-        vantage = vo->position ;
-    }
-
     vector<int> observed_ids;
     for(auto& [id, object_history] : objects){
-        TObject* read = object_history.get(vantage,current_time, info_speed);
+        TObject* read = nullptr ;
+        if(vo != nullptr){
+            read = object_history.get(vo->position,current_time, info_speed);
+        }else{
+            read = object_history.get(current_time);
+        }
         if(read != nullptr){
             last_observed[id] = std::move(read->getObserved(last_observed[id].get()));
             observed_ids.push_back(id);

@@ -10,7 +10,7 @@
 // Returns the next event to be run from the given perspective
 // returns nullptr if the queue is up to date
 TEvent* EventQueue::next(glm::vec3 vantage, double time, double info_speed){
-    printf("event queue next...\n");
+    //printf("event queue next...\n");
     double best_time = time;
     TEvent* best_event = nullptr;
     for(std::unique_ptr<TEvent>& e : events){
@@ -61,11 +61,13 @@ void EventQueue::removeDependencies(TEvent* event){
 }
 
 void EventQueue::deleteEvent(TEvent* event){
+    printf("Deleting event at time %f \n", event->time);
     removeDependencies(event);
     event->deleted = true;
 }
 
 void EventQueue::rerunEvent(TEvent* event){
+    printf("Queueing rerun of event at time %f \n", event->time);
     removeDependencies(event);
     event->run_pending = true;
 }

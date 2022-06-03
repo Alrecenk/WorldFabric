@@ -22,9 +22,9 @@ class Timeline{
 
     public:
 
-        int vantage_id = 0; // ID of object currently acting as vantage point
+        int vantage_id = -99999; // ID of object currently acting as vantage point
         double current_time = 0; // current time at vantage point
-        double info_speed = 1000; // maximum speed of information transfer between events and data
+        double info_speed = 1000000; // maximum speed of information transfer between events and data
         double time_kept = 1.0 ; //Amount of history kept in the timeline
         double min_spawned_event_delay = 1.0/120; // Minimum time between an event spawned by another event at the same anchor
 

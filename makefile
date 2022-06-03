@@ -51,7 +51,8 @@ API_SRC    =${API_DIR}source/Variant.cpp \
 			${API_DIR}source/EventQueue.cpp \
 			${API_DIR}source/ObjectHistory.cpp \
 			${API_DIR}source/MovingObject.cpp \
-			${API_DIR}source/ChangeVelocity.cpp
+			${API_DIR}source/ChangeVelocity.cpp \
+			${API_DIR}source/MoveObject.cpp
 
 			
 default: all

@@ -13,19 +13,19 @@ const TObject* TEvent::get(int id){
     if(timeline->objects.find(id) == timeline->objects.end()){
         return nullptr ;
     }
-    printf("getting anchor in tevent...\n");
+    //printf("getting anchor in tevent...\n");
     vec3 vantage(0,0,0);
     TObject* vo = timeline->objects[anchor_id].get(time) ;
     if(vo != nullptr){
         vantage = vo->position; // TODO cache
     }
-    printf("getting requested object in tevent...\n");
+    //printf("getting requested object in tevent...\n");
     TObject* obj = timeline->objects[id].get(vantage, time, timeline->info_speed) ;
     if(obj != nullptr){ // if we read something
         double read_time = time - glm::length(obj->position-vantage)/timeline->info_speed ;
         obj->readers.push_back(std::pair<TEvent*, double>(this, read_time)); // mark that we read it
     }
-    printf("returning from tevent get\n");
+    //printf("returning from tevent get\n");
     return obj;
 }
 
