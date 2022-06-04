@@ -17,6 +17,8 @@ class MoveObject : public TEvent{
 
         MoveObject(int moving_object, double time_step);
 
+        MoveObject(double time_step);
+
         ~MoveObject() override;
 
         // Serialize this event's data, so it can be efficiently moved between timelines

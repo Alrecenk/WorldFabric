@@ -26,7 +26,7 @@ class Timeline{
         double current_time = 0; // current time at vantage point
         double info_speed = 1000000; // maximum speed of information transfer between events and data
         double time_kept = 1.0 ; //Amount of history kept in the timeline
-        double min_spawned_event_delay = 1.0/120; // Minimum time between an event spawned by another event at the same anchor
+        double min_spawned_event_delay = 1.0/1000; // Minimum time between an event spawned by another event at the same anchor
 
         Timeline();
 

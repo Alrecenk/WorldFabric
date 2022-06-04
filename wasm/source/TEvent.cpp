@@ -57,7 +57,9 @@ void TEvent::addEvent(std::unique_ptr<TEvent> e){
 
 // Creates an event that creates an object at the earliest possible time
 void TEvent::createObject(std::unique_ptr<TObject> obj, std::unique_ptr<TEvent> on_created){
-    addEvent(std::make_unique<CreateObject>(std::move(obj), std::move(on_created)));
+    std::unique_ptr<CreateObject> create_object_event = std::make_unique<CreateObject>(std::move(obj), std::move(on_created)) ;
+    create_object_event->anchor_id = anchor_id ;
+    addEvent(std::move(create_object_event));
 }
 
     // Creates an event that deletes an object at the earliest possible time
