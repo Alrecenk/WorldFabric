@@ -23,14 +23,15 @@ using std::string;
 using std::map;
 
 bool UnitTests::runAll(){
-    return UnitTests::createAndMoveCircle();
+    //return UnitTests::createAndMoveCircle();
+    return UnitTests::checkSimpleTimeWarp();
 }
 
 bool UnitTests::createAndMoveCircle(){
-    printf("createAndMoveCircle\n");
+    printf("---createAndMoveCircle---\n");
     printf("Initializing timeline...\n");
     Timeline t = Timeline();
-    t.time_kept = 10000; // Domn't delete things for this unit test
+    t.time_kept = 10000; // Don't delete things for this unit test
     printf("setting generators...\n");
     t.setGenerators(&UnitTests::createEvent, &UnitTests::createObject);
     printf("init circle...\n");
@@ -92,6 +93,68 @@ bool UnitTests::createAndMoveCircle(){
     return true ;
 
 }
+
+
+bool UnitTests::checkSimpleTimeWarp(){
+    printf("---checkSimpleTimeWarp---\n");
+    
+    Timeline t = Timeline();
+    t.time_kept = 10000;
+    t.info_speed = 10;
+
+    printf("Initialized timeline with %f info speed.\n", t.info_speed);
+
+    printf("setting generators...\n");
+    t.setGenerators(&UnitTests::createEvent, &UnitTests::createObject);
+    printf("init vantage at (0,0,0) at time 0.0...\n");
+    std::unique_ptr<MovingObject> v = std::make_unique<MovingObject>(vec3(0,0,0),vec3(0,0,0), 1.0f) ;
+    t.createObject(std::move(v), std::unique_ptr<TEvent>(nullptr), 0.0);
+    printf("running...\n");
+    t.run(1);
+    
+    vector<int> ob = t.updateObservables();
+    if(ob.size() == 1){
+        printf("Vantage id: %d\n", ob[0]);
+        Variant(t.getLastObserved(ob[0])->serialize()).printFormatted(); 
+        t.vantage_id = ob[0]; // set the cantage point
+    }else{
+        printf("Error no object found after creation!\n");
+        return false;
+    }
+
+    // Create an object at the distance of the info speed so it should take 2 time to appear in observables
+    printf("Attempting to create an object at (10,0,0) from vantage at time 1.0\n");
+    std::unique_ptr<MovingObject> a = std::make_unique<MovingObject>(vec3(10,0,0),vec3(-1.0,0,0), 1.0f) ;
+    t.createObject(std::move(a), std::make_unique<MoveObject>(0.1), 1.0);
+    double time = 1.0; 
+    bool found_new = false;
+    while(!found_new){
+        time+=0.1;
+        t.run(time);
+        ob = t.updateObservables();
+        found_new = ob.size() > 1 ;
+    }
+    printf("Second object observed at time %f \n", time );
+    double found_time = time ;
+    Variant(t.getLastObserved(ob[0])->serialize()).printFormatted(); 
+    Variant(t.getLastObserved(ob[1])->serialize()).printFormatted(); 
+
+    bool reached = false ;
+    while(!reached){
+        time+=0.1;
+        t.run(time);
+        ob = t.updateObservables();
+        reached = fabs(t.getLastObserved(ob[0])->position.x - t.getLastObserved(ob[1])->position.x)<0.06 ;
+    }
+    printf("Objects met at time %f , perceived speed was %f\n", time, 10.0/(time-found_time) );
+    Variant(t.getLastObserved(ob[0])->serialize()).printFormatted(); 
+    Variant(t.getLastObserved(ob[1])->serialize()).printFormatted(); 
+
+
+
+    return true ;
+}
+
 
 std::unique_ptr<TObject> UnitTests::createObject(const Variant& serialized){
     auto map = serialized.getObject() ;

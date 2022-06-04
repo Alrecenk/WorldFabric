@@ -40,24 +40,25 @@ void CreateObject::set(std::map<std::string,Variant>& serial){
 // To maintain causality run should only interact with dynamic data by using the privided methods:
 // get(id), getMutable(), addEvent, createObject, deleteObject, and getCollisions
 void CreateObject::run(){
-    printf("create object running...\n");
+    
     int id = timeline->getNextID();
 
     double make_time = time ;
-    printf("getting anchor...\n");
+    //printf("getting anchor...\n");
     const TObject* anchor = get(anchor_id) ;
     if(anchor != nullptr){ // anchor may be null when a timeline is creating its vantage object
         make_time += glm::length(new_object->position - anchor->position)/timeline->info_speed ;
     }
-    printf("making object history...\n");
+    printf("Object being created at time %f\n", make_time);
+    //printf("making object history...\n");
     timeline->objects[id] = ObjectHistory(std::move(new_object), make_time);
 
     timeline->objects[id].timeline = timeline;
     if(on_created.get() !=nullptr){
         on_created->anchor_id = id ;
-        on_created->time = make_time ; 
-        on_created->wrote_anchor = true ; // TODO create object rollback probably needs custom code
+        on_created->time = fmax(on_created->time,make_time) ; 
+         // TODO create object rollback probably needs custom code
         addEvent(std::move(on_created));
     }
-    printf("create object completed...\n");
+    //printf("create object completed...\n");
 }

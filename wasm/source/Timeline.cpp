@@ -38,7 +38,9 @@ void Timeline::addEvent(std::unique_ptr<TEvent> e, double send_time){
 
 // Creates an event that creates an object at the earliest possible time
 void Timeline::createObject(std::unique_ptr<TObject> obj, std::unique_ptr<TEvent> on_created, double send_time){
-    addEvent(std::make_unique<CreateObject>(std::move(obj), std::move(on_created)), send_time);
+    std::unique_ptr<CreateObject> create_object_event = std::make_unique<CreateObject>(std::move(obj), std::move(on_created)) ;
+    create_object_event->anchor_id = vantage_id ;
+    addEvent(std::move(create_object_event), send_time);
 }
 
     // Creates an event that deletes an object at the earliest possible time
@@ -48,7 +50,7 @@ void Timeline::deleteObject(int id, double send_time){
 
 // Runs events in the timeline until the location at the vantage object reaches the given time
 void Timeline::run(double new_time){
-    printf("timeline running......\n");
+    //printf("timeline running......\n");
 
     TObject* vo = objects[vantage_id].get(new_time) ;
     vec3 vantage(0,0,0) ;

@@ -13,6 +13,11 @@ MoveObject::MoveObject(int moving_object, double move_step){
     interval = move_step;
 }
 
+MoveObject::MoveObject(double move_step){
+    anchor_id = -99999;
+    interval = move_step;
+}
+
 MoveObject::~MoveObject() {}
 
 // Serialize this event's data, so it can be efficiently moved between timelines
@@ -39,7 +44,7 @@ void MoveObject::set(std::map<std::string,Variant>& serial){
 void MoveObject::run(){
     MovingObject* o = (MovingObject*)getMutable() ;
     o->position += o->velocity * (float)interval;
-    printf("Object moving to : %f,%f, %f\n", o->position.x, o->position.y, o->position.z);
+    //printf("Object moving to : %f,%f, %f\n", o->position.x, o->position.y, o->position.z);
 
     std::unique_ptr<MoveObject> next_tick = std::make_unique<MoveObject>(anchor_id, interval);
     next_tick->time = time + interval ;
