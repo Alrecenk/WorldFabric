@@ -33,9 +33,14 @@ const TObject* TEvent::get(int id){
 // This is how you edit objects from inside events.
 TObject* TEvent::getMutable(){
     if(timeline->objects.find(anchor_id) == timeline->objects.end()){
+        printf("Attempted to get mutable for id %d but it hasn't been defined yet at time  %f! Probably gonna segfault.\n", anchor_id, time);
         return nullptr ;
     }
     TObject* obj = timeline->objects[anchor_id].getMutable(time) ;
+    if(obj == nullptr){
+        printf("Attempted to get mutable for id %d at time  %f before it was created! Probably gonna segfault.\n", anchor_id, time);
+        return nullptr;
+    }
     obj->readers.push_back(std::pair<TEvent*, double>(this, time));
     wrote_anchor = true;
     return obj;
@@ -70,6 +75,9 @@ void TEvent::deleteObject(int id){
 // Returns the IDs of all TObjects colliding with the bounding sphere of the anchor object
 // at the time of this event
 std::vector<int> TEvent::getCollisions(){
-    printf("Get collisions is not implemented yet!\n");
-    return vector<int>();
+    return timeline->collisions.getCollisions(this);
+}
+
+void TEvent::print() const{
+    Variant(serialize()).printFormatted();
 }

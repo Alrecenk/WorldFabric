@@ -33,8 +33,8 @@ class MoveObject : public TEvent{
         // get(id), getMutable(), addEvent, createObject, deleteObject, and getCollisions
         void run() override;
 
-    private:
         double interval ;
+        bool stop_on_hit = false;
 
         
 };

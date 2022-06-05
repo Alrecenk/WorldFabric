@@ -32,7 +32,7 @@ class ObjectHistory{
         TObject* get(double time);
 
         // Deletes the object at the given time
-        void deleteAt(double time);
+        void deleteAfter(double time);
 
         //Creates a new instant at the given time by deep copying the previous instant
         // and returns an editable version of it

@@ -48,6 +48,8 @@ class TObject{
         // If not overridden getObserved returns the raw value of the object
         virtual std::unique_ptr<TObject> getObserved(const TObject* last_observed);
 
+        void print() const;
+
         // Data and functions below this point are used for maintining the timeline continuity
         std::vector<std::pair<TEvent*, double>> readers ; // events that have read this object instant and when    
 };

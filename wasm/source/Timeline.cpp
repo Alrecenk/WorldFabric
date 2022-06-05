@@ -12,6 +12,7 @@ using std::string ;
 
 Timeline::Timeline(){
     events.timeline = this;
+    collisions.timeline = this ;
 }
 
 // Set the functions to be used for generating typed timeline events and objects from serialized data
@@ -62,10 +63,13 @@ void Timeline::run(double new_time){
     while(current_event != nullptr){
         current_event->run();
         current_event->run_pending = false;
-        if(current_event->anchor_id == vantage_id && current_event->wrote_anchor){ // if vantage object changed
-            TObject* eo = objects[current_event->anchor_id].get(new_time) ;
-            if(eo!=nullptr){
-                vantage = eo->position; // vantage point may have changed
+        if(current_event->wrote_anchor){
+            collisions.onDataChanged(current_event); // trigger rollback from potential retroactive changes to collision requests
+            if(current_event->anchor_id == vantage_id ){ // if vantage object changed
+                TObject* eo = objects[current_event->anchor_id].get(new_time) ;
+                if(eo!=nullptr){
+                    vantage = eo->position; // vantage point may have changed
+                }
             }
         }
         current_event = events.next(vantage, new_time, info_speed) ;

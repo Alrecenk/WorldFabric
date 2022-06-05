@@ -23,10 +23,12 @@ using std::string;
 using std::map;
 
 bool UnitTests::runAll(){
-    //return UnitTests::createAndMoveCircle();
-    return UnitTests::checkSimpleTimeWarp();
+    return UnitTests::createAndMoveCircle() && 
+           UnitTests::checkSimpleTimeWarp() &&
+           UnitTests::checkCollisionRollback();
 }
 
+// TODO make these proper unit tests that check correctness and don't spam the console if they're passing
 bool UnitTests::createAndMoveCircle(){
     printf("---createAndMoveCircle---\n");
     printf("Initializing timeline...\n");
@@ -151,6 +153,72 @@ bool UnitTests::checkSimpleTimeWarp(){
     Variant(t.getLastObserved(ob[1])->serialize()).printFormatted(); 
 
 
+
+    return true ;
+}
+
+
+bool UnitTests::checkCollisionRollback(){
+    Timeline t = Timeline();
+    t.time_kept = 10000; // Don't delete things for this unit test
+
+    std::unique_ptr<MovingObject> a = std::make_unique<MovingObject>(vec3(0,0,0),vec3(1,0,0), 1.0f) ;
+    std::unique_ptr<MoveObject> a_move = std::make_unique<MoveObject>(0.5) ;
+    a_move->stop_on_hit = true;
+    t.createObject(std::move(a), std::move(a_move), 1.0);
+    printf("A created!\n");
+    t.run(1.1);
+    int a_id = -1 ;
+    vector<int> ob = t.updateObservables();
+    a_id = ob[0]; 
+    printf("A_id : %d!\n", a_id);
+    std::unique_ptr<MovingObject> b = std::make_unique<MovingObject>(vec3(5,5,0),vec3(0,-1,0), 1.0f) ;
+    std::unique_ptr<MoveObject> b_move = std::make_unique<MoveObject>(0.5) ;
+    b_move->stop_on_hit = false;
+    t.createObject(std::move(b), std::move(b_move) , 1.0);
+
+    
+    double time = 1.1 ;
+    t.run(time);
+   
+    ob = t.updateObservables();
+    int b_id = ob[0] == a_id ? ob[1] : ob[0];
+     printf("B created! %d \n", b_id);
+
+    printf("Searching for collisions!\n");
+    bool a_stopped = false;
+    while(!a_stopped && time < 10.0){
+        time+=0.1;
+        t.run(time);
+        ob = t.updateObservables();
+        MovingObject* ao = (MovingObject*)t.getLastObserved(a_id) ;
+        a_stopped =  glm::length(ao->velocity) < 0.01;
+    }
+    printf("A stopped at time : %f \n", time);
+    t.run(10.0);
+    ob = t.updateObservables();
+    printf("A at time 10 : \n");
+     t.getLastObserved(a_id)->print() ;
+    printf("B at time 10 : \n");
+     t.getLastObserved(b_id)->print() ;
+
+    printf("Adding retroactive change direction event that prevent collisions and running to time 10...\n");
+    t.addEvent(std::make_unique<ChangeVelocity>(b_id, vec3(0,0,0)), 1.01) ;
+    t.run(10.0);
+    ob = t.updateObservables();
+    printf("A at time 10 : \n");
+    t.getLastObserved(a_id)->print() ;
+    printf("B at time 10 : \n");
+    t.getLastObserved(b_id)->print() ;
+
+     printf("Adding retroactive change direction event that makes collision happen again and running to time 10...\n");
+    t.addEvent(std::make_unique<ChangeVelocity>(b_id, vec3(0,-1,0)), 1.02) ;
+    t.run(10.0);
+    ob = t.updateObservables();
+    printf("A at time 10 : \n");
+    t.getLastObserved(a_id)->print() ;
+    printf("B at time 10 : \n");
+    t.getLastObserved(b_id)->print() ;
 
     return true ;
 }
