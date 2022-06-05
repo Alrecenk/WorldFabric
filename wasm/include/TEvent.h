@@ -66,8 +66,9 @@ class TEvent{
         // at the time of this event
         std::vector<int> getCollisions();
 
+        void print() const;
 
-        // Data and functions below this point are used for maintining the timeline continuity
+        // Data and functions below this point are used for maintaining the timeline continuity
 
         bool run_pending = true; //whether the event still needs to be run
         std::vector<TEvent*> spawned_events ; //events spawen by this event when it was last run

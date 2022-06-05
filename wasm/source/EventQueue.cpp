@@ -45,6 +45,13 @@ TEvent* EventQueue::addEvent(std::unique_ptr<TEvent> event){
 }
 
 void EventQueue::removeDependencies(TEvent* event){
+    
+    // Delete any data following from this write
+    if(event->wrote_anchor){
+        timeline->objects[event->anchor_id].deleteAfter(event->time);
+        event->wrote_anchor = false;
+    }
+
     // Delete any events this event spawned
     for(TEvent* s : event->spawned_events){
         if(!s->deleted){
@@ -52,17 +59,12 @@ void EventQueue::removeDependencies(TEvent* event){
         }
     }
     event -> spawned_events.clear();
-
-    if(event->wrote_anchor){
-        timeline->objects[event->anchor_id].deleteAt(event->time);
-        event->wrote_anchor = false;
-    }
-
 }
 
 void EventQueue::deleteEvent(TEvent* event){
-    printf("Deleting event at time %f \n", event->time);
+    //printf("Deleting event at time %f \n", event->time);
     removeDependencies(event);
+    timeline->collisions.onDelete(event);
     event->deleted = true;
 }
 

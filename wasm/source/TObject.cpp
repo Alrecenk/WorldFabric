@@ -17,3 +17,7 @@ std::unique_ptr<TObject> TObject::deepCopy(){
 std::unique_ptr<TObject> TObject::getObserved(const TObject* last_observed){
     return deepCopy();
 }
+
+void TObject::print() const{
+    Variant(serialize()).printFormatted();
+}

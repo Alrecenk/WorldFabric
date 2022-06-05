@@ -5,15 +5,18 @@
 #include "glm/vec3.hpp"
 #include "EventQueue.h"
 #include "ObjectHistory.h"
-#include <unordered_map>
-#include <vector>
-
-#include <map>
-#include <string>
+#include "CollisionSystem.h"
 
 #include "glm/gtx/transform.hpp"
 #include "glm/gtc/quaternion.hpp"
 #include "glm/ext.hpp"
+
+#include <unordered_map>
+#include <vector>
+#include <map>
+#include <string>
+
+
 
 class TObject;
 class TEvent;
@@ -68,6 +71,7 @@ class Timeline{
 
         EventQueue events;
         std::unordered_map<int, ObjectHistory> objects;
+        CollisionSystem collisions;
         std::unordered_map<int, std::unique_ptr<TObject>> last_observed ;
 
         std::vector<TEvent*> pending_external_events ; // tracks externally created events for quicksend
