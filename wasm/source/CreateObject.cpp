@@ -49,7 +49,7 @@ void CreateObject::run(){
     if(anchor != nullptr){ // anchor may be null when a timeline is creating its vantage object
         make_time += glm::length(new_object->position - anchor->position)/timeline->info_speed ;
     }
-    printf("Object being created at time %f\n", make_time);
+    //printf("Object being created at time %f\n", make_time);
     //printf("making object history...\n");
     timeline->objects[id] = ObjectHistory(std::move(new_object), make_time);
 

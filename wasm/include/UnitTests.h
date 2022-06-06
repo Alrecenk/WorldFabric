@@ -11,6 +11,10 @@ class UnitTests{
 public:
     static bool runAll();
 
+    static void expect(bool& success, bool condition, std::string error_message);
+
+    static void expectNear(bool& success, glm::vec3 a, glm::vec3 b, float dist, std::string error_message);
+
     static bool createAndMoveCircle();
 
     static bool checkSimpleTimeWarp();
