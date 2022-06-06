@@ -69,7 +69,7 @@ void EventQueue::deleteEvent(TEvent* event){
 }
 
 void EventQueue::rerunEvent(TEvent* event){
-    printf("Queueing rerun of event at time %f \n", event->time);
+    //printf("Queueing rerun of event at time %f \n", event->time);
     removeDependencies(event);
     event->run_pending = true;
 }

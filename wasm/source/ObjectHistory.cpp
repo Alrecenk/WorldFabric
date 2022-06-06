@@ -80,7 +80,7 @@ TObject* ObjectHistory::getMutable(double time){
     //printf("getting mutable at time %f\n", time);
     //printf("most recent write time %f\n", history[history.size()-1]->write_time);
     if(time < history[history.size()-1]->write_time){
-        printf("retroactive write detected!\n");
+        //printf("retroactive write detected!\n");
         deleteAfter(time);
     }
 

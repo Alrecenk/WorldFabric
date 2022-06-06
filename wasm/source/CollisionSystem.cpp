@@ -30,7 +30,7 @@ vector<int> CollisionSystem::getCollisions(TEvent* event){
                 vec3 diff = (o->position-vantage) ;
                 if(glm::dot(diff,diff) < (o->radius + vo->radius) * (o->radius + vo->radius)){
                     collisions.push_back(id);
-                    printf("%d found collision : %d!\n",event->anchor_id, id);
+                    //printf("%d found collision : %d!\n",event->anchor_id, id);
                 }
             }
         }
@@ -60,8 +60,8 @@ void CollisionSystem::onDataChanged(TEvent* event){
                 then_collided |= (id == event->anchor_id) ;
             }
             if(now_collides != then_collided){
-                printf("rolling back event due to collision change!\n");
-                caller->print();
+                //printf("rolling back event due to collision change!\n");
+                //caller->print();
                 timeline->events.rerunEvent(caller);
             }
         }

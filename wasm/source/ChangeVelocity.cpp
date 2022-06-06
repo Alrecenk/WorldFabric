@@ -37,7 +37,7 @@ void ChangeVelocity::set(std::map<std::string,Variant>& serial){
 // To maintain causality run should only interact with dynamic data by using the privided methods:
 // get(id), getMutable(), addEvent, createObject, deleteObject, and getCollisions
 void ChangeVelocity::run(){
-    printf("Running change velocity...\n");
+    //printf("Running change velocity...\n");
     MovingObject* o = (MovingObject*)getMutable() ;
     o->velocity = new_velocity ;
 }
