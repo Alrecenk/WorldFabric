@@ -39,7 +39,10 @@ class ObjectHistory{
         // deletes all data beyond that point and marks events appropriately
         TObject* getMutable(double time);
 
-    private:
+        // Objects may have a single instant before the clear time, so their value at that time can still be fetched
+        void clearHistoryBefore(double clear_time);
+
+
         std::vector<std::unique_ptr<TObject>> history;
         
 

@@ -33,7 +33,10 @@ class EventQueue{
 
         void removeDependencies(TEvent* event);
 
-    private:
+        // Clears out all events before the given time
+        void clearHistoryBefore(double clear_time);
+
+    //private:
         std::vector<std::unique_ptr<TEvent>> events;
         
 

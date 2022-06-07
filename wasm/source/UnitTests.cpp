@@ -29,7 +29,8 @@ bool UnitTests::runAll(){
     printf("checkSimpleTimeWarp : %s\n", success.c_str());
     success = UnitTests::checkCollisionRollback() ? "passed" : "failed" ;
     printf("checkCollisionRollback : %s\n", success.c_str());
-
+    success = UnitTests::checkClearHistory() ? "passed" : "failed" ;
+    printf("checkClearHistory : %s\n", success.c_str());
     return true; 
 }
 
@@ -55,7 +56,6 @@ bool UnitTests::createAndMoveCircle(){
     //printf("---createAndMoveCircle---\n");
     //printf("Initializing timeline...\n");
     Timeline t = Timeline();
-    t.time_kept = 10000; // Don't delete things for this unit test
     //printf("setting generators...\n");
     t.setGenerators(&UnitTests::createEvent, &UnitTests::createObject);
     //printf("init circle...\n");
@@ -106,7 +106,6 @@ bool UnitTests::checkSimpleTimeWarp(){
     bool s = true ;
     
     Timeline t = Timeline();
-    t.time_kept = 10000;
     t.info_speed = 10;
 
     //printf("Initialized timeline with %f info speed.\n", t.info_speed);
@@ -163,8 +162,6 @@ bool UnitTests::checkSimpleTimeWarp(){
     //Variant(t.getLastObserved(ob[0])->serialize()).printFormatted(); 
     //Variant(t.getLastObserved(ob[1])->serialize()).printFormatted(); 
 
-
-
     return s ;
 }
 
@@ -172,7 +169,6 @@ bool UnitTests::checkSimpleTimeWarp(){
 bool UnitTests::checkCollisionRollback(){
     bool s = true ;
     Timeline t = Timeline();
-    t.time_kept = 10000; // Don't delete things for this unit test
 
     std::unique_ptr<MovingObject> a = std::make_unique<MovingObject>(vec3(0,0,0),vec3(1,0,0), 1.0f) ;
     std::unique_ptr<MoveObject> a_move = std::make_unique<MoveObject>(0.5) ;
@@ -255,6 +251,93 @@ bool UnitTests::checkCollisionRollback(){
     return s ;
 }
 
+bool UnitTests::checkClearHistory(){
+    //printf("---checkSimpleTimeWarp---\n");
+    bool s = true ;
+    
+    Timeline t = Timeline();
+    
+    for(int k=0;k<10;k++){
+        std::unique_ptr<MovingObject> o = std::make_unique<MovingObject>(vec3(k*100,k*1000%77,0),vec3((k*2)%3 - 1,k%3 - 1,0), 1.0f) ;
+        std::unique_ptr<MoveObject> o_move = std::make_unique<MoveObject>(0.5) ;
+        t.createObject(std::move(o), std::move(o_move) , 1.0);
+    }
+    t.run(1.0);
+    expect(s, t.events.events.size() == 20, "Wrong number of events after first step!");
+    //printf("%d\n",(int)t.events.events.size());
+
+    double time = 10;
+    double clear_time = 5;
+
+    
+    t.run(time);
+    expect(s, t.events.events.size() == 200, "Wrong number of events after running!");
+    //printf("%d\n",(int)t.events.events.size());
+
+    expect(s, t.objects[1].history.size() == 19, "Wrong number of object instances after running!");
+    //printf("%d\n",(int)t.objects[1].history.size());
+
+    TObject* o1 = t.objects[1].get(clear_time) ;
+
+    t.clearHistoryBefore(clear_time);
+    expect(s, t.events.events.size() == 200, "Wrong number of events after first clear!");
+    //printf("%d\n",(int)t.events.events.size());
+
+    TObject* o1c = t.objects[1].get(clear_time) ;
+    expect(s, o1c == o1, "Object at clear time changed after clear!");
+
+    expect(s, t.objects[1].history.size() == 11, "Wrong number of object instances after first clear!");
+    //printf("%d\n",(int)t.objects[1].history.size());
+
+    t.run(time+1);
+    while(time < 100){
+        time+=10;
+        clear_time+=10;
+        t.run(time);
+        t.clearHistoryBefore(clear_time);
+
+        expect(s, t.events.events.size() == 310, "Wrong number of events after clear!");
+        //printf("%d\n",(int)t.events.events.size());
+
+        expect(s, t.objects[2].history.size() == 11, "Wrong number of object instances after clear!");
+        //printf("%d\n",(int)t.objects[1].history.size());
+    }
+
+
+    t.vantage_id = 1 ;
+    t.info_speed = 100;
+
+    // Make sure time warped objects won't be deleted when they may be accessed
+    while(time < 200){
+        time+=10;
+        clear_time+=10;
+        t.run(time);
+
+        vector<int> ob = t.updateObservables();
+        vector<glm::vec3> positions ;
+        for(int k=0;k<ob.size();k++){
+            positions.push_back(t.getLastObserved(ob[k])->position);
+        }
+
+        t.clearHistoryBefore(clear_time);
+
+        ob = t.updateObservables();
+        for(int k=0;k<ob.size();k++){
+            vec3 c_pos = t.getLastObserved(ob[k])->position ;
+            //printf("pos %d: %f, %f, %f\n", ob[k], c_pos.x, c_pos.y, c_pos.z);
+            expectNear(s,positions[k], c_pos, 0.001,"Object moved after clear history!");
+        }
+
+        expect(s, t.events.events.size() == 310, "Wrong number of events after time warp clear!");
+        //printf("%d\n",(int)t.events.events.size());
+
+        expect(s, t.objects[2].history.size() <= 11, "Too many object instances after time warp clear!");
+        //printf("%d\n",(int)t.objects[2].history.size());
+    }
+
+
+    return s ;
+}
 
 std::unique_ptr<TObject> UnitTests::createObject(const Variant& serialized){
     auto map = serialized.getObject() ;
