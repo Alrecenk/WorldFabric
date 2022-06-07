@@ -97,3 +97,15 @@ TObject* ObjectHistory::getMutable(double time){
 
     return history[history.size()-1].get() ;
 }
+
+// Objects may have a single instant before the clear time, so their value at that time can still be fetched
+void ObjectHistory::clearHistoryBefore(double clear_time){
+    int delete_to = 0;
+    for(int k=0;k<history.size(); k++){
+        if(history[k]->write_time > clear_time){ // finding first one from end not being deleted
+            delete_to = k -1;
+            break;
+        }
+    }
+    history.erase(history.cbegin(), history.cbegin() + delete_to);
+}

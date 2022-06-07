@@ -28,7 +28,6 @@ class Timeline{
         int vantage_id = -99999; // ID of object currently acting as vantage point
         double current_time = 0; // current time at vantage point
         double info_speed = 1000000; // maximum speed of information transfer between events and data
-        double time_kept = 1.0 ; //Amount of history kept in the timeline
         double min_spawned_event_delay = 1.0/1000; // Minimum time between an event spawned by another event at the same anchor
 
         Timeline();
@@ -50,13 +49,18 @@ class Timeline{
         // Runs events in the timeline until the location at the vantage object reaches the given time
         void run(double new_time);
 
-        // Returns a serialized descriptor of the state of the this Timeline that can be used by another Timeline ot generate a synchronization update
-        Variant getDescriptor();
+        // Clears out all events and data changes before the given time
+        // Objects may have a single instant before the clear time, so their value at that time can be fetched
+        void clearHistoryBefore(double clear_time);
 
-        // Given another tree's descriptor, produces an update that woulds bring that tree into syncwith this one
+        // Returns a serialized descriptor of the state of the this Timeline at the goiven time 
+        // that can be used by another Timeline to generate a synchronization update
+        Variant getDescriptor(double time);
+
+        // Given another tree's descriptor, produces an update that would bring that tree into sync with this one
         Variant getUpdateFor(Variant descriptor);
 
-        // applies a syncrhoniation update produced by another timeline's use of getUpdateFor'
+        // applies a syncrhoniation update produced by another timeline's use of getUpdateFor
         void applyUpdate(Variant update);
 
         // Updates all observables to the current time, performing interpolation as required

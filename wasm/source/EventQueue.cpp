@@ -33,7 +33,7 @@ TEvent* EventQueue::next(glm::vec3 vantage, double time, double info_speed){
 TEvent* EventQueue::addEvent(std::unique_ptr<TEvent> event){
     // Put it in the slot of a delted item if posible
     for(int k=0;k<events.size();k++){
-        if(events[k]->deleted){
+        if(events[k].get() == nullptr || events[k]->deleted){
             events[k] = std::move(event) ; // TODO could cause a memory leak if event being overwritten has an unowned pointer
             return events[k].get();
         }
@@ -72,4 +72,14 @@ void EventQueue::rerunEvent(TEvent* event){
     //printf("Queueing rerun of event at time %f \n", event->time);
     removeDependencies(event);
     event->run_pending = true;
+}
+
+// Clears out all events before the given time
+void EventQueue::clearHistoryBefore(double clear_time){
+    for(int k=0;k<events.size();k++){
+        //free all old events that have run and all deleted events
+        if(events[k].get() != nullptr && (events[k]->deleted || ( events[k]->time < clear_time && !events[k]->run_pending)) ){
+            events[k].reset(); // actually free the data in the event
+        }
+    }
 }
