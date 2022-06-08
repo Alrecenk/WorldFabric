@@ -50,6 +50,7 @@ void CollisionSystem::onDataChanged(TEvent* event){
     for(auto& [caller, collisions] : requests){
         // only rollback stuff that ran after this change
         if(caller->time > event->time && caller->anchor_id != event->anchor_id && !caller->deleted && !caller->run_pending){ 
+            //printf("caller time: %f event time: %f\n", caller->time, event->time);
             TObject* vo = timeline->objects[caller->anchor_id].get(caller->time) ; // we're still fro mthe persepctive of the caller not the new data
             vec3 vantage = vo->position ;
             TObject* o = timeline->objects[event->anchor_id].get(vantage, caller->time, timeline->info_speed);

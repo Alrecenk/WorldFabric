@@ -9,9 +9,15 @@
 #include <sstream>
 #include <chrono>
 #include <ctime>
+#include <memory>
 #include "glm/vec3.hpp"
 #include "TableReader.h"
 #include "UnitTests.h"
+#include "Timeline.h"
+#include "TObject.h"
+#include "TEvent.h"
+#include "BouncingBall.h"
+#include "MoveBouncingBall.h"
 
 using std::vector;
 using std::string;
@@ -20,6 +26,7 @@ using std::pair;
 using glm::vec3;
 using glm::vec4;
 using glm::mat4;
+using std::unique_ptr ;
 
 // Outermost API holds a global reference to the core data model
 map<string,GLTF> meshes;
@@ -32,6 +39,18 @@ byte* packet_ptr ; // location ofr data passed as function parameters and return
 
 int selected_animation = -1;
 std::chrono::high_resolution_clock::time_point animation_start_time;
+
+unique_ptr<Timeline> timeline ;
+
+
+long timeMilliseconds() {
+    return std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::system_clock::now().time_since_epoch()).count();
+}
+
+float randomFloat() {
+    return (float) ((rand() % 1000000) / 1000000.0);
+}
 
 byte* pack(std::map<std::string, Variant> packet){
     ret = Variant(packet);
@@ -421,5 +440,61 @@ byte* runTimelineUnitTests(byte* ptr) {
     return emptyReturn();
 }
 
+byte* initialize2DBallTimeline(byte* ptr){
+    printf("initializing timeline!\n");
+    
+    auto obj = Variant::deserializeObject(ptr);
+    int width = obj["width"].getInt();
+    int height = obj["height"].getInt();
+    int amount = obj["amount"].getInt();
+    float min_radius = obj["min_radius"].getNumberAsFloat();
+    float max_radius = obj["max_radius"].getNumberAsFloat();
+    float max_speed = obj["max_speed"].getNumberAsFloat();
+
+    //printf("amount: %d\n", amount);
+    timeline.reset();
+    vec3 box_min(0,0,-10000);
+    vec3 box_max(width,height,10000);
+    timeline = std::make_unique<Timeline>();
+    for(int k=0;k<amount;k++){
+        float radius = min_radius + randomFloat()*(max_radius-min_radius);
+        vec3 position(radius *2 + randomFloat()*(width-radius*4), radius * 2 + randomFloat()*(height-radius*4), 0);
+        float angle = randomFloat()*6.29;
+        float speed = randomFloat()*max_speed ;
+
+        vec3 velocity(sin(angle)*speed, cos(angle)*speed,0);
+        
+        std::unique_ptr<BouncingBall> o = std::make_unique<BouncingBall>(position, velocity, radius, box_min, box_max) ;
+        std::unique_ptr<MoveBouncingBall> o_move = std::make_unique<MoveBouncingBall>(1.0/60.0) ;
+        timeline->createObject(std::move(o), std::move(o_move) , 0.0);
+        
+    }
+    
+    return emptyReturn();
+}
+
+byte* runTimeline(byte* ptr){
+    
+    auto obj = Variant::deserializeObject(ptr);
+
+    float time = obj["time"].getNumberAsFloat();
+    //printf("running timelime at time: %f\n", time);
+    //printf("clearing: %f\n", time-0.5);
+    timeline->clearHistoryBefore(time-0.5);
+    //printf("running: %f\n", time);
+    timeline->run(time);
+    
+    //printf("getting observables\n");
+    vector<int> ob = timeline->updateObservables();
+
+    map<string, Variant> ret_map ;
+    vector<Variant> output ;
+    for(int k=0;k<ob.size();k++){
+        output.push_back(Variant(timeline->getLastObserved(ob[k])->serialize()));
+    }
+    ret_map["observables"] = Variant(output);
+
+    return pack(ret_map);
+}
 
 }// end extern C

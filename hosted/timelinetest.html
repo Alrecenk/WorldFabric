@@ -1,0 +1,244 @@
+<html>
+<head>
+<title>GLB+VRM viewer</title>
+<meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1">
+<style>
+.container {
+    position: relative;
+    overflow: hidden;
+}
+#ui {
+    background-color: transparent;  /* set 2D canvas to overlap webgl canvas and be transparent*/
+    position: absolute;
+    left: 0px;
+    top: 0px;
+    z-index: 10;
+    overflow: hidden;
+}
+
+body {
+  position: relative;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+</style>
+
+<script type="text/javascript" src="gl-matrix-min.js"></script>
+<script type="text/javascript" src="InterfaceButton.js"></script>
+<script type="text/javascript" src="ExecutionMode.js"></script>
+<script type="text/javascript" src="generated/api.js"></script>
+<script type="text/javascript" src="Serializer.js"></script>
+<script type="text/javascript" src="BallBounceMode.js"></script>
+
+
+<script type="text/javascript">
+"use strict";
+const url_params = new URLSearchParams(window.location.search) ;
+var app; // The main app running on the CAD canvas
+var imports = url_params.get("import") ? url_params.get("import").split(',') : [];
+
+var tools  ; // a map containing several things above so execution modes can access them
+
+function canvasApp() {
+    //The canvas this app is running on.
+	var theCanvas = document.getElementById("ui");
+	// 2D context you can use to draw on.
+    var context = theCanvas.getContext("2d");
+
+    var mouse_x, mouse_y, mouse_down_x, mouse_down_y ;
+
+
+	function init() {
+
+        var canvas = document.getElementById("webgl");
+        var ui_canvas = document.getElementById("ui");
+        canvas.width = document.body.clientWidth; 
+        canvas.height = document.body.clientHeight; 
+        ui_canvas.width = document.body.clientWidth; 
+        ui_canvas.height = document.body.clientHeight; 
+
+        // Add event listeners to the canvas or window as appropriate
+		theCanvas.addEventListener("mousedown", mouseDownListener, false);
+		window.addEventListener("mousemove", mouseMoveListener, false);
+		window.addEventListener("mouseup", mouseUpListener, false);
+		window.addEventListener('keydown',keyDownListener,false);
+		window.addEventListener('keyup',keyUpListener,false);
+		window.addEventListener('mousewheel', mouseWheelListener);//For Chrome
+        window.addEventListener('DOMMouseScroll', mouseWheelListener);// For Firefox
+
+        //touchHandler simulates mouse events on single touch
+		document.addEventListener("touchstart", touchHandler, true);
+		document.addEventListener("touchmove", touchHandler, true);
+		document.addEventListener("touchend", touchHandler, true);
+		document.addEventListener("touchcancel", touchHandler, true);
+
+
+        //document.addEventListener('pointermove', pointerMove, true) ;
+            
+	
+        window.setInterval(timeListener, 1000.0/120.0);
+	}
+
+    function timeListener(){
+        if(tools.current_mode!=null){
+            tools.current_mode.timer();
+            
+        }
+    }
+
+	function keyDownListener(evt) {
+        if(tools.current_mode!=null){
+            tools.current_mode.keyDownListener(evt);
+        }
+	}
+
+	function keyUpListener(evt) {
+        if(tools.current_mode!=null){
+            tools.current_mode.keyUpListener(evt);
+        }
+    }
+
+    // Map touchevents
+	function touchHandler(event){
+		//event.preventDefault();
+		var touches = event.touches;
+		var pointers = [];
+		for(let k=0;k<touches.length;k++){
+            //TODO get position relative to canvas if canvas isn't whole screen?
+            /*
+            this.mouse_down_x = (event.clientX - bRect.left)*(tools.canvas.width/bRect.width);
+            this.mouse_down_y = (event.clientY - bRect.top)*(tools.canvas.height/bRect.height);
+            */
+			pointers.push({x: touches[k].clientX, y: touches[k].clientY, button:10}); // using 10 for touch events
+		}
+		switch(event.type)
+		{
+			case "touchstart": pointerDown(pointers); break;
+			case "touchmove":  pointerMove(pointers); break;
+			case "touchend":  pointerUp(pointers);   break;
+			default:           return;
+		}
+	}
+
+	function mouseDownListener(event) {
+		pointerDown([{x:event.clientX, y:event.clientY, button:event.button}]);
+    }
+
+	function mouseMoveListener(event){
+		pointerMove([{x:event.clientX, y:event.clientY, button:event.button}]);
+	}
+	function mouseUpListener(event){
+		pointerUp([]); // On mouse up there are no pointers down
+	}
+
+ 
+
+	function pointerDown(pointers) {
+
+		mouse_down_x = pointers[0].x;
+        mouse_down_y = pointers[0].y;
+
+        // Buttons are executed in mouse up, this just prevents calling underlying mode when clicking a button.
+        let pressed_button = false;
+        for (let button_name in tools.buttons) {
+            if (tools.buttons.hasOwnProperty(button_name)) {
+                var b = tools.buttons[button_name];
+                if( b.inside(mouse_down_x, mouse_down_y)){
+                    pressed_button = true;
+                }
+            }
+        }
+
+        if(tools.current_mode!=null && !pressed_button){
+            tools.current_mode.pointerDown(pointers);
+        }
+	}
+
+	function pointerUp(pointers) {
+        // Execute buttons if it was clicked (mouse down and up on it)
+        let pressed_button = false;
+        for (let button_name in tools.buttons) {
+            if (tools.buttons.hasOwnProperty(button_name)) {
+                var b = tools.buttons[button_name];
+                if(b.inside(mouse_x, mouse_y) && b.inside(mouse_down_x, mouse_down_y)){
+                    b.execute();
+                    pressed_button = true;
+                }
+            }
+        }
+
+        if(tools.current_mode!=null && !pressed_button){
+            tools.current_mode.pointerUp(pointers);
+        }
+	}
+
+	function pointerMove(pointers) {
+        if(pointers.x){ // not an array, must be a real pointer event
+            pointers.preventDefault()
+            pointers = [{x:pointers.x,y:pointers.y}];
+        }
+        mouse_x = pointers[0].x;
+		mouse_y = pointers[0].y;
+        if(tools.current_mode!=null){
+            tools.current_mode.pointerMove(pointers);
+        }
+    }
+
+	function mouseWheelListener(evt){
+        if(tools.current_mode!=null){
+            tools.current_mode.mouseWheelListener(evt);
+        }
+	}
+
+
+
+    init(); //TODO this a janky way to boot up an app, maybe change it?
+}
+
+// Switch main execution mode (expects mode to be an ExecutionMode)
+function switchExecutionMode(next_mode){
+    if(tools.current_mode != null){
+        tools.current_mode.exit(next_mode);
+    }
+    var last_mode = tools.current_mode ;
+    tools.current_mode = next_mode ;
+    next_mode.enter(last_mode);
+
+}
+
+
+function initializeModes(){
+    tools.modes = {} ;
+    tools.modes.bounce_mode = new BallBounceMode(tools);
+    switchExecutionMode(tools.modes.bounce_mode) ;
+}
+
+function setMainMenuButtons(){
+    tools.buttons = {};
+    tools.buttons["fps_label"] = new InterfaceButton(tools.canvas.width-80, 10, 80, 40, "FPS:?", 20, "#FFFFFF", "#000000", "#000000", 3, null);
+}
+
+function onBodyLoad(){
+    tools = {};
+    tools.canvas = document.getElementById("ui"); ;
+
+    // Wait for the WASM module to finish loading before booting up the socket and app
+    window.initializeCPPAPI().then(function(Module){
+        tools.API = Module ;
+        app = canvasApp(); // Start the app
+        initializeModes();
+        setMainMenuButtons();
+    });
+}
+
+</script>
+</head>
+<body onload="onBodyLoad();">
+	<div class="container">
+	<canvas id="ui" style="border: none;" width="1024" height="720" oncontextmenu="return false;"></canvas>
+	<canvas id="webgl" style="border: none;" width="1024" height="720" oncontextmenu="return false;"></canvas>
+	</div>
+</body>
+</html>

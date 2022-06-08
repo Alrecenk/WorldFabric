@@ -70,7 +70,9 @@ void ObjectHistory::deleteAfter(double time){
     }
 
     //printf("erasing from index %d\n", delete_from+1);
-    history.erase(history.cbegin() + delete_from +1 , history.cend());// all after first should be completely removed
+    if(delete_from < history.size()-1){
+        history.erase(history.cbegin() + delete_from +1 , history.cend());// all after first should be completely removed
+    }
 }
 
 //Creates a new instant at the given time by deep copying the previous instant
@@ -100,12 +102,14 @@ TObject* ObjectHistory::getMutable(double time){
 
 // Objects may have a single instant before the clear time, so their value at that time can still be fetched
 void ObjectHistory::clearHistoryBefore(double clear_time){
-    int delete_to = 0;
+    int delete_to = -1;
     for(int k=0;k<history.size(); k++){
         if(history[k]->write_time > clear_time){ // finding first one from end not being deleted
             delete_to = k -1;
             break;
         }
     }
-    history.erase(history.cbegin(), history.cbegin() + delete_to);
+    if(delete_to >= 0){
+        history.erase(history.cbegin(), history.cbegin() + delete_to);
+    }
 }
