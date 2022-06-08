@@ -57,6 +57,7 @@ void TEvent::addEvent(std::unique_ptr<TEvent> e){
         e->time = fmax(e->time, time + glm::length(vo->position - eo->position)/timeline->info_speed) ;
     }
     e->timeline = timeline ;
+    e->spawner = this ;
     spawned_events.push_back(timeline->events.addEvent(std::move(e)));
 }
 

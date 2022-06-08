@@ -14,6 +14,8 @@ class EventQueue{
 
     public:
         Timeline* timeline;
+        std::vector<std::unique_ptr<TEvent>> events;
+
         // Returns the next event to be run from the given perspective
         // returns null if the queue is up to date
         TEvent* next(glm::vec3 vantage, double time, double info_speed);
@@ -36,8 +38,9 @@ class EventQueue{
         // Clears out all events before the given time
         void clearHistoryBefore(double clear_time);
 
-    //private:
-        std::vector<std::unique_ptr<TEvent>> events;
+        // Returns all events after the given time that were not spawned by another event also after the given time
+        std::vector<TEvent*> getBase(double time);
+        
         
 
         

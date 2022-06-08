@@ -18,6 +18,7 @@ class ObjectHistory{
 
         double deleted_time = 99999999.0;//TODO max value
         Timeline* timeline;
+        std::vector<std::unique_ptr<TObject>> history;
 
         ObjectHistory();
 
@@ -40,11 +41,7 @@ class ObjectHistory{
         TObject* getMutable(double time);
 
         // Objects may have a single instant before the clear time, so their value at that time can still be fetched
-        void clearHistoryBefore(double clear_time);
-
-
-        std::vector<std::unique_ptr<TObject>> history;
+        void clearHistoryBefore(double clear_time);        
         
-
 };
 #endif // #ifndef _OBJECTHISTORY_H_

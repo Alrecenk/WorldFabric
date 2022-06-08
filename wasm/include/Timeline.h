@@ -53,6 +53,9 @@ class Timeline{
         // Objects may have a single instant before the clear time, so their value at that time can be fetched
         void clearHistoryBefore(double clear_time);
 
+        // Return the minimum state required to generate a matching timeline from the given time
+        std::pair<std::vector<TEvent*>, std::map<int, TObject*>> getBaseState(double time);
+
         // Returns a serialized descriptor of the state of the this Timeline at the goiven time 
         // that can be used by another Timeline to generate a synchronization update
         Variant getDescriptor(double time);

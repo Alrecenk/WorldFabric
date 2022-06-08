@@ -87,10 +87,39 @@ void Timeline::clearHistoryBefore(double clear_time){
     }
 }
 
+// Return the minimum state required to generate a matching timeline from the given time
+std::pair<std::vector<TEvent*>, std::map<int, TObject*>> Timeline::getBaseState(double time){
+    std::pair<std::vector<TEvent*>, std::map<int, TObject*>> state ;
+    state.first = events.getBase(time) ;
+    for(auto& [id, history] : objects){
+        TObject* bo = history.get(time);
+        if(bo!=nullptr){
+            state.second[id] = bo ;
+        }
+    }
+    return state ;
+}
+
 // Returns a serialized descriptor of the state of the this Timeline that can be used by another Timeline ot generate a synchronization update
 Variant Timeline::getDescriptor(double time){
-    //TODO
-    return Variant();
+    auto [base_events,base_objects] = getBaseState(time);
+    int* base_event_hashes  = (int*)malloc(4 * base_events.size());
+    for(int k=0;k<base_events.size();k++){
+        base_event_hashes[k] = Variant(base_events[k]->serialize()).hash() ;
+    }
+    int* base_object_hashes  = (int*)malloc(4 * 2 * base_objects.size());
+    int k=0;
+    for(auto& [id,object] : base_objects){
+        base_object_hashes[k*2] = id;
+        base_object_hashes[k*2+1] = Variant(object->serialize()).hash();
+    }
+    
+    map<string,Variant> descriptor_map ;
+    descriptor_map["events"] = Variant(base_event_hashes, base_events.size() );
+    descriptor_map["objects"] = Variant(base_object_hashes, 2 * base_objects.size());
+    free(base_event_hashes);
+    free(base_object_hashes); // TODO build these Variants without using exposed pointers so manaul free isn't required
+    return Variant(descriptor_map);
 }
 
 // Given another tree's descriptor, produces an update that woulds bring that tree into syncwith this one
