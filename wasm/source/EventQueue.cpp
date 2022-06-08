@@ -79,6 +79,9 @@ void EventQueue::clearHistoryBefore(double clear_time){
     for(int k=0;k<events.size();k++){
         //free all old events that have run and all deleted events
         if(events[k].get() != nullptr && (events[k]->deleted || ( events[k]->time < clear_time && !events[k]->run_pending)) ){
+            if(!events[k]->deleted){ // remove from collision rollback list when aging out events
+                timeline->collisions.onDelete(events[k].get());
+            }
             events[k].reset(); // actually free the data in the event
         }
     }

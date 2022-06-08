@@ -15,14 +15,7 @@ using std::vector;
 using std::cout;
 using std::endl;
 
-long timeMilliseconds() {
-    return std::chrono::duration_cast<std::chrono::milliseconds>(
-            std::chrono::system_clock::now().time_since_epoch()).count();
-}
 
-float randomFloat() {
-    return (float) ((rand() % 1000000) / 1000000.0);
-}
 
 // Add component data to the static table for instances
 void addModels(map<string, Variant>& table) {
@@ -42,7 +35,37 @@ void quit(int signum) {
 }
 
 int main(int argc, char** argv) {
+
+    byte* packet_ptr = (byte*)malloc(50000000); // 50 megabytes
+    setPacketPointer(packet_ptr);
+
     runUnitTests();
+
+
+
+    map<string, Variant> obj ;
+    obj["width"] = Variant(1920);
+    obj["height"] = Variant(1080);
+    obj["amount"] = Variant(10);
+    obj["min_radius"] = Variant(40.0);
+    obj["max_radius"] = Variant(100.0);
+    obj["max_speed"] = Variant(200.0);
+    Variant params = Variant(obj);
+
+
+
+    initialize2DBallTimeline(params.ptr);
+    printf("initialized!\n");
+
+    for(double time = 1 ; time < 1000; time +=0.02){
+        map<string, Variant> obj ;
+        obj["time"] = Variant(time);
+        Variant params = Variant(obj);
+        runTimeline(params.ptr) ;
+    }
+
+    printf("Run completed!\n");
+
     /*
     map<string, Variant> table;
     addModels(table);

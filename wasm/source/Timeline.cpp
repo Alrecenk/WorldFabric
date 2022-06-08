@@ -80,6 +80,7 @@ void Timeline::run(double new_time){
 // Clears out all events and data changes before the given time
 // Objects may have a single instant before the clear time, so their value at that time can be fetched
 void Timeline::clearHistoryBefore(double clear_time){
+    clear_time = fmin(clear_time, current_time); // don't allow clearing beyond the current time
     events.clearHistoryBefore(clear_time);
     for(auto& [id, history] : objects){
         history.clearHistoryBefore(clear_time);
