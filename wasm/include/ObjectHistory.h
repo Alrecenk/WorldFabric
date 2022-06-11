@@ -25,7 +25,7 @@ class ObjectHistory{
         ObjectHistory(std::unique_ptr<TObject> value, double make_time);
 
         //Returns the latest version of this oject that is observable from the given vantage point and time
-        TObject* get(glm::vec3 vantage, double time, double info_speed);
+        TObject* get(const glm::vec3& vantage, double time, double info_speed);
 
 
         //Returns the version of this oject at the given time, ignoring time warp

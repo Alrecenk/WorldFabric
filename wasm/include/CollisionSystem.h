@@ -27,6 +27,7 @@ class CollisionSystem{
 
     private:
         std::unordered_map<TEvent*, std::vector<int>> requests ;
+        double most_recent_request_time = 0 ;
            
 };
 #endif // #ifndef _COLLISION_SYSTEM_H_

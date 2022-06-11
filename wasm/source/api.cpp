@@ -466,7 +466,7 @@ byte* initialize2DBallTimeline(byte* ptr){
         
         std::unique_ptr<BouncingBall> o = std::make_unique<BouncingBall>(position, velocity, radius, box_min, box_max) ;
         std::unique_ptr<MoveBouncingBall> o_move = std::make_unique<MoveBouncingBall>(1.0/60.0) ;
-        timeline->createObject(std::move(o), std::move(o_move) , 0.0);
+        timeline->createObject(std::move(o), std::move(o_move) , k*0.001/(double)amount);
         
     }
     
@@ -488,11 +488,17 @@ byte* runTimeline(byte* ptr){
     vector<int> ob = timeline->updateObservables();
 
     map<string, Variant> ret_map ;
-    vector<Variant> output ;
+    int* circles = (int*)malloc(ob.size()*3*4);
+    //vector<Variant> output ;
     for(int k=0;k<ob.size();k++){
-        output.push_back(Variant(timeline->getLastObserved(ob[k])->serialize()));
+        const TObject* o = timeline->getLastObserved(ob[k]) ;
+        circles[3*k] = (int)o->position.x;
+        circles[3*k+1] = (int)o->position.y;
+        circles[3*k+2] = (int)o->radius;
+        //output.push_back(Variant(timeline->getLastObserved(ob[k])->serialize()));
     }
-    ret_map["observables"] = Variant(output);
+    //ret_map["observables"] = Variant(output);
+    ret_map["observables"] = Variant(circles, ob.size()*3);
 
     return pack(ret_map);
 }

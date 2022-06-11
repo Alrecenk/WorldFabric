@@ -105,7 +105,7 @@ bool UnitTests::createAndMoveCircle(){
 
     ob = t.updateObservables();
 
-    UnitTests::expectNear(s, ((MovingObject*)t.getLastObserved(ob[0]))->position, vec3(1,6,0), 0.01, "Circle did not move correctly!");
+    UnitTests::expectNear(s, ((MovingObject*)t.getLastObserved(ob[0]))->position, vec3(1,8,0), 0.01, "Circle did not move correctly!");
 
 
     //printf("Adding change direction event...\n");
@@ -114,7 +114,7 @@ bool UnitTests::createAndMoveCircle(){
 
     ob = t.updateObservables();
 
-    UnitTests::expectNear(s, ((MovingObject*)t.getLastObserved(ob[0]))->position, vec3(1,8,4), 0.01, "Circle did not change velocity correctly!");
+    UnitTests::expectNear(s, ((MovingObject*)t.getLastObserved(ob[0]))->position, vec3(1,8,5), 0.01, "Circle did not change velocity correctly!");
 
     //printf("Adding retroactive change direction event...\n");
     t.addEvent(std::make_unique<ChangeVelocity>(ob[0], vec3(0,0,-1.0)), 5.5) ;
@@ -123,7 +123,7 @@ bool UnitTests::createAndMoveCircle(){
 
     ob = t.updateObservables();
 
-    UnitTests::expectNear(s, ((MovingObject*)t.getLastObserved(ob[0]))->position, vec3(1,8,-4), 0.01, "Circle did not retroactively change velocity correctly!");
+    UnitTests::expectNear(s, ((MovingObject*)t.getLastObserved(ob[0]))->position, vec3(1,8,-5), 0.01, "Circle did not retroactively change velocity correctly!");
 
 
     return s ;
@@ -213,7 +213,7 @@ bool UnitTests::checkCollisionRollback(){
     std::unique_ptr<MovingObject> b = std::make_unique<MovingObject>(vec3(5,5,0),vec3(0,-1,0), 1.0f) ;
     std::unique_ptr<MoveObject> b_move = std::make_unique<MoveObject>(0.5) ;
     b_move->stop_on_hit = false;
-    t.createObject(std::move(b), std::move(b_move) , 1.0);
+    t.createObject(std::move(b), std::move(b_move) , 1.001);
 
     
     double time = 1.1 ;
@@ -242,6 +242,7 @@ bool UnitTests::checkCollisionRollback(){
     UnitTests::expect(s, (time - 5.1)<0.01, "A did not collide and stop at correct time!");
     t.run(10.1);
     ob = t.updateObservables();
+    
     /*
     printf("A at time 10 : \n");
     t.getLastObserved(a_id)->print() ;
@@ -290,14 +291,14 @@ bool UnitTests::checkClearHistory(){
     for(int k=0;k<10;k++){
         std::unique_ptr<MovingObject> o = std::make_unique<MovingObject>(vec3(k*100,k*1000%77,0),vec3((k*2)%3 - 1,k%3 - 1,0), 1.0f) ;
         std::unique_ptr<MoveObject> o_move = std::make_unique<MoveObject>(0.5) ;
-        t.createObject(std::move(o), std::move(o_move) , 1.0);
+        t.createObject(std::move(o), std::move(o_move) , 1.001 + 0.001*k);
     }
-    t.run(1.0);
-    expect(s, t.events.events.size() == 20, "Wrong number of events after first step!");
+    t.run(1.1);
+    expect(s, t.events.events.size() == 30, "Wrong number of events after first step!");
     //printf("%d\n",(int)t.events.events.size());
 
     double time = 10;
-    double clear_time = 5;
+    double clear_time = 4.9;
 
     
     t.run(time);
@@ -335,7 +336,7 @@ bool UnitTests::checkClearHistory(){
 
 
     t.vantage_id = 1 ;
-    t.info_speed = 100;
+    t.info_speed = 150;
 
     // Make sure time warped objects won't be deleted when they may be accessed
     while(time < 200){
@@ -363,6 +364,7 @@ bool UnitTests::checkClearHistory(){
 
         expect(s, t.objects[2].history.size() <= 11, "Too many object instances after time warp clear!");
         //printf("%d\n",(int)t.objects[2].history.size());
+
     }
 
 

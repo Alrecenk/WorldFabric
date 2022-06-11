@@ -63,7 +63,7 @@ void Timeline::run(double new_time){
     if(vo!= nullptr){ // if position data available
         vantage = vo->position ;
     }
-
+    /*
     TEvent* current_event = events.next(vantage, new_time, info_speed) ;
     while(current_event != nullptr){
         current_event->run();
@@ -79,6 +79,48 @@ void Timeline::run(double new_time){
         }
         current_event = events.next(vantage, new_time, info_speed) ;
     }
+    */
+
+    map<double, TEvent*> events_to_run = events.allNext(vantage, new_time, info_speed) ;
+    //printf("events to run: %d\n", (int)events_to_run.size());
+    //double last_time = 0 ;
+    while(events_to_run.size()>0){
+        double max_time = new_time ;
+        for(auto& [event_run_time,current_event] : events_to_run){
+            if(current_event->time > max_time){ // this event occurs after an event spawned during this batch
+                break;
+            }
+            /*
+            if(last_time > current_event->time){
+                printf(" %f Event ran out of order! %f > %f\n", event_run_time, last_time, current_event->time);
+            }
+            last_time = current_event->time ; 
+            */
+            //printf("even time:%f\n", event_run_time);
+            current_event->run();
+            current_event->run_pending = false;
+            if(current_event->wrote_anchor){
+                collisions.onDataChanged(current_event);
+                if(current_event->anchor_id == vantage_id){ // if vantage object changed
+                    TObject* eo = objects[current_event->anchor_id].get(new_time) ;
+                    if(eo!=nullptr){ // vantaghe object actually exists
+                        if(eo->position != vantage){ // vantage point changed
+                            vantage = eo->position; // vantage point may have changed
+                            //events_to_run = events.allNext(vantage, new_time, info_speed) ; // recompute order with new vantage point
+                            break;
+                        }
+                    }else{
+                        printf("WTF: vantage object edited duringrun but doesn't exist! Maybe it's moving too fast?n");
+                    }
+                }
+            }
+            for(TEvent* s : current_event->spawned_events){
+                max_time = fmin(max_time,  s->time);
+            }
+        }
+        events_to_run = events.allNext(vantage, new_time, info_speed) ;
+    }
+
     current_time = new_time ;
 }
 

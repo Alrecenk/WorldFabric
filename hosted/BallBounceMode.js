@@ -65,9 +65,9 @@ class BallBounceMode extends ExecutionMode{
             var params = {};
             params.width = tools.canvas.width;
             params.height = tools.canvas.height;
-            params.amount = 100;
-            params.min_radius = 15;
-            params.max_radius = 25;
+            params.amount = 500;
+            params.min_radius = 10;
+            params.max_radius = 15;
             params.max_speed = 200;
 
             //tools.API.call("runTimeline", {time:timeline_time}, new Serializer()).observables;
@@ -82,10 +82,16 @@ class BallBounceMode extends ExecutionMode{
         let context = tools.canvas.getContext("2d");
         context.clearRect(0, 0, context.canvas.width, context.canvas.height);
 
-        for(let k=0;k<observables.length;k++){
+        for(let k=0;k<observables.length;k+=3){
+            let x = observables[k];
+            let y = observables[k+1];
+            let r = observables[k+2];
+            this.drawCircle(x, y, r, "#004F00", "#000000", 2) ;
+            /*
             let p = observables[k].p;
             let radius = observables[k].r ;
             this.drawCircle(p[0], p[1], radius, "#004F00", "#000000", 2) ;
+            */
         }
 
 
