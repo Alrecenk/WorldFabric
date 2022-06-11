@@ -10,7 +10,9 @@ std::unique_ptr<TEvent>(*TEvent::generateTypedTEvent)(const Variant& serialized)
 
 // Returns the latest data for the given object available to this event
 const TObject* TEvent::get(int id){
+    //printf("getting anchor in tevent...\n");
     if(timeline->objects.find(id) == timeline->objects.end()){
+        //printf("getting anchor in tevent requesting nonexistant object...\n");
         return nullptr ;
     }
     //printf("getting anchor in tevent...\n");

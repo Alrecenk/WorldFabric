@@ -33,6 +33,7 @@ TEvent* EventQueue::next(glm::vec3 vantage, double time, double info_speed){
 }
 
 TEvent* EventQueue::addEvent(std::unique_ptr<TEvent> event){
+    event->timeline = timeline ;
     // Put it in the slot of a delted item if posible
     for(int k=0;k<events.size();k++){
         if(events[k].get() == nullptr || events[k]->deleted){

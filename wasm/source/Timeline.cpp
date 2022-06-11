@@ -39,7 +39,6 @@ void Timeline::addEvent(std::unique_ptr<TEvent> e, double send_time){
         // delay event creation by time warp effect
         e->time = send_time + glm::length(vo->position - eo->position)/info_speed ;
     }
-    e->timeline = this;
     pending_external_events.push_back(events.addEvent(std::move(e)));
 }
 
@@ -185,9 +184,12 @@ void Timeline::applyUpdate(const Variant& update){
     map<int,Variant> object_updates = update_map["objects"].getIntObject();
     for(auto& [id,serial] : object_updates){
         if(objects.find(id) == objects.end()){ // if not present
+            //printf("update creating new baseobject!\n");
+            //serial.printFormatted();
             unique_ptr<TObject> new_obj = TObject::generateTypedTObject(serial); // infer type and build using generator
             objects[id] = ObjectHistory(std::move(new_obj), time); // place into timeline
         }else{ // if already present but nonmatching value
+            //printf("update updating base object!\n");
             TObject* existing_obj = objects[id].getMutable(time); // write using functionality that triggers rollback
             map<string,Variant> serial_map = serial.getObject() ;
             existing_obj->set(serial_map);
