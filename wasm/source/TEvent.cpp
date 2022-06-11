@@ -10,7 +10,9 @@ std::unique_ptr<TEvent>(*TEvent::generateTypedTEvent)(const Variant& serialized)
 
 // Returns the latest data for the given object available to this event
 const TObject* TEvent::get(int id){
+    //printf("getting anchor in tevent...\n");
     if(timeline->objects.find(id) == timeline->objects.end()){
+        //printf("getting anchor in tevent requesting nonexistant object...\n");
         return nullptr ;
     }
     //printf("getting anchor in tevent...\n");
@@ -57,6 +59,7 @@ void TEvent::addEvent(std::unique_ptr<TEvent> e){
         e->time = fmax(e->time, time + glm::length(vo->position - eo->position)/timeline->info_speed) ;
     }
     e->timeline = timeline ;
+    e->spawner = this ;
     spawned_events.push_back(timeline->events.addEvent(std::move(e)));
 }
 

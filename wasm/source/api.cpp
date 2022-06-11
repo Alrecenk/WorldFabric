@@ -87,7 +87,7 @@ extern "C" { // Prevents C++ from mangling the exported name apparently
 
 
 void setPacketPointer(byte* p){
-    printf("Packet Pointer allocated at: %ld\n", (long)p);
+    //printf("Packet Pointer allocated at: %ld\n", (long)p);
     packet_ptr = p;
     map<string, Variant> ret_map;
     pack(ret_map);

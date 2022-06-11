@@ -7,6 +7,8 @@
 
 #include <memory>
 
+using std::vector ;
+
 // Returns the next event to be run from the given perspective
 // returns nullptr if the queue is up to date
 TEvent* EventQueue::next(glm::vec3 vantage, double time, double info_speed){
@@ -31,6 +33,7 @@ TEvent* EventQueue::next(glm::vec3 vantage, double time, double info_speed){
 }
 
 TEvent* EventQueue::addEvent(std::unique_ptr<TEvent> event){
+    event->timeline = timeline ;
     // Put it in the slot of a delted item if posible
     for(int k=0;k<events.size();k++){
         if(events[k].get() == nullptr || events[k]->deleted){
@@ -66,6 +69,7 @@ void EventQueue::deleteEvent(TEvent* event){
     removeDependencies(event);
     timeline->collisions.onDelete(event);
     event->deleted = true;
+    event->spawner = nullptr ;
 }
 
 void EventQueue::rerunEvent(TEvent* event){
@@ -76,13 +80,36 @@ void EventQueue::rerunEvent(TEvent* event){
 
 // Clears out all events before the given time
 void EventQueue::clearHistoryBefore(double clear_time){
+    // mark deleted and clear all pointers to events about to be newly removed
     for(int k=0;k<events.size();k++){
-        //free all old events that have run and all deleted events
-        if(events[k].get() != nullptr && (events[k]->deleted || ( events[k]->time < clear_time && !events[k]->run_pending)) ){
-            if(!events[k]->deleted){ // remove from collision rollback list when aging out events
-                timeline->collisions.onDelete(events[k].get());
+        if(events[k].get() != nullptr && !events[k]->deleted && events[k]->time < clear_time && !events[k]->run_pending ){
+            timeline->collisions.onDelete(events[k].get()); // remove pointers in collision system
+            events[k]->deleted = true;
+            events[k]->spawner = nullptr ;
+            // Remove the link to this as a spawner of future events that may not be deleted
+            for(TEvent* s : events[k]->spawned_events){
+                s->spawner = nullptr ;
             }
+        }
+    }
+    //wipe the data for all deleted events
+    for(int k=0;k<events.size();k++){
+        if(events[k].get() != nullptr && events[k]->deleted){
             events[k].reset(); // actually free the data in the event
         }
     }
+}
+
+// Returns all events after the given time that were not spawned by another event also after the given time
+std::vector<TEvent*> EventQueue::getBase(double time){
+    vector<TEvent*> base ;
+    for(int k=0;k<events.size();k++){
+        if(events[k].get() != nullptr && !events[k]->deleted && events[k]->time > time){
+            TEvent* spawner = events[k]->spawner ;
+            if(spawner == nullptr || spawner->time < time){
+                base.push_back(events[k].get());
+            }
+        }
+    }
+    return base ;
 }

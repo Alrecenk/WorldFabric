@@ -42,7 +42,7 @@ int main(int argc, char** argv) {
     runUnitTests();
 
 
-
+/*
     map<string, Variant> obj ;
     obj["width"] = Variant(1920);
     obj["height"] = Variant(1080);
@@ -65,7 +65,7 @@ int main(int argc, char** argv) {
     }
 
     printf("Run completed!\n");
-
+    */
     /*
     map<string, Variant> table;
     addModels(table);

@@ -5,6 +5,7 @@
 #include "TEvent.h"
 #include "EventQueue.h"
 #include "ObjectHistory.h"
+#include "CreateObject.h"
 
 #include "MovingObject.h"
 #include "ChangeVelocity.h"
@@ -31,6 +32,8 @@ bool UnitTests::runAll(){
     printf("checkCollisionRollback : %s\n", success.c_str());
     success = UnitTests::checkClearHistory() ? "passed" : "failed" ;
     printf("checkClearHistory : %s\n", success.c_str());
+    success = UnitTests::checksimpleTimelineSync() ? "passed" : "failed" ;
+    printf("checksimpleTimelineSync : %s\n", success.c_str());
     return true; 
 }
 
@@ -48,6 +51,33 @@ void UnitTests::expectNear(bool& success, glm::vec3 a, glm::vec3 b, float dist, 
         printf("(%f,%f,%f) != (%f,%f,%f)\n", a.x,a.y,a.z,b.x,b.y,b.z);
     }
     success &= condition;
+}
+
+std::unique_ptr<TObject> UnitTests::createObject(const Variant& serialized){
+    auto map = serialized.getObject() ;
+    auto o = std::make_unique<MovingObject>();
+    o->set(map);
+    return std::move(o);
+}
+
+std::unique_ptr<TEvent> UnitTests::createEvent(const Variant& serialized){
+    
+    //TODO add a type system to make this check more intuitive
+    if(serialized.type_ == Variant::NULL_VARIANT){ // events can hold poiners to other events which may be null
+        return std::unique_ptr<TEvent>(nullptr);
+    }
+    auto map = serialized.getObject() ;
+    std::unique_ptr<TEvent> event ;
+    //TODO better way to distinguish event types
+    if(map["o"].type_ == Variant::OBJECT){
+        event = std::make_unique<CreateObject>();
+    }else if(map["dt"].type_ == Variant::DOUBLE){
+        event = std::make_unique<MoveObject>();
+    }else{
+        event = std::make_unique<ChangeVelocity>();
+    }
+    event->set(map);
+    return std::move(event);
 }
 
 // TODO make these proper unit tests that check correctness and don't spam the console if they're passing
@@ -210,7 +240,7 @@ bool UnitTests::checkCollisionRollback(){
     }
     //printf("A stopped at time : %f \n", time);
     UnitTests::expect(s, (time - 5.1)<0.01, "A did not collide and stop at correct time!");
-    t.run(10.0);
+    t.run(10.1);
     ob = t.updateObservables();
     /*
     printf("A at time 10 : \n");
@@ -218,12 +248,12 @@ bool UnitTests::checkCollisionRollback(){
     printf("B at time 10 : \n");
     t.getLastObserved(b_id)->print() ;
     */
-    UnitTests::expectNear(s, ((MovingObject*)t.getLastObserved(a_id ))->position, vec3(4.5,0,0), 0.01,
+    UnitTests::expectNear(s, ((MovingObject*)t.getLastObserved(a_id ))->position, vec3(4,0,0), 0.01,
         "A at incorrect position after collision");
 
     //printf("Adding retroactive change direction event that prevent collisions and running to time 10...\n");
     t.addEvent(std::make_unique<ChangeVelocity>(b_id, vec3(0,0,0)), 1.01) ;
-    t.run(10.0);
+    t.run(10.1);
     ob = t.updateObservables();
     /*
     printf("A at time 10 : \n");
@@ -231,12 +261,12 @@ bool UnitTests::checkCollisionRollback(){
     printf("B at time 10 : \n");
     t.getLastObserved(b_id)->print() ;
     */
-    UnitTests::expectNear(s, ((MovingObject*)t.getLastObserved(a_id ))->position, vec3(9,0,0), 0.01,
+    UnitTests::expectNear(s, ((MovingObject*)t.getLastObserved(a_id ))->position, vec3(9.5,0,0), 0.01,
         "A at incorrect position  after rolled back non collision");
 
     //printf("Adding retroactive change direction event that makes collision happen again and running to time 10...\n");
     t.addEvent(std::make_unique<ChangeVelocity>(b_id, vec3(0,-1,0)), 1.02) ;
-    t.run(10.0);
+    t.run(10.1);
     ob = t.updateObservables();
     /*
     printf("A at time 10 : \n");
@@ -245,7 +275,7 @@ bool UnitTests::checkCollisionRollback(){
     t.getLastObserved(b_id)->print() ;
     */
 
-    UnitTests::expectNear(s, ((MovingObject*)t.getLastObserved(a_id ))->position, vec3(4.5,0,0), 0.01,
+    UnitTests::expectNear(s, ((MovingObject*)t.getLastObserved(a_id ))->position, vec3(4,0,0), 0.01,
         "A at incorrect position after rolled back recollision");
 
     return s ;
@@ -339,16 +369,78 @@ bool UnitTests::checkClearHistory(){
     return s ;
 }
 
-std::unique_ptr<TObject> UnitTests::createObject(const Variant& serialized){
-    auto map = serialized.getObject() ;
-    auto o = std::make_unique<MovingObject>();
-    o->set(map);
-    return std::move(o);
+bool UnitTests::checksimpleTimelineSync(){
+    bool s = true ;
+
+    Timeline t1 = Timeline();
+    t1.setGenerators(&UnitTests::createEvent, &UnitTests::createObject);
+
+    Timeline t2 = Timeline();
+    t2.setGenerators(&UnitTests::createEvent, &UnitTests::createObject);
+
+    std::unique_ptr<MovingObject> o1 = std::make_unique<MovingObject>(vec3(0,0,0),vec3(1,0,0), 1.0f) ;
+    std::unique_ptr<MoveObject> o_move1 = std::make_unique<MoveObject>(0.5) ;
+    t1.createObject(std::move(o1), std::move(o_move1) , 1.0);
+
+    Variant d1 = t1.getDescriptor(0);
+    //printf("d1 after queued creation event:\n");
+    //d1.printFormatted();
+    Variant d2 = t2.getDescriptor(0);
+
+    //printf("d2 before first sync:\n");
+    //d2.printFormatted();
+
+    Variant u = t1.getUpdateFor(d2);
+    //printf("first update:\n");
+    //u.printFormatted();
+    t2.applyUpdate(u);    
+    d2 = t2.getDescriptor(0);
+
+    //printf("d2 after first sync:\n");
+    //d2.printFormatted();
+    expect(s, d1.hash() == d2.hash(), "Timelines don't match after synchronizing object creation event!");
+    
+    t1.run(3.0);
+    //t2.events.events[0]->print();
+    t2.run(3.0);
+    d1 = t1.getDescriptor(2.0);
+    d2 = t2.getDescriptor(2.0);
+    expect(s, d1.hash() == d2.hash(), "Timelines don't match after creating object!");
+    vector<int> ob1 = t1.updateObservables();
+    vector<int> ob2 = t2.updateObservables();
+    expect(s, ob1.size() == 1, "Wrong number of objects after synchronization! 1");
+    expect(s, ob2.size() == 1, "Wrong number of objects after synchronization! 2");
+    for(int k=0;k<ob1.size();k++){
+        const TObject* a = t1.getLastObserved(ob1[k]);
+        const TObject* b = t2.getLastObserved(ob1[k]); // Note order of observables ids returned is not guarsnteed
+        expectNear(s, a->position, b->position,0.001, "New object differs after syncrhonization!");
+    }
+
+    Timeline t3 = Timeline();
+    t3.setGenerators(&UnitTests::createEvent, &UnitTests::createObject);
+    Variant d3 = t3.getDescriptor(2.0);
+    u = t2.getUpdateFor(d3);
+
+    //printf("d2 to d3 update:\n");
+    //u.printFormatted();
+    t3.applyUpdate(u);
+    t3.run(3.0);
+    d3 = t3.getDescriptor(2.0);
+    expect(s, d1.hash() == d3.hash(), "Timelines don't match after syncing object!");
+    /*
+    printf("d1 end:\n");
+    d1.printFormatted();
+    printf("d3 end:\n");
+    d3.printFormatted();
+    */
+    t1.run(10);
+    t2.run(10);
+    t3.run(10);
+    d1 = t1.getDescriptor(8.0);
+    d2 = t2.getDescriptor(8.0);
+    d3 = t3.getDescriptor(8.0);
+    expect(s, d1.hash() == d2.hash(), "Synced timelines diverged!");
+    expect(s, d1.hash() == d3.hash(), "Synced timelines diverged!");
+    return s ;
 }
 
-std::unique_ptr<TEvent> UnitTests::createEvent(const Variant& serialized){
-    auto map = serialized.getObject() ;
-    auto e = std::make_unique<ChangeVelocity>();
-    e->set(map);
-    return std::move(e);
-}

@@ -43,7 +43,7 @@ TObject* ObjectHistory::get(double time){
         return nullptr;
     }
     for(int k=history.size()-1;k>=0; k--){
-        if(history[k]->write_time < time){
+        if(history[k]->write_time <= time){
             return history[k].get();
         }
     }

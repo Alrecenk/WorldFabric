@@ -72,8 +72,10 @@ class TEvent{
 
         bool run_pending = true; //whether the event still needs to be run
         std::vector<TEvent*> spawned_events ; //events spawen by this event when it was last run
+        TEvent* spawner = nullptr ; // event that spawned this event if it was spawned by another timeline event
         bool wrote_anchor=false; // whether this event wrote to its anchor object last time it ran
         bool deleted = false;
+        
         Timeline* timeline ;
 };
 #endif // #ifndef _TEVENT_H_
