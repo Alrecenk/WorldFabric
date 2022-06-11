@@ -36,6 +36,7 @@ vector<int> CollisionSystem::getCollisions(TEvent* event){
         }
     }
     requests[event] = collisions ;
+    most_recent_request_time = fmax(most_recent_request_time,event->time);
     return collisions ;
 }
 
@@ -47,6 +48,10 @@ void CollisionSystem::onDelete(TEvent* event){
 // Must be called when an event writes its anchpor object
 // to potentially rollback events with changed collision results
 void CollisionSystem::onDataChanged(TEvent* event){
+    if(event->time >= most_recent_request_time){ // if this event is not before any checks
+        return ; // it can't cause collision roll backnd we don't need to check
+    }
+    //printf("Event time: %f request_time: %f\n", event->time, most_recent_request_time);
     for(auto& [caller, collisions] : requests){
         // only rollback stuff that ran after this change
         if(caller->time > event->time && caller->anchor_id != event->anchor_id && !caller->deleted && !caller->run_pending){ 

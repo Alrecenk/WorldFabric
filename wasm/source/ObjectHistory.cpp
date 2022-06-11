@@ -5,6 +5,8 @@
 #include "TEvent.h"
 #include "EventQueue.h"
 
+using glm::vec3;
+
 ObjectHistory::ObjectHistory(){
 
 }
@@ -15,17 +17,42 @@ ObjectHistory::ObjectHistory(std::unique_ptr<TObject> value, double make_time){
 }
 
 //Returns the latest version of this oject that is observable from the given vantage point and time
-TObject* ObjectHistory::get(glm::vec3 vantage, double time, double info_speed){
+TObject* ObjectHistory::get(const glm::vec3& vantage, double time, double info_speed){
     //printf("entering objecthistory get...\n");
+
+
     if(history.size() ==0){
         //printf("requested object has never existed...\n");
         return nullptr ;
     }
-    double time_to_deleted = deleted_time + glm::length(vantage-history[history.size()-1]->position)/info_speed;
-    if(time > deleted_time){// if it's past time you could read deletion
+    TObject* latest = history[history.size()-1].get() ;
+
+    vec3 diff = vantage-latest->position ;
+    double d2 = glm::dot(diff,diff) ;
+    //double warp = sqrt(d2)/info_speed ;
+    /*
+    if(time > deleted_time + warp){// if it's past time you could read deletion
         return nullptr ; // read deletion
+    }else if(time > latest->write_time + warp){ //if could read latest value
+        return latest ;
+    }*/
+    
+    if(time > deleted_time){ // if reading past deleted time
+        double cdt = (time-deleted_time) * info_speed ; // check time warp to see if we can read deletion yet
+        if(cdt*cdt > d2){
+            return nullptr;
+        }
     }
-    for(int k=history.size()-1;k>=0; k--){
+    
+    if(time>latest->write_time){ // if after latest value (the most common case)
+        double cdt = (time-latest->write_time) * info_speed ;
+        if(cdt*cdt > d2){// check time warp to see if we can read latest value yet
+            return latest ;
+        }
+    }
+    //printf("not reading latest\n");
+    // Walk backwards from latest until we find something we're allowed to read
+    for(int k=history.size()-2;k>=0; k--){
         double dist = glm::length(vantage-history[k]->position);
         double time_to_read = history[k]->write_time + dist/info_speed; // time this vantage point would be able ot read thatdata
         if(time_to_read < time){
