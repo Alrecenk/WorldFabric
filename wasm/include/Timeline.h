@@ -66,6 +66,11 @@ class Timeline{
         // applies a syncrhoniation update produced by another timeline's use of getUpdateFor
         void applyUpdate(const Variant& update);
 
+        // Given a packet with an update and optional descriptor
+        // applies the update, and if there was a descriptor returns an ypdate for it
+        // and a new descriptor of itself at current_time-base_age
+        Variant synchronize(const Variant& packet,double base_age);
+
         // Updates all observables to the current time, performing interpolation as required
         // and returnsa list of ID for all observables
         std::vector<int> updateObservables();

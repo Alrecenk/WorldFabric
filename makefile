@@ -13,7 +13,8 @@ LIBS       = -levent -levent_core
 
 
 SRC		   = ${SERVER_DIR}source/WebServer.cpp \
-			${SERVER_DIR}source/TableServer.cpp
+			${SERVER_DIR}source/TableServer.cpp \
+			${SERVER_DIR}source/TimelineServer.cpp
 SRC_INC	   = -I${SERVER_DIR}include
 
 API_DIR    =./wasm/

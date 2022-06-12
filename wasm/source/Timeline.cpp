@@ -244,6 +244,20 @@ void Timeline::applyUpdate(const Variant& update){
     }
 }
 
+Variant Timeline::synchronize(const Variant& packet,double base_age){
+    map<string,Variant> sync_map = packet.getObject();
+    if(sync_map.find("update") != sync_map.end()){
+        applyUpdate(sync_map["update"]);
+    }
+    if(sync_map.find("descriptor") != sync_map.end()){
+        map<string,Variant> ret_map;
+        ret_map["update"] = getUpdateFor(sync_map["descriptor"]);
+        ret_map["descriptor"] = getDescriptor(current_time-base_age);
+        return Variant(ret_map);
+    }
+    return Variant();
+}
+
 // Updates all observables to the current time, performing interpolation as required
 // and returnsa list of ID for all observables
 std::vector<int> Timeline::updateObservables(){

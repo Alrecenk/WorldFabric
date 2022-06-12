@@ -18,6 +18,7 @@
 #include "TEvent.h"
 #include "BouncingBall.h"
 #include "MoveBouncingBall.h"
+#include "CreateObject.h"
 
 using std::vector;
 using std::string;
@@ -27,6 +28,7 @@ using glm::vec3;
 using glm::vec4;
 using glm::mat4;
 using std::unique_ptr ;
+using std::make_unique ;
 
 // Outermost API holds a global reference to the core data model
 map<string,GLTF> meshes;
@@ -78,10 +80,50 @@ std::chrono::high_resolution_clock::time_point now(){
 } 
 
 
+std::unique_ptr<TObject> createBallObject(const Variant& serialized){
+    auto map = serialized.getObject() ;
+    auto o = std::make_unique<BouncingBall>();
+    o->set(map);
+    return std::move(o);
+}
+
+std::unique_ptr<TEvent> createBallEvent(const Variant& serialized){
+    
+    //TODO add a type system to make this check more intuitive
+    if(serialized.type_ == Variant::NULL_VARIANT){ // events can hold poiners to other events which may be null
+        return std::unique_ptr<TEvent>(nullptr);
+    }
+    auto map = serialized.getObject() ;
+    std::unique_ptr<TEvent> event ;
+    //TODO better way to distinguish event types
+    if(map["o"].type_ == Variant::OBJECT){
+        event = std::make_unique<CreateObject>();
+    }else if(map["dt"].type_ == Variant::DOUBLE){
+        event = std::make_unique<MoveBouncingBall>();
+    }else{
+        printf("Event not parsed!\n");
+        serialized.printFormatted();
+        //event = std::make_unique<ChangeVelocity>();
+    }
+    event->set(map);
+    return std::move(event);
+}
+
+Timeline* initializeBallTimeline(){
+    timeline = make_unique<Timeline>();
+    timeline->setGenerators(&createBallEvent, &createBallObject);
+    return timeline.get() ;
+}
+
+
 
 int millisBetween(std::chrono::high_resolution_clock::time_point start, std::chrono::high_resolution_clock::time_point end){
     return (int)(std::chrono::duration_cast<std::chrono::duration<double>>(end - start).count()*1000);
 }
+
+
+
+
 
 extern "C" { // Prevents C++ from mangling the exported name apparently
 
@@ -442,6 +484,7 @@ byte* runTimelineUnitTests(byte* ptr) {
 
 byte* initialize2DBallTimeline(byte* ptr){
     printf("initializing timeline!\n");
+    initializeBallTimeline();
     
     auto obj = Variant::deserializeObject(ptr);
     int width = obj["width"].getInt();
@@ -452,10 +495,8 @@ byte* initialize2DBallTimeline(byte* ptr){
     float max_speed = obj["max_speed"].getNumberAsFloat();
 
     //printf("amount: %d\n", amount);
-    timeline.reset();
     vec3 box_min(0,0,-10000);
     vec3 box_max(width,height,10000);
-    timeline = std::make_unique<Timeline>();
     for(int k=0;k<amount;k++){
         float radius = min_radius + randomFloat()*(max_radius-min_radius);
         vec3 position(radius *2 + randomFloat()*(width-radius*4), radius * 2 + randomFloat()*(height-radius*4), 0);
@@ -501,6 +542,15 @@ byte* runTimeline(byte* ptr){
     ret_map["observables"] = Variant(circles, ob.size()*3);
 
     return pack(ret_map);
+}
+
+byte* getInitialTimelineRequest(byte* ptr){
+    //TODO
+    
+}
+
+byte* synchronizeTimeline(byte* ptr){
+    //TODO
 }
 
 }// end extern C

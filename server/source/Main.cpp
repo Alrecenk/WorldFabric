@@ -1,5 +1,6 @@
 #include "WebServer.h"
 #include "TableServer.h"
+#include "TimelineServer.h"
 #include "api.cpp"
 
 
@@ -66,9 +67,10 @@ int main(int argc, char** argv) {
 
     printf("Run completed!\n");
     */
-    /*
-    map<string, Variant> table;
-    addModels(table);
+    
+    //map<string, Variant> table;
+    //addModels(table);
+
     // boot up a static webserver on a nonblocking thread to serve the frontend
     char http_address[] = "0.0.0.0";
     int http_port = 8080;
@@ -77,9 +79,10 @@ int main(int argc, char** argv) {
     WebServer web_server(http_address, http_port, http_root);
 
     // boot up the tableserver on a non-blocking thread
-    int table_port = 9004;
-    cout << "Starting the table server on port " << table_port << "..." << endl;
-    TableServer table_server(table_port, &table);
+    int timeline_port = 9017;
+    cout << "Starting the timeline server on port " << timeline_port << "..." << endl;
+    Timeline* timeline = initializeBallTimeline() ;
+    TimelineServer timeline_server(timeline_port, timeline , 0.25);
 
     cout << "Starting main loop..." << endl;
     signal(SIGINT, quit); // Catch CTRL-C to exit gracefully
@@ -88,6 +91,6 @@ int main(int argc, char** argv) {
         //TODO stuff
     }
     web_server.stop();
-    table_server.stop();
-    */
+    timeline_server.stop();
+    
 }
