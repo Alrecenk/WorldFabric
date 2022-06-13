@@ -54,9 +54,9 @@ void TimelineServer::onMessage(
     const char* packet_bytes = msg->get_payload().c_str();
     Variant packet_variant(
             Variant::VARIANT_ARRAY, (unsigned char*) packet_bytes);
-
-    Variant response = timeline->synchronize(packet_variant, TimelineServer::base_age) ;
-
+    std::map<std::string, Variant> packet_map = packet_variant.getObject() ;
+    std::map<std::string, Variant> response_map = TimelineServer::timeline->synchronize(packet_map, TimelineServer::base_age, false) ;
+    Variant response = Variant(response_map);
     int response_size = response.getSize();
     //TODO this delay should be on the frontend, not the backend
     // TODO less hardcoded way to limit frequency of table packets

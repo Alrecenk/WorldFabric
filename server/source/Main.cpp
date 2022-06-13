@@ -82,7 +82,7 @@ int main(int argc, char** argv) {
     int timeline_port = 9017;
     cout << "Starting the timeline server on port " << timeline_port << "..." << endl;
     Timeline* timeline = initializeBallTimeline() ;
-    TimelineServer timeline_server(timeline_port, timeline , 0.25);
+    TimelineServer timeline_server(timeline_port, timeline , base_age);
 
     cout << "Starting main loop..." << endl;
     signal(SIGINT, quit); // Catch CTRL-C to exit gracefully

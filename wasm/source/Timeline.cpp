@@ -6,6 +6,8 @@
 
 #include <unordered_map>
 #include <unordered_set>
+#include <chrono>
+#include <ctime>
 
 using glm::vec3;
 using std::vector;
@@ -57,6 +59,7 @@ void Timeline::deleteObject(int id, double send_time){
 // Runs events in the timeline until the location at the vantage object reaches the given time
 void Timeline::run(double new_time){
     //printf("timeline running......\n");
+    last_run_time = timeMilliseconds();
 
     TObject* vo = objects[vantage_id].get(new_time) ;
     vec3 vantage(0,0,0) ;
@@ -122,6 +125,11 @@ void Timeline::run(double new_time){
     }
 
     current_time = new_time ;
+}
+
+void Timeline::run(){
+    double new_time = current_time + (timeMilliseconds() - last_run_time)/1000.0 ;
+    run(new_time);
 }
 
 // Clears out all events and data changes before the given time
@@ -219,7 +227,7 @@ Variant Timeline::getUpdateFor(const Variant& descriptor){
 }
 
 // applies a syncrhoniation update produced by another timeline's use of getUpdateFor'
-void Timeline::applyUpdate(const Variant& update){
+double Timeline::applyUpdate(const Variant& update){
     map<string,Variant> update_map = update.getObject();
     double time = update_map["time"].getDouble();
     
@@ -242,20 +250,31 @@ void Timeline::applyUpdate(const Variant& update){
     for(int k=0;k<event_updates.size();k++){
         events.addEvent(std::move(TEvent::generateTypedTEvent(event_updates[k])));
     }
+    return time ;
 }
 
-Variant Timeline::synchronize(const Variant& packet,double base_age){
-    map<string,Variant> sync_map = packet.getObject();
-    if(sync_map.find("update") != sync_map.end()){
-        applyUpdate(sync_map["update"]);
+std::map<std::string, Variant> Timeline::synchronize(std::map<std::string, Variant>& packet, double base_age, bool sync_clock){
+    double update_time = -1 ;
+    if(packet.find("update") != packet.end()){
+        update_time = applyUpdate(packet["update"]);
     }
-    if(sync_map.find("descriptor") != sync_map.end()){
+    if(packet.find("descriptor") != packet.end()){
+
+        long new_sync_time = timeMilliseconds() ;
+        ping = new_sync_time - last_sync_time ;
+        last_sync_time = new_sync_time;
+
+        if(sync_clock && update_time >= 0 && ping >=1 && ping <=1000 ){
+            run(update_time + ping/2000.0); // sync clock to remote clock + ping/2
+        }
+
         map<string,Variant> ret_map;
-        ret_map["update"] = getUpdateFor(sync_map["descriptor"]);
+        ret_map["update"] = getUpdateFor(packet["descriptor"]);
         ret_map["descriptor"] = getDescriptor(current_time-base_age);
-        return Variant(ret_map);
+        
+        return ret_map;
     }
-    return Variant();
+    return std::map<string, Variant>();
 }
 
 // Updates all observables to the current time, performing interpolation as required
@@ -290,4 +309,9 @@ int Timeline::getNextID(){
         max_id = std::max(max_id, id);
     }
     return max_id + 1 ;
+}
+
+long Timeline::timeMilliseconds() const {
+    return std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::system_clock::now().time_since_epoch()).count();
 }

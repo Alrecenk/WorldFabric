@@ -76,8 +76,9 @@ class BallBounceMode extends ExecutionMode{
             tools.API.call("initialize2DBallTimeline", params, new Serializer());
         }
 
+        tools.API.call("runTimeline", {time:timeline_time}, new Serializer());
+        let observables = tools.API.call("getTimelineCircles", {}, new Serializer()).observables;
 
-        let observables = tools.API.call("runTimeline", {time:timeline_time}, new Serializer()).observables;
         //console.log(observables);
         let context = tools.canvas.getContext("2d");
         context.clearRect(0, 0, context.canvas.width, context.canvas.height);

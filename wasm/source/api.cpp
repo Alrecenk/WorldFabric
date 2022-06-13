@@ -43,6 +43,8 @@ int selected_animation = -1;
 std::chrono::high_resolution_clock::time_point animation_start_time;
 
 unique_ptr<Timeline> timeline ;
+double base_age = 0.25 ;
+double history_kept = 0.5 ;
 
 
 long timeMilliseconds() {
@@ -517,15 +519,17 @@ byte* initialize2DBallTimeline(byte* ptr){
 byte* runTimeline(byte* ptr){
     
     auto obj = Variant::deserializeObject(ptr);
+    if(obj.find("time") == obj.end()){
+        timeline->run();
+    }else{
+        float time = obj["time"].getNumberAsFloat();
+        timeline->run(time);
+    }
+    timeline->clearHistoryBefore(timeline->current_time-history_kept);
+    return emptyReturn();
+}
 
-    float time = obj["time"].getNumberAsFloat();
-    //printf("running timelime at time: %f\n", time);
-    //printf("clearing: %f\n", time-0.5);
-    timeline->clearHistoryBefore(time-0.5);
-    //printf("running: %f\n", time);
-    timeline->run(time);
-    
-    //printf("getting observables\n");
+byte* getTimelineCircles(byte* ptr){
     vector<int> ob = timeline->updateObservables();
 
     map<string, Variant> ret_map ;
@@ -545,12 +549,15 @@ byte* runTimeline(byte* ptr){
 }
 
 byte* getInitialTimelineRequest(byte* ptr){
-    //TODO
-    
+    map<string, Variant> sync_data ;
+    sync_data["descriptor"] = timeline->getDescriptor(timeline->current_time);
+    return pack(sync_data);
 }
 
 byte* synchronizeTimeline(byte* ptr){
-    //TODO
+    map<string, Variant> sync_data = Variant::deserializeObject(ptr);
+    map<string, Variant> out_packet = timeline->synchronize(sync_data, base_age, true) ;
+    return pack(out_packet);
 }
 
 }// end extern C
