@@ -21,6 +21,7 @@ API_DIR    =./wasm/
 API_INC	   = -I${API_DIR}include -I${API_DIR}source
 EXPORTED_FUNCTIONS =[\
 	'_setPacketPointer', \
+	'_getReturnSize', \
 	'_setModel', \
 	'_getUpdatedBuffers', \
 	'_rayTrace', \

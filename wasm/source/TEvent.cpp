@@ -81,6 +81,10 @@ std::vector<int> TEvent::getCollisions(){
     return timeline->collisions.getCollisions(this);
 }
 
+std::unique_ptr<TEvent> TEvent::deepCopy(){
+    return TEvent::generateTypedTEvent(Variant(serialize()));
+}
+
 void TEvent::print() const{
     Variant(serialize()).printFormatted();
 }

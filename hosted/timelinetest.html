@@ -1,6 +1,6 @@
 <html>
 <head>
-<title>GLB+VRM viewer</title>
+<title>Timeline Test</title>
 <meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1">
 <style>
@@ -31,6 +31,7 @@ body {
 <script type="text/javascript" src="generated/api.js"></script>
 <script type="text/javascript" src="Serializer.js"></script>
 <script type="text/javascript" src="BallBounceMode.js"></script>
+<script type="text/javascript" src="TimelineClient.js"></script>
 
 
 <script type="text/javascript">
@@ -82,6 +83,11 @@ function canvasApp() {
 	}
 
     function timeListener(){
+
+        if(tools.sync_link != null && tools.sync_link.ready() && !tools.sync_link.active){
+            tools.sync_link.sendInitialRequest();
+        }
+
         if(tools.current_mode!=null){
             tools.current_mode.timer();
             
@@ -227,6 +233,7 @@ function onBodyLoad(){
     // Wait for the WASM module to finish loading before booting up the socket and app
     window.initializeCPPAPI().then(function(Module){
         tools.API = Module ;
+        tools.sync_link = new TimelineClient(9017, tools.API);
         app = canvasApp(); // Start the app
         initializeModes();
         setMainMenuButtons();

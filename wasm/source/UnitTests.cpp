@@ -392,7 +392,7 @@ bool UnitTests::checksimpleTimelineSync(){
     //printf("d2 before first sync:\n");
     //d2.printFormatted();
 
-    Variant u = t1.getUpdateFor(d2);
+    Variant u = t1.getUpdateFor(d2, false);
     //printf("first update:\n");
     //u.printFormatted();
     t2.applyUpdate(u);    
@@ -421,7 +421,7 @@ bool UnitTests::checksimpleTimelineSync(){
     Timeline t3 = Timeline();
     t3.setGenerators(&UnitTests::createEvent, &UnitTests::createObject);
     Variant d3 = t3.getDescriptor(2.0);
-    u = t2.getUpdateFor(d3);
+    u = t2.getUpdateFor(d3, false);
 
     //printf("d2 to d3 update:\n");
     //u.printFormatted();

@@ -19,11 +19,9 @@ using std::this_thread::sleep_for;
 // Initialize static members
 Timeline* TimelineServer::timeline;
 SocketServer TimelineServer::server;
-double TimelineServer::base_age=0.25;
 
-TimelineServer::TimelineServer(int socket_port, Timeline* tl, double sync_age) {
+TimelineServer::TimelineServer(int socket_port, Timeline* tl) {
     TimelineServer::timeline = tl;
-    TimelineServer::base_age = sync_age ;
     this->thread = std::thread(TimelineServer::start, socket_port);
 }
 
@@ -50,17 +48,22 @@ void TimelineServer::start(const int socket_port) {
 // an OBJECT type Variant (map) is returned with the keys and values for each requested item
 void TimelineServer::onMessage(
         SocketServer* s, websocketpp::connection_hdl hdl, MessagePointer msg) {
+            //printf("Got message!\n");
     // Fetch raw bytes from binary packet
     const char* packet_bytes = msg->get_payload().c_str();
     Variant packet_variant(
-            Variant::VARIANT_ARRAY, (unsigned char*) packet_bytes);
+            Variant::OBJECT, (unsigned char*) packet_bytes);
+    //printf("got packet:\n");
+    //packet_variant.printFormatted();
     std::map<std::string, Variant> packet_map = packet_variant.getObject() ;
-    std::map<std::string, Variant> response_map = TimelineServer::timeline->synchronize(packet_map, TimelineServer::base_age, false) ;
+    std::map<std::string, Variant> response_map = TimelineServer::timeline->synchronize(packet_map, false) ;
     Variant response = Variant(response_map);
     int response_size = response.getSize();
+    //printf("response packet:\n");
+    //response.printFormatted();
     //TODO this delay should be on the frontend, not the backend
     // TODO less hardcoded way to limit frequency of table packets
-    sleep_for(std::chrono::milliseconds(5));
+    sleep_for(std::chrono::milliseconds(10));
     // Send the data back to the client
     s->send(
             std::move(hdl), response.ptr, response_size,

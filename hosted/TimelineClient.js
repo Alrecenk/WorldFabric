@@ -36,11 +36,16 @@ class TimelineClient{
 
     // Sends all table data requests currently pending on any WASM TableReader implementers
     // If active is set to true, pending requests will be sent continuously until active is set back to false
-    sendInitialRequests(active=true){
+    sendInitialRequest(active=true){
         this.active = active;
+
         let request_ptr = wasm_module.call("getInitialTimelineRequest") ;
+        request_ptr = wasm_module.call("getInitialTimelineRequest") ; // TODO for some reason the first wasm module call always fails
+
+        //console.log("pointer:" + request_ptr);
         let request_size = wasm_module.getReturnSize();
         let request = wasm_module.getByteArray(request_ptr, request_size);
+        //console.log("request bytes:" + request);
         this.socket.send(request.buffer);
     }
 

@@ -21,6 +21,7 @@ using std::unique_ptr;
 Timeline::Timeline(){
     events.timeline = this;
     collisions.timeline = this ;
+    last_run_time = timeMilliseconds();
 }
 
 // Set the functions to be used for generating typed timeline events and objects from serialized data
@@ -129,6 +130,7 @@ void Timeline::run(double new_time){
 
 void Timeline::run(){
     double new_time = current_time + (timeMilliseconds() - last_run_time)/1000.0 ;
+    //printf("Run() time : %f\n", new_time);
     run(new_time);
 }
 
@@ -140,6 +142,7 @@ void Timeline::clearHistoryBefore(double clear_time){
     for(auto& [id, history] : objects){
         history.clearHistoryBefore(clear_time);
     }
+    last_clear_time = clear_time ;
 }
 
 // Return the minimum state required to generate a matching timeline from the given time
@@ -167,6 +170,7 @@ Variant Timeline::getDescriptor(double time){
     for(auto& [id,object] : base_objects){
         base_object_hashes[k*2] = id;
         base_object_hashes[k*2+1] = Variant(object->serialize()).hash();
+        k++;
     }
     
     map<string,Variant> descriptor_map ;
@@ -179,9 +183,18 @@ Variant Timeline::getDescriptor(double time){
 }
 
 // Given another tree's descriptor, produces an update that woulds bring that tree into syncwith this one
-Variant Timeline::getUpdateFor(const Variant& descriptor){
+Variant Timeline::getUpdateFor(const Variant& descriptor, bool sync_clock){
     map<string,Variant> descriptor_map  = descriptor.getObject();
     double time = descriptor_map["time"].getDouble();
+    time = fmax(time, last_clear_time); // if requested an update older than cleared time, then send cleared time
+    if(sync_clock && time+base_age > current_time){
+        //printf("clock catching up to received descriptor!\n");
+        double buffer =0 ;
+        if(ping > 1 && ping < 1000){
+            buffer = ping/2000.0;
+        }
+        run(time + base_age + buffer);
+    }
     int* other_events = descriptor_map["events"].getIntArray();
     int num_other_events = descriptor_map["events"].getArrayLength();
     unordered_set<int> other_event_set ;
@@ -193,14 +206,15 @@ Variant Timeline::getUpdateFor(const Variant& descriptor){
     unordered_map<int,int> other_object_map;
     for(int k=0;k<num_other_objects ;k++){
         other_object_map[other_objects[2*k]] = other_objects[2*k+1];
+        //printf("got hash %d for %d\n", other_objects[2*k+1], other_objects[2*k]);
     }
     descriptor_map.clear();
-
     auto [base_events,base_objects] = getBaseState(time);
     vector<Variant> event_updates;
     for(int k=0;k<base_events.size();k++){
         TEvent* event = base_events[k] ;
         Variant serial = Variant(event->serialize());
+        //serial.printFormatted();
         int hash = serial.hash();
         if(other_event_set.find(hash) == other_event_set.end()){ // we have event other didn't have
             event_updates.emplace_back(std::move(serial)); 
@@ -208,10 +222,10 @@ Variant Timeline::getUpdateFor(const Variant& descriptor){
     }
 
     map<int,Variant> object_updates ;
-    int k=0;
     for(auto& [id,object] : base_objects){
         Variant serial = Variant(object->serialize()) ;
         int hash = serial.hash();
+        //printf("generated hash %d for %d\n", hash, id);
         if(other_object_map[id] != hash){
             object_updates[id] = std::move(serial) ;
         }
@@ -222,12 +236,11 @@ Variant Timeline::getUpdateFor(const Variant& descriptor){
     update_map["time"] = Variant(time);
     update_map["events"] = Variant(event_updates);
     update_map["objects"] = Variant(object_updates);
-
     return Variant(update_map);
 }
 
 // applies a syncrhoniation update produced by another timeline's use of getUpdateFor'
-double Timeline::applyUpdate(const Variant& update){
+void Timeline::applyUpdate(const Variant& update){
     map<string,Variant> update_map = update.getObject();
     double time = update_map["time"].getDouble();
     
@@ -236,7 +249,11 @@ double Timeline::applyUpdate(const Variant& update){
         if(objects.find(id) == objects.end()){ // if not present
             //printf("update creating new baseobject!\n");
             //serial.printFormatted();
+            if(TObject::generateTypedTObject == nullptr){
+                printf("WTF: object creator function is not defined! Did you forget to set generators o nthe timeline?\n");
+            }
             unique_ptr<TObject> new_obj = TObject::generateTypedTObject(serial); // infer type and build using generator
+            //Variant(new_obj->serialize()).printFormatted();
             objects[id] = ObjectHistory(std::move(new_obj), time); // place into timeline
         }else{ // if already present but nonmatching value
             //printf("update updating base object!\n");
@@ -248,30 +265,34 @@ double Timeline::applyUpdate(const Variant& update){
 
     vector<Variant> event_updates = update_map["events"].getVariantArray();
     for(int k=0;k<event_updates.size();k++){
+        //printf("updating event\n");
         events.addEvent(std::move(TEvent::generateTypedTEvent(event_updates[k])));
     }
-    return time ;
 }
 
-std::map<std::string, Variant> Timeline::synchronize(std::map<std::string, Variant>& packet, double base_age, bool sync_clock){
-    double update_time = -1 ;
+std::map<std::string, Variant> Timeline::synchronize(std::map<std::string, Variant>& packet, bool sync_clock){
     if(packet.find("update") != packet.end()){
-        update_time = applyUpdate(packet["update"]);
+        //printf("Got update!\n");
+        //packet["update"].printFormatted();
+        applyUpdate(packet["update"]);
     }
     if(packet.find("descriptor") != packet.end()){
-
+        //printf("Got descriptor!\n");
+        //packet["descriptor"].printFormatted();
         long new_sync_time = timeMilliseconds() ;
         ping = new_sync_time - last_sync_time ;
         last_sync_time = new_sync_time;
 
-        if(sync_clock && update_time >= 0 && ping >=1 && ping <=1000 ){
-            run(update_time + ping/2000.0); // sync clock to remote clock + ping/2
-        }
 
         map<string,Variant> ret_map;
-        ret_map["update"] = getUpdateFor(packet["descriptor"]);
-        ret_map["descriptor"] = getDescriptor(current_time-base_age);
+        //printf("generating update - > %f...\n", packet["descriptor"]["time"].getDouble());
+        ret_map["update"] = getUpdateFor(packet["descriptor"], sync_clock);
         
+
+        //ret_map["update"].printFormatted();
+        //printf("generating descriptor - > %f...\n", current_time-base_age);
+        ret_map["descriptor"] = getDescriptor(current_time-base_age);
+        //ret_map["descriptor"].printFormatted();
         return ret_map;
     }
     return std::map<string, Variant>();

@@ -28,9 +28,8 @@ class TimelineServer {
 
     public:
         static Timeline* timeline; // TODO figure out how to make not static?
-        static double base_age ;
         //Starts the server on creation
-        TimelineServer(int socket_port, Timeline* tl, double sync_age);
+        TimelineServer(int socket_port, Timeline* tl);
 
         // Starts the server socket
         static void start(int socket_port);

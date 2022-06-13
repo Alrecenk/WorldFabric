@@ -66,6 +66,11 @@ class TEvent{
         // at the time of this event
         std::vector<int> getCollisions();
 
+
+        // Override this to provide an efficient deep copy of this object
+        // If not overridden serialize and set will be used to copy your object (which will be inefficent)
+        virtual std::unique_ptr<TEvent> deepCopy();
+
         void print() const;
 
         // Data and functions below this point are used for maintaining the timeline continuity

@@ -32,6 +32,9 @@ class Timeline{
         long last_run_time = 0 ;
         long last_sync_time = 0;
         int ping = 0;
+        double last_clear_time = 0 ;
+
+        static constexpr double base_age = 0.3;
 
         Timeline();
 
@@ -67,16 +70,16 @@ class Timeline{
         Variant getDescriptor(double time);
 
         // Given another tree's descriptor, produces an update that would bring that tree into sync with this one
-        Variant getUpdateFor(const Variant& descriptor);
+        Variant getUpdateFor(const Variant& descriptor, bool sync_clock);
 
         // applies a syncrhoniation update produced by another timeline's use of getUpdateFor
         // returns the time of the update
-        double applyUpdate(const Variant& update);
+        void applyUpdate(const Variant& update);
 
         // Given a packet with an update and optional descriptor
         // applies the update, and if there was a descriptor returns an ypdate for it
         // and a new descriptor of itself at current_time-base_age
-        std::map<std::string, Variant> synchronize(std::map<std::string, Variant>& packet,double base_age, bool sync_clock);
+        std::map<std::string, Variant> synchronize(std::map<std::string, Variant>& packet, bool sync_clock);
 
         // Updates all observables to the current time, performing interpolation as required
         // and returnsa list of ID for all observables

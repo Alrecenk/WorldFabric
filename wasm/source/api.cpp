@@ -35,15 +35,13 @@ map<string,GLTF> meshes;
 const string MAIN_MODEL = "MAIN" ;
 const string HAND = "HAND";
 
-Variant ret ; // A long lived variant used to hold data being returned to webassembly
 byte* packet_ptr ; // location ofr data passed as function parameters and returns
-
+int last_pack_size = 0 ;
 
 int selected_animation = -1;
 std::chrono::high_resolution_clock::time_point animation_start_time;
 
 unique_ptr<Timeline> timeline ;
-double base_age = 0.25 ;
 double history_kept = 0.5 ;
 
 
@@ -57,15 +55,17 @@ float randomFloat() {
 }
 
 byte* pack(std::map<std::string, Variant> packet){
-    ret = Variant(packet);
-    memcpy(packet_ptr, ret.ptr, ret.getSize()); // TODO figure out how to avoid this copy
+    Variant ret = Variant(packet);
+    last_pack_size = ret.getSize() ;
+    memcpy(packet_ptr, ret.ptr, last_pack_size);
     return packet_ptr ;
 }
 
 // Note: Javascript deserializer expects string objects
 // This is only intended for server interfaces that don't deserialize in Javascript
 byte* pack(Variant packet){
-    memcpy(packet_ptr, packet.ptr, packet.getSize()); // TODO figure out how to avoid this copy
+    last_pack_size = packet.getSize() ;
+    memcpy(packet_ptr, packet.ptr, last_pack_size);
     return packet_ptr ;
 }
 
@@ -81,8 +81,16 @@ std::chrono::high_resolution_clock::time_point now(){
     return std::chrono::high_resolution_clock::now();
 } 
 
+int millisBetween(std::chrono::high_resolution_clock::time_point start, std::chrono::high_resolution_clock::time_point end){
+    return (int)(std::chrono::duration_cast<std::chrono::duration<double>>(end - start).count()*1000);
+}
 
 std::unique_ptr<TObject> createBallObject(const Variant& serialized){
+    //printf("callec create ball object!\n");
+    //serialized.printFormatted();
+    if(serialized.type_ != Variant::OBJECT){
+        printf("timeline attemped to create an object with a nonobject variabnt!\n");
+    }
     auto map = serialized.getObject() ;
     auto o = std::make_unique<BouncingBall>();
     o->set(map);
@@ -117,18 +125,36 @@ Timeline* initializeBallTimeline(){
     return timeline.get() ;
 }
 
+Timeline* initialize2DBallTimeline(int width, int height, int amount, float min_radius, float max_radius, float max_speed){
+    printf("initializing timeline!\n");
+    initializeBallTimeline();
+    //printf("amount: %d\n", amount);
+    vec3 box_min(0,0,-10000);
+    vec3 box_max(width,height,10000);
+    for(int k=0;k<amount;k++){
+        float radius = min_radius + randomFloat()*(max_radius-min_radius);
+        vec3 position(radius *2 + randomFloat()*(width-radius*4), radius * 2 + randomFloat()*(height-radius*4), 0);
+        float angle = randomFloat()*6.29;
+        float speed = randomFloat()*max_speed ;
 
-
-int millisBetween(std::chrono::high_resolution_clock::time_point start, std::chrono::high_resolution_clock::time_point end){
-    return (int)(std::chrono::duration_cast<std::chrono::duration<double>>(end - start).count()*1000);
+        vec3 velocity(sin(angle)*speed, cos(angle)*speed,0);
+        
+        std::unique_ptr<BouncingBall> o = std::make_unique<BouncingBall>(position, velocity, radius, box_min, box_max) ;
+        std::unique_ptr<MoveBouncingBall> o_move = std::make_unique<MoveBouncingBall>(1.0/60.0) ;
+        timeline->createObject(std::move(o), std::move(o_move) , k*0.001/(double)amount);
+        
+    }
+    timeline->run(1.0);
+    return timeline.get();
 }
-
-
-
 
 
 extern "C" { // Prevents C++ from mangling the exported name apparently
 
+// Allows javascript to check the size of the return without deserializing it
+int getReturnSize(byte* nothing) {
+    return last_pack_size;
+}
 
 void setPacketPointer(byte* p){
     //printf("Packet Pointer allocated at: %ld\n", (long)p);
@@ -495,23 +521,7 @@ byte* initialize2DBallTimeline(byte* ptr){
     float min_radius = obj["min_radius"].getNumberAsFloat();
     float max_radius = obj["max_radius"].getNumberAsFloat();
     float max_speed = obj["max_speed"].getNumberAsFloat();
-
-    //printf("amount: %d\n", amount);
-    vec3 box_min(0,0,-10000);
-    vec3 box_max(width,height,10000);
-    for(int k=0;k<amount;k++){
-        float radius = min_radius + randomFloat()*(max_radius-min_radius);
-        vec3 position(radius *2 + randomFloat()*(width-radius*4), radius * 2 + randomFloat()*(height-radius*4), 0);
-        float angle = randomFloat()*6.29;
-        float speed = randomFloat()*max_speed ;
-
-        vec3 velocity(sin(angle)*speed, cos(angle)*speed,0);
-        
-        std::unique_ptr<BouncingBall> o = std::make_unique<BouncingBall>(position, velocity, radius, box_min, box_max) ;
-        std::unique_ptr<MoveBouncingBall> o_move = std::make_unique<MoveBouncingBall>(1.0/60.0) ;
-        timeline->createObject(std::move(o), std::move(o_move) , k*0.001/(double)amount);
-        
-    }
+    initialize2DBallTimeline(width, height, amount, min_radius, max_radius, max_speed) ;
     
     return emptyReturn();
 }
@@ -549,14 +559,17 @@ byte* getTimelineCircles(byte* ptr){
 }
 
 byte* getInitialTimelineRequest(byte* ptr){
+    initializeBallTimeline();
     map<string, Variant> sync_data ;
-    sync_data["descriptor"] = timeline->getDescriptor(timeline->current_time);
+    sync_data["descriptor"] = timeline->getDescriptor(0.0);
+    printf("initial packet:\n");
+    Variant(sync_data).printFormatted();
     return pack(sync_data);
 }
 
 byte* synchronizeTimeline(byte* ptr){
     map<string, Variant> sync_data = Variant::deserializeObject(ptr);
-    map<string, Variant> out_packet = timeline->synchronize(sync_data, base_age, true) ;
+    map<string, Variant> out_packet = timeline->synchronize(sync_data, true) ;
     return pack(out_packet);
 }
 

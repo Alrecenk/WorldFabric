@@ -78,17 +78,20 @@ int main(int argc, char** argv) {
     cout << "Starting the webserver on port " << http_port << "..." << endl;
     WebServer web_server(http_address, http_port, http_root);
 
-    // boot up the tableserver on a non-blocking thread
+
+
+    // boot up the timeline server on a non-blocking thread
     int timeline_port = 9017;
     cout << "Starting the timeline server on port " << timeline_port << "..." << endl;
-    Timeline* timeline = initializeBallTimeline() ;
-    TimelineServer timeline_server(timeline_port, timeline , base_age);
+    Timeline* timeline = initialize2DBallTimeline(500, 500, 10, 10, 40, 200) ;
+    TimelineServer timeline_server(timeline_port, timeline);
 
     cout << "Starting main loop..." << endl;
     signal(SIGINT, quit); // Catch CTRL-C to exit gracefully
     while (running) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(200));
-        //TODO stuff
+        std::this_thread::sleep_for(std::chrono::milliseconds(20));
+        timeline->run();
+        timeline->clearHistoryBefore(timeline->current_time-history_kept);
     }
     web_server.stop();
     timeline_server.stop();
