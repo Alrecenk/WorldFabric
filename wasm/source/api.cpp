@@ -562,8 +562,8 @@ byte* getInitialTimelineRequest(byte* ptr){
     initializeBallTimeline();
     map<string, Variant> sync_data ;
     sync_data["descriptor"] = timeline->getDescriptor(0.0);
-    printf("initial packet:\n");
-    Variant(sync_data).printFormatted();
+    //printf("initial packet:\n");
+    //Variant(sync_data).printFormatted();
     return pack(sync_data);
 }
 

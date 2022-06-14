@@ -15,6 +15,7 @@
 #include <vector>
 #include <map>
 #include <string>
+#include <mutex>
 
 
 
@@ -32,9 +33,10 @@ class Timeline{
         long last_run_time = 0 ;
         long last_sync_time = 0;
         int ping = 0;
-        double last_clear_time = 0 ;
+        double last_clear_time = -99999 ;
 
         static constexpr double base_age = 0.3;
+        std::recursive_mutex lock ;
 
         Timeline();
 

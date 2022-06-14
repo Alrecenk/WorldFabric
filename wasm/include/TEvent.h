@@ -80,6 +80,7 @@ class TEvent{
         TEvent* spawner = nullptr ; // event that spawned this event if it was spawned by another timeline event
         bool wrote_anchor=false; // whether this event wrote to its anchor object last time it ran
         bool deleted = false;
+        std::vector<TObject*> read;
         
         Timeline* timeline ;
 };

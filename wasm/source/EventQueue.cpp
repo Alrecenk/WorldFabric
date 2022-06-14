@@ -49,6 +49,8 @@ std::map<double,TEvent*> EventQueue::allNext(glm::vec3 vantage, double time, dou
                 //printf("queue time: %f\n", time_to_run);
                 if(all_next.find(time_to_run) != all_next.end()){
                     printf("Events had identical run_time! execution order not guranteed!\n");
+                    Variant(e->serialize()).printFormatted();
+                    Variant(all_next[time_to_run]->serialize()).printFormatted();
                     all_next = map<double, TEvent*>();
                     all_next[0] = next(vantage, time, info_speed); // fall back to single next to try to recover
                     return all_next ;
@@ -84,14 +86,25 @@ void EventQueue::removeDependencies(TEvent* event){
         timeline->objects[event->anchor_id].deleteAfter(event->time);
         event->wrote_anchor = false;
     }
-
     // Delete any events this event spawned
     for(TEvent* s : event->spawned_events){
-        if(!s->deleted){
+        if(s != nullptr && !s->deleted){
             deleteEvent(s);
         }
     }
     event -> spawned_events.clear();
+    // Remove any links on data objects
+    for(int k=0;k<event->read.size();k++){
+        if(event->read[k] != nullptr){
+            for(int j=0;j<event->read[k]->readers.size();j++){
+                if(event->read[k]->readers[j].first == event){
+                    event->read[k]->readers[j].first = nullptr ;
+                }
+            }
+        }
+    }
+    event->read.clear();
+    
 }
 
 void EventQueue::deleteEvent(TEvent* event){
@@ -115,11 +128,36 @@ void EventQueue::clearHistoryBefore(double clear_time){
         if(events[k].get() != nullptr && !events[k]->deleted && events[k]->time < clear_time && !events[k]->run_pending ){
             timeline->collisions.onDelete(events[k].get()); // remove pointers in collision system
             events[k]->deleted = true;
-            events[k]->spawner = nullptr ;
+
+            if(events[k]->spawner != nullptr){
+                // clear reference in parent's spawned event list to this
+                for(int s=0;s< events[k]->spawner->spawned_events.size();s++){
+                    if(events[k]->spawner->spawned_events[s] == events[k].get()){
+                        events[k]->spawner->spawned_events[s] = nullptr;
+                    }
+                }
+                // clear link tp spawner
+                events[k]->spawner = nullptr ;
+            }
             // Remove the link to this as a spawner of future events that may not be deleted
             for(TEvent* s : events[k]->spawned_events){
-                s->spawner = nullptr ;
+                if(s != nullptr){
+                    s->spawner = nullptr ;
+                }
             }
+
+            // Remove links to event on objects that it read
+            for(int i=0;i<events[k]->read.size();i++){
+                if(events[k]->read[i] != nullptr){
+                    for(int j=0;j<events[k]->read[i]->readers.size();j++){
+                        if(events[k]->read[i]->readers[j].first == events[k].get()){
+                            events[k]->read[i]->readers[j].first = nullptr ;
+                        }
+                    }
+                }
+            }
+            events[k]->read.clear();
+
         }
     }
     //wipe the data for all deleted events

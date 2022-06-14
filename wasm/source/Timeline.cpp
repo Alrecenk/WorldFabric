@@ -60,6 +60,7 @@ void Timeline::deleteObject(int id, double send_time){
 // Runs events in the timeline until the location at the vantage object reaches the given time
 void Timeline::run(double new_time){
     //printf("timeline running......\n");
+    lock.lock();
     last_run_time = timeMilliseconds();
 
     TObject* vo = objects[vantage_id].get(new_time) ;
@@ -114,18 +115,19 @@ void Timeline::run(double new_time){
                             break;
                         }
                     }else{
-                        printf("WTF: vantage object edited duringrun but doesn't exist! Maybe it's moving too fast?n");
+                        printf("WTF: vantage object edited during run but doesn't exist! Maybe it's moving too fast?\n");
                     }
                 }
             }
             for(TEvent* s : current_event->spawned_events){
-                max_time = fmin(max_time,  s->time);
+                    max_time = fmin(max_time,  s->time);
             }
         }
         events_to_run = events.allNext(vantage, new_time, info_speed) ;
     }
 
     current_time = new_time ;
+    lock.unlock();
 }
 
 void Timeline::run(){
@@ -137,12 +139,14 @@ void Timeline::run(){
 // Clears out all events and data changes before the given time
 // Objects may have a single instant before the clear time, so their value at that time can be fetched
 void Timeline::clearHistoryBefore(double clear_time){
+    lock.lock();
     clear_time = fmin(clear_time, current_time); // don't allow clearing beyond the current time
     events.clearHistoryBefore(clear_time);
     for(auto& [id, history] : objects){
         history.clearHistoryBefore(clear_time);
     }
     last_clear_time = clear_time ;
+    lock.unlock();
 }
 
 // Return the minimum state required to generate a matching timeline from the given time
@@ -243,6 +247,10 @@ Variant Timeline::getUpdateFor(const Variant& descriptor, bool sync_clock){
 void Timeline::applyUpdate(const Variant& update){
     map<string,Variant> update_map = update.getObject();
     double time = update_map["time"].getDouble();
+    if(time <= last_clear_time){
+        printf("WTF: received update earlier than clear time !\n");
+        return ;
+    }
     
     map<int,Variant> object_updates = update_map["objects"].getIntObject();
     for(auto& [id,serial] : object_updates){
@@ -256,10 +264,16 @@ void Timeline::applyUpdate(const Variant& update){
             //Variant(new_obj->serialize()).printFormatted();
             objects[id] = ObjectHistory(std::move(new_obj), time); // place into timeline
         }else{ // if already present but nonmatching value
-            //printf("update updating base object!\n");
+            printf("update updating base object!\n");
+            serial.printFormatted();
             TObject* existing_obj = objects[id].getMutable(time); // write using functionality that triggers rollback
-            map<string,Variant> serial_map = serial.getObject() ;
-            existing_obj->set(serial_map);
+            if(existing_obj == nullptr){
+                printf("WTF: Synchronize received update trying to edit an object that is available at that time!\n");
+
+            }else{
+                map<string,Variant> serial_map = serial.getObject() ;
+                existing_obj->set(serial_map);
+            }
         }
     }
 
@@ -271,6 +285,7 @@ void Timeline::applyUpdate(const Variant& update){
 }
 
 std::map<std::string, Variant> Timeline::synchronize(std::map<std::string, Variant>& packet, bool sync_clock){
+    lock.lock();
     if(packet.find("update") != packet.end()){
         //printf("Got update!\n");
         //packet["update"].printFormatted();
@@ -293,8 +308,10 @@ std::map<std::string, Variant> Timeline::synchronize(std::map<std::string, Varia
         //printf("generating descriptor - > %f...\n", current_time-base_age);
         ret_map["descriptor"] = getDescriptor(current_time-base_age);
         //ret_map["descriptor"].printFormatted();
+        lock.unlock();
         return ret_map;
     }
+    lock.unlock();
     return std::map<string, Variant>();
 }
 

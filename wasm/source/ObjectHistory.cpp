@@ -82,7 +82,7 @@ void ObjectHistory::deleteAfter(double time){
     
     int delete_from = history.size();
     for(int k=history.size()-1;k>=0; k--){
-        if(history[k]->write_time < time){ // finding first one from end not being deleted
+        if(history[k]->write_time <= time){ // finding first one from end not being deleted
             delete_from = k;
             break;
         }
@@ -90,7 +90,7 @@ void ObjectHistory::deleteAfter(double time){
 
     for(int k=delete_from;k<history.size(); k++){
         for(auto& [reader, read_time] : history[k]->readers){
-            if(read_time > time && !reader->deleted && !reader->run_pending){
+            if(reader != nullptr && read_time > time && !reader->deleted && !reader->run_pending){
                 timeline->events.rerunEvent(reader);
             }
         }
@@ -115,7 +115,7 @@ TObject* ObjectHistory::getMutable(double time){
 
     // A non retroactive write might still rollback a read to the most recent value if it happened betweeen the last write and the read
     for(auto& [reader, read_time] : history[history.size()-1]->readers){
-        if(read_time > time && !reader->deleted && !reader->run_pending){
+        if(reader != nullptr && read_time > time && !reader->deleted && !reader->run_pending){
             timeline->events.rerunEvent(reader);
         }
     }
