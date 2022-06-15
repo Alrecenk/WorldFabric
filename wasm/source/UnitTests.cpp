@@ -384,19 +384,19 @@ bool UnitTests::checksimpleTimelineSync(){
     std::unique_ptr<MoveObject> o_move1 = std::make_unique<MoveObject>(0.5) ;
     t1.createObject(std::move(o1), std::move(o_move1) , 1.0);
 
-    Variant d1 = t1.getDescriptor(0);
+    Variant d1 = t1.getDescriptor(0,false);
     //printf("d1 after queued creation event:\n");
     //d1.printFormatted();
-    Variant d2 = t2.getDescriptor(0);
+    Variant d2 = t2.getDescriptor(0,false);
 
     //printf("d2 before first sync:\n");
     //d2.printFormatted();
 
-    Variant u = t1.getUpdateFor(d2, false);
+    Variant u = t1.getUpdateFor(d2, true);
     //printf("first update:\n");
     //u.printFormatted();
     t2.applyUpdate(u);    
-    d2 = t2.getDescriptor(0);
+    d2 = t2.getDescriptor(0,false);
 
     //printf("d2 after first sync:\n");
     //d2.printFormatted();
@@ -405,8 +405,8 @@ bool UnitTests::checksimpleTimelineSync(){
     t1.run(3.0);
     //t2.events.events[0]->print();
     t2.run(3.0);
-    d1 = t1.getDescriptor(2.0);
-    d2 = t2.getDescriptor(2.0);
+    d1 = t1.getDescriptor(2.0, false);
+    d2 = t2.getDescriptor(2.0, false);
     expect(s, d1.hash() == d2.hash(), "Timelines don't match after creating object!");
     vector<int> ob1 = t1.updateObservables();
     vector<int> ob2 = t2.updateObservables();
@@ -420,14 +420,14 @@ bool UnitTests::checksimpleTimelineSync(){
 
     Timeline t3 = Timeline();
     t3.setGenerators(&UnitTests::createEvent, &UnitTests::createObject);
-    Variant d3 = t3.getDescriptor(2.0);
-    u = t2.getUpdateFor(d3, false);
+    Variant d3 = t3.getDescriptor(2.0,false);
+    u = t2.getUpdateFor(d3, true);
 
     //printf("d2 to d3 update:\n");
     //u.printFormatted();
     t3.applyUpdate(u);
     t3.run(3.0);
-    d3 = t3.getDescriptor(2.0);
+    d3 = t3.getDescriptor(2.0,false);
     expect(s, d1.hash() == d3.hash(), "Timelines don't match after syncing object!");
     /*
     printf("d1 end:\n");
@@ -438,9 +438,9 @@ bool UnitTests::checksimpleTimelineSync(){
     t1.run(10);
     t2.run(10);
     t3.run(10);
-    d1 = t1.getDescriptor(8.0);
-    d2 = t2.getDescriptor(8.0);
-    d3 = t3.getDescriptor(8.0);
+    d1 = t1.getDescriptor(8.0,false);
+    d2 = t2.getDescriptor(8.0,false);
+    d3 = t3.getDescriptor(8.0,false);
     expect(s, d1.hash() == d2.hash(), "Synced timelines diverged!");
     expect(s, d1.hash() == d3.hash(), "Synced timelines diverged!");
     return s ;

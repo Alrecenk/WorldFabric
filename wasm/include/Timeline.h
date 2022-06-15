@@ -69,10 +69,10 @@ class Timeline{
 
         // Returns a serialized descriptor of the state of the this Timeline at the goiven time 
         // that can be used by another Timeline to generate a synchronization update
-        Variant getDescriptor(double time);
+        Variant getDescriptor(double time,bool server);
 
         // Given another tree's descriptor, produces an update that would bring that tree into sync with this one
-        Variant getUpdateFor(const Variant& descriptor, bool sync_clock);
+        Variant getUpdateFor(const Variant& descriptor, bool server);
 
         // applies a syncrhoniation update produced by another timeline's use of getUpdateFor
         // returns the time of the update
@@ -81,7 +81,7 @@ class Timeline{
         // Given a packet with an update and optional descriptor
         // applies the update, and if there was a descriptor returns an ypdate for it
         // and a new descriptor of itself at current_time-base_age
-        std::map<std::string, Variant> synchronize(std::map<std::string, Variant>& packet, bool sync_clock);
+        std::map<std::string, Variant> synchronize(std::map<std::string, Variant>& packet, bool server);
 
         // Updates all observables to the current time, performing interpolation as required
         // and returnsa list of ID for all observables

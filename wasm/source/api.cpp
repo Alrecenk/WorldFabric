@@ -561,7 +561,7 @@ byte* getTimelineCircles(byte* ptr){
 byte* getInitialTimelineRequest(byte* ptr){
     initializeBallTimeline();
     map<string, Variant> sync_data ;
-    sync_data["descriptor"] = timeline->getDescriptor(0.0);
+    sync_data["descriptor"] = timeline->getDescriptor(0.0, false);
     //printf("initial packet:\n");
     //Variant(sync_data).printFormatted();
     return pack(sync_data);
@@ -569,7 +569,7 @@ byte* getInitialTimelineRequest(byte* ptr){
 
 byte* synchronizeTimeline(byte* ptr){
     map<string, Variant> sync_data = Variant::deserializeObject(ptr);
-    map<string, Variant> out_packet = timeline->synchronize(sync_data, true) ;
+    map<string, Variant> out_packet = timeline->synchronize(sync_data, false) ;
     return pack(out_packet);
 }
 

@@ -88,6 +88,7 @@ void ObjectHistory::deleteAfter(double time){
         }
     }
 
+
     for(int k=delete_from;k<history.size(); k++){
         for(auto& [reader, read_time] : history[k]->readers){
             if(reader != nullptr && read_time > time && !reader->deleted && !reader->run_pending){

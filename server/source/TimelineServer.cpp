@@ -56,7 +56,7 @@ void TimelineServer::onMessage(
     //printf("got packet:\n");
     //packet_variant.printFormatted();
     std::map<std::string, Variant> packet_map = packet_variant.getObject() ;
-    std::map<std::string, Variant> response_map = TimelineServer::timeline->synchronize(packet_map, false) ;
+    std::map<std::string, Variant> response_map = TimelineServer::timeline->synchronize(packet_map, true) ;
     Variant response = Variant(response_map);
     int response_size = response.getSize();
     //printf("response packet:\n");
