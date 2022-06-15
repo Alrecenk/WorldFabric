@@ -82,7 +82,7 @@ void ObjectHistory::deleteAfter(double time){
     
     int delete_from = history.size();
     for(int k=history.size()-1;k>=0; k--){
-        if(history[k]->write_time <= time){ // finding first one from end not being deleted
+        if(history[k]->write_time < time){ // finding first one from end not being deleted
             delete_from = k;
             break;
         }

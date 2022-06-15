@@ -131,9 +131,13 @@ void Timeline::run(double new_time){
 }
 
 void Timeline::run(){
-    double new_time = current_time + (timeMilliseconds() - last_run_time)/1000.0 ;
-    //printf("Run() time : %f\n", new_time);
+    long run_time = timeMilliseconds();
+    double new_time = current_time + (run_time - last_run_time)/1000.0 ;
+    /*if((int)current_time != (int)new_time){
+        printf("Run() time : %f\n", new_time);
+    }*/
     run(new_time);
+    last_run_time = run_time ; // make sure clock move matches exactly what we executed based on
 }
 
 // Clears out all events and data changes before the given time
@@ -264,8 +268,11 @@ void Timeline::applyUpdate(const Variant& update){
             //Variant(new_obj->serialize()).printFormatted();
             objects[id] = ObjectHistory(std::move(new_obj), time); // place into timeline
         }else{ // if already present but nonmatching value
-            printf("update updating base object!\n");
+            /*printf("update updating base object!\n");
             serial.printFormatted();
+            const TObject* eo = objects[id].get(time);
+            Variant(eo->serialize()).printFormatted();
+            */
             TObject* existing_obj = objects[id].getMutable(time); // write using functionality that triggers rollback
             if(existing_obj == nullptr){
                 printf("WTF: Synchronize received update trying to edit an object that is available at that time!\n");
