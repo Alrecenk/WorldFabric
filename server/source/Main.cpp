@@ -42,35 +42,6 @@ int main(int argc, char** argv) {
 
     runUnitTests();
 
-
-/*
-    map<string, Variant> obj ;
-    obj["width"] = Variant(1920);
-    obj["height"] = Variant(1080);
-    obj["amount"] = Variant(10);
-    obj["min_radius"] = Variant(40.0);
-    obj["max_radius"] = Variant(100.0);
-    obj["max_speed"] = Variant(200.0);
-    Variant params = Variant(obj);
-
-
-
-    initialize2DBallTimeline(params.ptr);
-    printf("initialized!\n");
-
-    for(double time = 1 ; time < 1000; time +=0.02){
-        map<string, Variant> obj ;
-        obj["time"] = Variant(time);
-        Variant params = Variant(obj);
-        runTimeline(params.ptr) ;
-    }
-
-    printf("Run completed!\n");
-    */
-    
-    //map<string, Variant> table;
-    //addModels(table);
-
     // boot up a static webserver on a nonblocking thread to serve the frontend
     char http_address[] = "0.0.0.0";
     int http_port = 8080;

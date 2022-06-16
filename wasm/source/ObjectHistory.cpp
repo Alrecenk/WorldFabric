@@ -25,7 +25,12 @@ TObject* ObjectHistory::get(const glm::vec3& vantage, double time, double info_s
         //printf("requested object has never existed...\n");
         return nullptr ;
     }
-    TObject* latest = history[history.size()-1].get() ;
+    int latest_index = history.size()-1 ;
+    TObject* latest = history[latest_index].get() ;
+    while(latest->deleted){
+        latest_index--;
+        latest = history[latest_index].get() ;
+    }
 
     vec3 diff = vantage-latest->position ;
     double d2 = glm::dot(diff,diff) ;
@@ -53,10 +58,12 @@ TObject* ObjectHistory::get(const glm::vec3& vantage, double time, double info_s
     //printf("not reading latest\n");
     // Walk backwards from latest until we find something we're allowed to read
     for(int k=history.size()-2;k>=0; k--){
-        double dist = glm::length(vantage-history[k]->position);
-        double time_to_read = history[k]->write_time + dist/info_speed; // time this vantage point would be able ot read thatdata
-        if(time_to_read < time){
-            return history[k].get();
+        if(!history[k]->deleted){
+            double dist = glm::length(vantage-history[k]->position);
+            double time_to_read = history[k]->write_time + dist/info_speed; // time this vantage point would be able ot read thatdata
+            if(time_to_read < time){
+                return history[k].get();
+            }
         }
     }
     return nullptr; 
@@ -70,7 +77,7 @@ TObject* ObjectHistory::get(double time){
         return nullptr;
     }
     for(int k=history.size()-1;k>=0; k--){
-        if(history[k]->write_time <= time){
+        if(history[k]->write_time <= time && !history[k]->deleted){
             return history[k].get();
         }
     }
@@ -82,46 +89,69 @@ void ObjectHistory::deleteAfter(double time){
     
     int delete_from = history.size();
     for(int k=history.size()-1;k>=0; k--){
-        if(history[k]->write_time < time){ // finding first one from end not being deleted
-            delete_from = k;
-            break;
+        if(!history[k]->deleted){
+            if(history[k]->write_time < time){ // finding first one from end not being deleted
+                delete_from = k;
+                break;
+            }
         }
     }
 
 
     for(int k=delete_from;k<history.size(); k++){
-        for(auto& [reader, read_time] : history[k]->readers){
-            if(reader != nullptr && read_time > time && !reader->deleted && !reader->run_pending){
-                timeline->events.rerunEvent(reader);
+        if(!history[k]->deleted){
+            for(auto& [reader, read_time] : history[k]->readers){
+                if(reader != nullptr && read_time > time && !reader->deleted && !reader->run_pending){
+                    timeline->events.rerunEvent(reader);
+                }
+            }
+            if(k != delete_from){ // check for reruns in last surviving instant but don't delete it
+                history[k]->deleted = true;
             }
         }
     }
 
     //printf("erasing from index %d\n", delete_from+1);
+    /*
     if(delete_from < history.size()-1){
         history.erase(history.cbegin() + delete_from +1 , history.cend());// all after first should be completely removed
-    }
+    }*/
 }
 
 //Creates a new instant at the given time by deep copying the previous instant
 // and returns an editable version of it
 // deletes all data beyond that point and marks events appropriately
 TObject* ObjectHistory::getMutable(double time){
+
+    int latest_index = history.size()-1 ;
+    TObject* latest = history[latest_index].get() ;
+    while(latest->deleted){
+        latest_index--;
+        latest = history[latest_index].get() ;
+    }
+
     //printf("getting mutable at time %f\n", time);
     //printf("most recent write time %f\n", history[history.size()-1]->write_time);
-    if(time < history[history.size()-1]->write_time){
+    if(time < latest->write_time){
         //printf("retroactive write detected!\n");
         deleteAfter(time);
     }
 
+    latest_index = history.size()-1 ;
+    latest = history[latest_index].get() ;
+    while(latest->deleted){
+        latest_index--;
+        latest = history[latest_index].get() ;
+    }
+
     // A non retroactive write might still rollback a read to the most recent value if it happened betweeen the last write and the read
-    for(auto& [reader, read_time] : history[history.size()-1]->readers){
+    for(auto& [reader, read_time] : latest->readers){
         if(reader != nullptr && read_time > time && !reader->deleted && !reader->run_pending){
             timeline->events.rerunEvent(reader);
         }
     }
 
-    std::unique_ptr<TObject> new_instant = history[history.size()-1]->deepCopy() ;
+    std::unique_ptr<TObject> new_instant = latest->deepCopy() ;
     new_instant->write_time = time ;
     history.push_back(std::move(new_instant));
 
@@ -130,14 +160,28 @@ TObject* ObjectHistory::getMutable(double time){
 
 // Objects may have a single instant before the clear time, so their value at that time can still be fetched
 void ObjectHistory::clearHistoryBefore(double clear_time){
-    int delete_to = -1;
+    // keep one instant before the clear time so we're defined at clear time
+    int one_before = -1;
     for(int k=0;k<history.size(); k++){
-        if(history[k]->write_time > clear_time){ // finding first one from end not being deleted
-            delete_to = k -1;
-            break;
+        if(!history[k]->deleted){
+            if(history[k]->write_time >= clear_time){
+                break ;
+            }else{
+                one_before = k;
+            }
         }
     }
-    if(delete_to >= 0){
-        history.erase(history.cbegin(), history.cbegin() + delete_to);
+    // Move undeleted elements after the start to the beginning of history
+    int next = 0 ;
+    for(int k=one_before;k<history.size(); k++){
+        if(!history[k]->deleted){
+            history[next] = std::move(history[k]) ;
+            next++;
+        }
     }
+
+    // clear history we didn't move
+    history.erase(history.cbegin() + next , history.cend());
+
+    
 }

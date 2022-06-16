@@ -21,6 +21,7 @@ class TObject{
         glm::vec3 position;
         float radius;
         double write_time ;
+        bool deleted = false;
 
         TObject();
 

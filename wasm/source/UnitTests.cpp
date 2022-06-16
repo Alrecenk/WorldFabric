@@ -85,23 +85,23 @@ std::unique_ptr<TEvent> UnitTests::createEvent(const Variant& serialized){
 // TODO make these proper unit tests that check correctness and don't spam the console if they're passing
 bool UnitTests::createAndMoveCircle(){
     bool s = true ;
-    //printf("---createAndMoveCircle---\n");
-    //printf("Initializing timeline...\n");
+    printf("---createAndMoveCircle---\n");
+    printf("Initializing timeline...\n");
     Timeline t = Timeline();
-    //printf("setting generators...\n");
+    printf("setting generators...\n");
     t.setGenerators(&UnitTests::createEvent, &UnitTests::createObject);
-    //printf("init circle...\n");
+    printf("init circle...\n");
     std::unique_ptr<MovingObject> o = std::make_unique<MovingObject>(vec3(1,0,0),vec3(0,2,0), 3.0f) ;
-    //printf("create object event...\n");
+    printf("create object event...\n");
     t.createObject(std::move(o), std::unique_ptr<TEvent>(nullptr), 1.0);
-    //printf("running...\n");
+    printf("running...\n");
     t.run(2.0);
-    //printf("updating observables...\n");
+    printf("updating observables...\n");
     vector<int> ob = t.updateObservables();
     UnitTests::expect(s, ob.size() == 1, "Object not observable after creation!");
 
 
-    //printf("Adding first move event...\n");
+    printf("Adding first move event...\n");
     t.addEvent(std::make_unique<MoveObject>(ob[0], 1.0), 2.0) ;
     t.run(5.0);
 
@@ -110,7 +110,7 @@ bool UnitTests::createAndMoveCircle(){
     UnitTests::expectNear(s, ((MovingObject*)t.getLastObserved(ob[0]))->position, vec3(1,8,0), 0.01, "Circle did not move correctly!");
 
 
-    //printf("Adding change direction event...\n");
+    printf("Adding change direction event...\n");
     t.addEvent(std::make_unique<ChangeVelocity>(ob[0], vec3(0,0,1.0)), 5.5) ;
     t.run(10.0);
 
@@ -118,7 +118,7 @@ bool UnitTests::createAndMoveCircle(){
 
     UnitTests::expectNear(s, ((MovingObject*)t.getLastObserved(ob[0]))->position, vec3(1,8,5), 0.01, "Circle did not change velocity correctly!");
 
-    //printf("Adding retroactive change direction event...\n");
+    printf("Adding retroactive change direction event...\n");
     t.addEvent(std::make_unique<ChangeVelocity>(ob[0], vec3(0,0,-1.0)), 5.5) ;
     t.run(10.0);
 
@@ -300,7 +300,7 @@ bool UnitTests::checkClearHistory(){
     //printf("%d\n",(int)t.events.events.size());
 
     double time = 10;
-    double clear_time = 4.9;
+    double clear_time = 1.9;
 
     
     t.run(time);
@@ -319,7 +319,7 @@ bool UnitTests::checkClearHistory(){
     TObject* o1c = t.objects[1].get(clear_time) ;
     expect(s, o1c == o1, "Object at clear time changed after clear!");
 
-    expect(s, t.objects[1].history.size() == 11, "Wrong number of object instances after first clear!");
+    expect(s, t.objects[1].history.size() == 17, "Wrong number of object instances after first clear!");
     //printf("%d\n",(int)t.objects[1].history.size());
 
     t.run(time+1);
@@ -329,10 +329,10 @@ bool UnitTests::checkClearHistory(){
         t.run(time);
         t.clearHistoryBefore(clear_time);
 
-        expect(s, t.events.events.size() == 310, "Wrong number of events after clear!");
+        expect(s, t.events.events.size() == 370, "Wrong number of events after clear!");
         //printf("%d\n",(int)t.events.events.size());
 
-        expect(s, t.objects[2].history.size() == 11, "Wrong number of object instances after clear!");
+        expect(s, t.objects[2].history.size() == 17, "Wrong number of object instances after clear!");
         //printf("%d\n",(int)t.objects[1].history.size());
     }
 
@@ -358,13 +358,13 @@ bool UnitTests::checkClearHistory(){
         for(int k=0;k<ob.size();k++){
             vec3 c_pos = t.getLastObserved(ob[k])->position ;
             //printf("pos %d: %f, %f, %f\n", ob[k], c_pos.x, c_pos.y, c_pos.z);
-            expectNear(s,positions[k], c_pos, 0.001,"Object moved after clear history!");
+            expectNear(s,positions[k], c_pos, 0.001,"Object moved after warped clear history!");
         }
 
-        expect(s, t.events.events.size() == 310, "Wrong number of events after time warp clear!");
+        expect(s, t.events.events.size() == 370, "Wrong number of events after time warp clear!");
         //printf("%d\n",(int)t.events.events.size());
 
-        expect(s, t.objects[2].history.size() <= 11, "Too many object instances after time warp clear!");
+        expect(s, t.objects[2].history.size() <= 17, "Too many object instances after time warp clear!");
         //printf("%d\n",(int)t.objects[2].history.size());
 
     }
@@ -494,8 +494,8 @@ bool UnitTests::checkSyncExistingObject(){
     client_packet["descriptor"] = client.getDescriptor(4.0, false);
     server_packet = server.synchronize(client_packet, true);
     client_packet = client.synchronize(server_packet, false);
-    Variant(server_packet).printFormatted();
-    Variant(client_packet).printFormatted();
+    //Variant(server_packet).printFormatted();
+    //Variant(client_packet).printFormatted();
     server.run(5.0);
     client.run(5.0);
 
