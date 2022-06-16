@@ -34,6 +34,8 @@ bool UnitTests::runAll(){
     printf("checkClearHistory : %s\n", success.c_str());
     success = UnitTests::checksimpleTimelineSync() ? "passed" : "failed" ;
     printf("checksimpleTimelineSync : %s\n", success.c_str());
+    success = UnitTests::checkSyncExistingObject() ? "passed" : "failed" ;
+    printf("checkSyncExistingObject : %s\n", success.c_str());
     return true; 
 }
 
@@ -444,5 +446,69 @@ bool UnitTests::checksimpleTimelineSync(){
     expect(s, d1.hash() == d2.hash(), "Synced timelines diverged!");
     expect(s, d1.hash() == d3.hash(), "Synced timelines diverged!");
     return s ;
+}
+
+bool UnitTests::checkSyncExistingObject(){
+
+    bool s = true ;
+
+    Timeline server = Timeline();
+    server.setGenerators(&UnitTests::createEvent, &UnitTests::createObject);
+
+    Timeline client = Timeline();
+    client.setGenerators(&UnitTests::createEvent, &UnitTests::createObject);
+
+    std::unique_ptr<MovingObject> o1 = std::make_unique<MovingObject>(vec3(0,0,0),vec3(1,0,0), 1.0f) ;
+    std::unique_ptr<MoveObject> o_move1 = std::make_unique<MoveObject>(0.05) ;
+    server.createObject(std::move(o1), std::move(o_move1) , 1.0);
+
+
+    map<string, Variant> client_packet ;
+    client_packet["descriptor"] = client.getDescriptor(0.0, false);
+    map<string, Variant> server_packet = server.synchronize(client_packet, true);
+    client_packet = client.synchronize(server_packet, false);
+
+    expect(s, server.getDescriptor(0,false).hash() == client.getDescriptor(0,false).hash(), 
+        "Timelines don't match after synchronizing object creation event!");
+    
+    server.run(3.0);
+    //t2.events.events[0]->print();
+    client.run(3.0);
+    expect(s, server.getDescriptor(0,false).hash() == client.getDescriptor(0,false).hash(), 
+        "Timelines don't match after creating object!");
+
+    vector<int> ob1 = server.updateObservables();
+    vector<int> ob2 = client.updateObservables();
+    expect(s, ob1.size() == 1, "Wrong number of objects after synchronization! 1");
+    expect(s, ob2.size() == 1, "Wrong number of objects after synchronization! 2");
+    for(int k=0;k<ob1.size();k++){
+        const TObject* a = server.getLastObserved(ob1[k]);
+        const TObject* b = client.getLastObserved(ob1[k]); // Note order of observables ids returned is not guarsnteed
+        expectNear(s, a->position, b->position,0.001, "New object differs after first synchronization!");
+    }
+
+    server.addEvent(std::make_unique<ChangeVelocity>(ob1[0], vec3(0,0,0)), 3.01) ;
+    server.run(4.0);
+    client.run(4.0);
+
+    client_packet["descriptor"] = client.getDescriptor(4.0, false);
+    server_packet = server.synchronize(client_packet, true);
+    client_packet = client.synchronize(server_packet, false);
+    Variant(server_packet).printFormatted();
+    Variant(client_packet).printFormatted();
+    server.run(5.0);
+    client.run(5.0);
+
+    ob1 = server.updateObservables();
+    ob2 = client.updateObservables();
+    for(int k=0;k<ob1.size();k++){
+        const TObject* a = server.getLastObserved(ob1[k]);
+        const TObject* b = client.getLastObserved(ob1[k]); // Note order of observables ids returned is not guarsnteed
+        expectNear(s, a->position, b->position,0.001, "New object differs after object synchronization!");
+    }
+
+
+    return s ;
+
 }
 
