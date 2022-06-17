@@ -42,7 +42,7 @@ int selected_animation = -1;
 std::chrono::high_resolution_clock::time_point animation_start_time;
 
 unique_ptr<Timeline> timeline ;
-double history_kept = 0.5 ;
+double history_kept = 1.0;
 
 
 long timeMilliseconds() {

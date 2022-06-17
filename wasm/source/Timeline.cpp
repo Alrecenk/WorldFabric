@@ -155,6 +155,9 @@ void Timeline::clearHistoryBefore(double clear_time){
 
 // Return the minimum state required to generate a matching timeline from the given time
 std::pair<std::vector<TEvent*>, std::map<int, TObject*>> Timeline::getBaseState(double time){
+    if(time < last_clear_time){
+        printf("base state requested earlier than clear time! Something will definitely break.\n");
+    }
     std::pair<std::vector<TEvent*>, std::map<int, TObject*>> state ;
     state.first = events.getBase(time) ;
     for(auto& [id, history] : objects){
@@ -197,15 +200,10 @@ Variant Timeline::getDescriptor(double time, bool server){
 Variant Timeline::getUpdateFor(const Variant& descriptor, bool server){
     map<string,Variant> descriptor_map  = descriptor.getObject();
     double time = descriptor_map["time"].getDouble();
-    time = fmax(time, last_clear_time); // if requested an update older than cleared time, then send cleared time
-    if(!server && time+base_age > current_time){
-        //printf("clock catching up to received descriptor!\n");
-        double buffer =0 ;
-        if(ping > 1 && ping < 1000){
-            buffer = ping/2000.0;
-        }
-        run(time + base_age + buffer);
+    if(server){
+        time = fmax(time, last_clear_time); // if requested an update older than cleared time, then send cleared time
     }
+    
     int* other_events = descriptor_map["events"].getIntArray();
     int num_other_events = descriptor_map["events"].getArrayLength();
     unordered_set<int> other_event_set ;
@@ -249,6 +247,28 @@ Variant Timeline::getUpdateFor(const Variant& descriptor, bool server){
         }
         update_map["objects"] = Variant(object_updates);
     }
+
+    if(event_updates.size() > 0){
+        printf("current time: %f last clear time: %f\n", current_time, last_clear_time);
+        printf("descriptor:\n");
+        Variant(descriptor_map).printFormatted();
+        printf("update:\n");
+        Variant(update_map).printFormatted();
+    }
+
+    // Correct client clock drift
+    if(!server){
+        double target_time = time+base_age ;
+        if(ping > 1 && ping < 1000){
+            target_time += ping/2000.0 ;
+        }
+        if(abs(current_time - target_time) > base_age*0.5){
+            //printf("Correcting clock: %f %f %f %d\n", time, target_time, current_time, ping);
+            run(target_time);
+        }
+        //printf("Clock skew: %f\n", current_time - target_time);
+    }
+
     return Variant(update_map);
 }
 

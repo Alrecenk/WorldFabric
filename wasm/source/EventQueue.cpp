@@ -49,8 +49,8 @@ std::map<double,TEvent*> EventQueue::allNext(glm::vec3 vantage, double time, dou
                 //printf("queue time: %f\n", time_to_run);
                 if(all_next.find(time_to_run) != all_next.end()){
                     printf("Events had identical run_time! execution order not guranteed!\n");
-                    Variant(e->serialize()).printFormatted();
-                    Variant(all_next[time_to_run]->serialize()).printFormatted();
+                    //Variant(e->serialize()).printFormatted();
+                    //Variant(all_next[time_to_run]->serialize()).printFormatted();
                     all_next = map<double, TEvent*>();
                     all_next[0] = next(vantage, time, info_speed); // fall back to single next to try to recover
                     return all_next ;
@@ -80,7 +80,6 @@ TEvent* EventQueue::addEvent(std::unique_ptr<TEvent> event){
 }
 
 void EventQueue::removeDependencies(TEvent* event){
-    
     // Delete any data following from this write
     if(event->wrote_anchor){
         timeline->objects[event->anchor_id].deleteAfter(event->time);
@@ -88,7 +87,7 @@ void EventQueue::removeDependencies(TEvent* event){
     }
     // Delete any events this event spawned
     for(TEvent* s : event->spawned_events){
-        if(s != nullptr && !s->deleted){
+        if(s != nullptr && !s->deleted){// TODO s-> deleted can segfault?
             deleteEvent(s);
         }
     }
@@ -105,12 +104,12 @@ void EventQueue::removeDependencies(TEvent* event){
     }
     event->read.clear();
     
+    timeline->collisions.removeRequests(event);
 }
 
 void EventQueue::deleteEvent(TEvent* event){
     //printf("Deleting event at time %f \n", event->time);
     removeDependencies(event);
-    timeline->collisions.onDelete(event);
     event->deleted = true;
     event->spawner = nullptr ;
 }
@@ -123,11 +122,16 @@ void EventQueue::rerunEvent(TEvent* event){
 
 // Clears out all events before the given time
 void EventQueue::clearHistoryBefore(double clear_time){
-    // mark deleted and clear all pointers to events about to be newly removed
+    // mark deleted
     for(int k=0;k<events.size();k++){
         if(events[k].get() != nullptr && !events[k]->deleted && events[k]->time < clear_time && !events[k]->run_pending ){
-            timeline->collisions.onDelete(events[k].get()); // remove pointers in collision system
+            timeline->collisions.removeRequests(events[k].get()); // remove pointers in collision system
             events[k]->deleted = true;
+        }
+    }
+    //wipe the data for all deleted events and clear all pointers to events about to be newly removed
+    for(int k=0;k<events.size();k++){
+        if(events[k].get() != nullptr && events[k]->deleted){
 
             if(events[k]->spawner != nullptr){
                 // clear reference in parent's spawned event list to this
@@ -136,7 +140,7 @@ void EventQueue::clearHistoryBefore(double clear_time){
                         events[k]->spawner->spawned_events[s] = nullptr;
                     }
                 }
-                // clear link tp spawner
+                // clear link to spawner
                 events[k]->spawner = nullptr ;
             }
             // Remove the link to this as a spawner of future events that may not be deleted
@@ -158,11 +162,6 @@ void EventQueue::clearHistoryBefore(double clear_time){
             }
             events[k]->read.clear();
 
-        }
-    }
-    //wipe the data for all deleted events
-    for(int k=0;k<events.size();k++){
-        if(events[k].get() != nullptr && events[k]->deleted){
             events[k].reset(); // actually free the data in the event
         }
     }

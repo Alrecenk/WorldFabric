@@ -18,7 +18,7 @@ class CollisionSystem{
         std::vector<int> getCollisions(TEvent* event);
 
         // Must be called when an event is deleted to potentially clear out its collision request history
-        void onDelete(TEvent* event);
+        void removeRequests(TEvent* event);
 
         // Must be called when an event writes its anchpor object
         // to potentially rollback events with changed collision results
