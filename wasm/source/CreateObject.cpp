@@ -17,9 +17,15 @@ CreateObject::~CreateObject() {}
 
 // Serialize this event's data, so it can be efficiently moved between timelines
 std::map<std::string,Variant> CreateObject::serialize() const{
+    //printf("serializing create object\n");
     map<string,Variant> serial;
+    if(new_object.get() == nullptr){
+        printf("WTF:Create object with no new object to create!\n");
+    }
     serial["o"] = Variant(new_object->serialize());
-    serial["e"] = Variant(on_created->serialize());
+    if(on_created.get() != nullptr){
+        serial["e"] = Variant(on_created->serialize());
+    }
     serial["t"] = Variant(time);
     serial["a"] = Variant(anchor_id);
     return serial;
@@ -34,8 +40,9 @@ void CreateObject::set(std::map<std::string,Variant>& serial){
 
     //map<string,Variant> e = serial["e"].getObject() ;
     //on_created->set(e);
-
-    on_created = TEvent::generateTypedTEvent(serial["e"]);
+    if(serial.find("e") != serial.end()){
+        on_created = TEvent::generateTypedTEvent(serial["e"]);
+    }
 
     time = serial["t"].getDouble();
     anchor_id = serial["a"].getInt();
@@ -58,14 +65,16 @@ void CreateObject::run(){
     }
     //printf("Object being created at time %f\n", make_time);
     //printf("making object history...\n");
-    timeline->objects[id] = ObjectHistory(std::move(new_object), make_time);
+
+    timeline->objects[id] = ObjectHistory(new_object->deepCopy(), make_time);
 
     timeline->objects[id].timeline = timeline;
     if(on_created.get() !=nullptr){
-        on_created->anchor_id = id ;
-        on_created->time = fmax(on_created->time,make_time) ; 
+        std::unique_ptr<TEvent> new_event = on_created->deepCopy();
+        new_event->anchor_id = id ;
+        new_event->time = fmax(new_event->time, make_time) ; 
          // TODO create object rollback probably needs custom code
-        addEvent(std::move(on_created));
+        addEvent(std::move(new_event));
     }
     //printf("create object completed...\n");
 }

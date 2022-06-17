@@ -24,6 +24,7 @@ MoveBouncingBall::~MoveBouncingBall() {}
 
 // Serialize this event's data, so it can be efficiently moved between timelines
 std::map<std::string,Variant> MoveBouncingBall::serialize() const{
+    //printf("serializing move bouncing ball\n");
     map<string,Variant> serial;
     serial["dt"] = Variant(interval);
     serial["t"] = Variant(time);

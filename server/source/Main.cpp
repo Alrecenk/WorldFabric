@@ -1,5 +1,6 @@
 #include "WebServer.h"
 #include "TableServer.h"
+#include "TimelineServer.h"
 #include "api.cpp"
 
 
@@ -41,34 +42,6 @@ int main(int argc, char** argv) {
 
     runUnitTests();
 
-
-/*
-    map<string, Variant> obj ;
-    obj["width"] = Variant(1920);
-    obj["height"] = Variant(1080);
-    obj["amount"] = Variant(10);
-    obj["min_radius"] = Variant(40.0);
-    obj["max_radius"] = Variant(100.0);
-    obj["max_speed"] = Variant(200.0);
-    Variant params = Variant(obj);
-
-
-
-    initialize2DBallTimeline(params.ptr);
-    printf("initialized!\n");
-
-    for(double time = 1 ; time < 1000; time +=0.02){
-        map<string, Variant> obj ;
-        obj["time"] = Variant(time);
-        Variant params = Variant(obj);
-        runTimeline(params.ptr) ;
-    }
-
-    printf("Run completed!\n");
-    */
-    /*
-    map<string, Variant> table;
-    addModels(table);
     // boot up a static webserver on a nonblocking thread to serve the frontend
     char http_address[] = "0.0.0.0";
     int http_port = 8080;
@@ -76,18 +49,22 @@ int main(int argc, char** argv) {
     cout << "Starting the webserver on port " << http_port << "..." << endl;
     WebServer web_server(http_address, http_port, http_root);
 
-    // boot up the tableserver on a non-blocking thread
-    int table_port = 9004;
-    cout << "Starting the table server on port " << table_port << "..." << endl;
-    TableServer table_server(table_port, &table);
+
+
+    // boot up the timeline server on a non-blocking thread
+    int timeline_port = 9017;
+    cout << "Starting the timeline server on port " << timeline_port << "..." << endl;
+    Timeline* timeline = initialize2DBallTimeline(500, 500, 10, 10, 40, 200) ;
+    TimelineServer timeline_server(timeline_port, timeline);
 
     cout << "Starting main loop..." << endl;
     signal(SIGINT, quit); // Catch CTRL-C to exit gracefully
     while (running) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(200));
-        //TODO stuff
+        std::this_thread::sleep_for(std::chrono::milliseconds(20));
+        timeline->run();
+        timeline->clearHistoryBefore(timeline->current_time-history_kept);
     }
     web_server.stop();
-    table_server.stop();
-    */
+    timeline_server.stop();
+    
 }

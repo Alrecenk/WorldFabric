@@ -41,8 +41,8 @@ vector<int> CollisionSystem::getCollisions(TEvent* event){
 }
 
 // Must be called when an event is deleted to potentially clear out its collision request history
-void CollisionSystem::onDelete(TEvent* event){
-    requests.erase(event);
+void CollisionSystem::removeRequests(TEvent* event){
+        requests.erase(event);
 }
 
 // Must be called when an event writes its anchpor object
@@ -52,6 +52,7 @@ void CollisionSystem::onDataChanged(TEvent* event){
         return ; // it can't cause collision roll backnd we don't need to check
     }
     //printf("Event time: %f request_time: %f\n", event->time, most_recent_request_time);
+    vector<TEvent*> to_rerun ;
     for(auto& [caller, collisions] : requests){
         // only rollback stuff that ran after this change
         if(caller->time > event->time && caller->anchor_id != event->anchor_id && !caller->deleted && !caller->run_pending){ 
@@ -68,8 +69,12 @@ void CollisionSystem::onDataChanged(TEvent* event){
             if(now_collides != then_collided){
                 //printf("rolling back event due to collision change!\n");
                 //caller->print();
-                timeline->events.rerunEvent(caller);
+                //timeline->events.rerunEvent(caller);
+                to_rerun.push_back(caller);
             }
         }
+    }
+    for( TEvent* r : to_rerun){
+        timeline->events.rerunEvent(r);
     }
 }

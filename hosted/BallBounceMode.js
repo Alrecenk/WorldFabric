@@ -48,6 +48,7 @@ class BallBounceMode extends ExecutionMode{
         let observables = tools.API.call("runTimeline", {time:timeline_time}, new Serializer()).observables;
         console.log(observables);
         */
+       /*
         let current_time = new Date().getTime(); // limit amount to step in 1 frame to 1 second
         if(current_time - this.last_time > 1000){
             current_time = this.last_time + 1000;
@@ -58,6 +59,7 @@ class BallBounceMode extends ExecutionMode{
         if(timeline_time < 0.5){
             return ;
         }
+        
         if(!this.loaded){
             console.log("initializing balls in JS!");
             this.loaded = true ;
@@ -75,9 +77,11 @@ class BallBounceMode extends ExecutionMode{
             tools.API.call("initialize2DBallTimeline", params, new Serializer()); // TODO why does the first call not call?
             tools.API.call("initialize2DBallTimeline", params, new Serializer());
         }
+        */
 
+        tools.API.call("runTimeline", {}, new Serializer());
+        let observables = tools.API.call("getTimelineCircles", {}, new Serializer()).observables;
 
-        let observables = tools.API.call("runTimeline", {time:timeline_time}, new Serializer()).observables;
         //console.log(observables);
         let context = tools.canvas.getContext("2d");
         context.clearRect(0, 0, context.canvas.width, context.canvas.height);

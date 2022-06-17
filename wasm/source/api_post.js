@@ -38,3 +38,11 @@ Module["call"] = function (function_name, parameters = null, serializer = null, 
     }
 
 }
+
+Module["getReturnSize"] = function () {
+    return Module.ccall('getReturnSize', 'number', ['number'], [0]);
+}
+
+Module["getByteArray"] = function (wasm_ptr, size) {
+    return new Int8Array(Module.HEAPU8.buffer.slice(wasm_ptr, wasm_ptr + size));
+}

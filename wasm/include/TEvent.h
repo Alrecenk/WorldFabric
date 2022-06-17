@@ -66,6 +66,11 @@ class TEvent{
         // at the time of this event
         std::vector<int> getCollisions();
 
+
+        // Override this to provide an efficient deep copy of this object
+        // If not overridden serialize and set will be used to copy your object (which will be inefficent)
+        virtual std::unique_ptr<TEvent> deepCopy();
+
         void print() const;
 
         // Data and functions below this point are used for maintaining the timeline continuity
@@ -75,6 +80,7 @@ class TEvent{
         TEvent* spawner = nullptr ; // event that spawned this event if it was spawned by another timeline event
         bool wrote_anchor=false; // whether this event wrote to its anchor object last time it ran
         bool deleted = false;
+        std::vector<TObject*> read;
         
         Timeline* timeline ;
 };

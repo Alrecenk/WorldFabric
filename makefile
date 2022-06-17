@@ -13,13 +13,15 @@ LIBS       = -levent -levent_core
 
 
 SRC		   = ${SERVER_DIR}source/WebServer.cpp \
-			${SERVER_DIR}source/TableServer.cpp
+			${SERVER_DIR}source/TableServer.cpp \
+			${SERVER_DIR}source/TimelineServer.cpp
 SRC_INC	   = -I${SERVER_DIR}include
 
 API_DIR    =./wasm/
 API_INC	   = -I${API_DIR}include -I${API_DIR}source
 EXPORTED_FUNCTIONS =[\
 	'_setPacketPointer', \
+	'_getReturnSize', \
 	'_setModel', \
 	'_getUpdatedBuffers', \
 	'_rayTrace', \
@@ -38,6 +40,9 @@ EXPORTED_FUNCTIONS =[\
 	'_runTimelineUnitTests',\
 	'_initialize2DBallTimeline',\
 	'_runTimeline',\
+	'_getTimelineCircles',\
+	'_getInitialTimelineRequest',\
+	'_synchronizeTimeline',\
 	'_free']
 EXTRA_EXPORTED_RUNTIME_METHODS=['ccall']
 API_MAIN = ${API_DIR}source/api.cpp

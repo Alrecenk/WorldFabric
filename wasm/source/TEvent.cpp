@@ -26,6 +26,7 @@ const TObject* TEvent::get(int id){
     if(obj != nullptr){ // if we read something
         double read_time = time - glm::length(obj->position-vantage)/timeline->info_speed ;
         obj->readers.push_back(std::pair<TEvent*, double>(this, read_time)); // mark that we read it
+        read.push_back(obj);
     }
     //printf("returning from tevent get\n");
     return obj;
@@ -44,6 +45,7 @@ TObject* TEvent::getMutable(){
         return nullptr;
     }
     obj->readers.push_back(std::pair<TEvent*, double>(this, time));
+    read.push_back(obj);
     wrote_anchor = true;
     return obj;
 }
@@ -79,6 +81,10 @@ void TEvent::deleteObject(int id){
 // at the time of this event
 std::vector<int> TEvent::getCollisions(){
     return timeline->collisions.getCollisions(this);
+}
+
+std::unique_ptr<TEvent> TEvent::deepCopy(){
+    return TEvent::generateTypedTEvent(Variant(serialize()));
 }
 
 void TEvent::print() const{
