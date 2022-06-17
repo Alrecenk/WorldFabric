@@ -1,5 +1,6 @@
 var timeline_client ; //TODO singleton patterned global is not great
 var wasm_module;
+var last_sync ;
 class TimelineClient{
     //The address with protocol and port
     address = null;
@@ -50,6 +51,11 @@ class TimelineClient{
     }
 
     synchronizeTimeline(packet_byte_array, active=true){
+        if(!last_sync){
+            last_sync = new Date().getTime();
+        }
+        console.log("last sync delay:" + (new Date().getTime() - last_sync));
+        last_sync = new Date().getTime();
         this.active = active;
         let request_ptr = wasm_module.call("synchronizeTimeline", packet_byte_array); 
         let request_size = wasm_module.getReturnSize();

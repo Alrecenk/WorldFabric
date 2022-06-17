@@ -35,7 +35,7 @@ class Timeline{
         int ping = 0;
         double last_clear_time = -99999 ;
 
-        static constexpr double base_age = 0.3;
+        static constexpr double base_age = 0.75;
         std::recursive_mutex lock ;
 
         Timeline();
@@ -76,7 +76,7 @@ class Timeline{
 
         // applies a syncrhoniation update produced by another timeline's use of getUpdateFor
         // returns the time of the update
-        void applyUpdate(const Variant& update);
+        void applyUpdate(const Variant& update, bool server);
 
         // Given a packet with an update and optional descriptor
         // applies the update, and if there was a descriptor returns an ypdate for it

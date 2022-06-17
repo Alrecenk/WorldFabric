@@ -63,7 +63,7 @@ void TimelineServer::onMessage(
     //response.printFormatted();
     //TODO this delay should be on the frontend, not the backend
     // TODO less hardcoded way to limit frequency of table packets
-    sleep_for(std::chrono::milliseconds(10));
+    //sleep_for(std::chrono::milliseconds(20));
     // Send the data back to the client
     s->send(
             std::move(hdl), response.ptr, response_size,

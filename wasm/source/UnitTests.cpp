@@ -397,7 +397,7 @@ bool UnitTests::checksimpleTimelineSync(){
     Variant u = t1.getUpdateFor(d2, true);
     //printf("first update:\n");
     //u.printFormatted();
-    t2.applyUpdate(u);    
+    t2.applyUpdate(u, false);    
     d2 = t2.getDescriptor(0,false);
 
     //printf("d2 after first sync:\n");
@@ -427,7 +427,7 @@ bool UnitTests::checksimpleTimelineSync(){
 
     //printf("d2 to d3 update:\n");
     //u.printFormatted();
-    t3.applyUpdate(u);
+    t3.applyUpdate(u, false);
     t3.run(3.0);
     d3 = t3.getDescriptor(2.0,false);
     expect(s, d1.hash() == d3.hash(), "Timelines don't match after syncing object!");

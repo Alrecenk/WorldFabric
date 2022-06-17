@@ -131,7 +131,8 @@ TObject* ObjectHistory::getMutable(double time){
     }
 
     //printf("getting mutable at time %f\n", time);
-    //printf("most recent write time %f\n", history[history.size()-1]->write_time);
+    //printf("most recent write time %f\n",latest->write_time);
+    //latest->print();
     if(time < latest->write_time){
         //printf("retroactive write detected!\n");
         deleteAfter(time);
@@ -160,8 +161,9 @@ TObject* ObjectHistory::getMutable(double time){
 
 // Objects may have a single instant before the clear time, so their value at that time can still be fetched
 void ObjectHistory::clearHistoryBefore(double clear_time){
+    //printf("Clearing history before %f \n ", clear_time);
     // keep one instant before the clear time so we're defined at clear time
-    int one_before = -1;
+    int one_before = 0;
     for(int k=0;k<history.size(); k++){
         if(!history[k]->deleted){
             if(history[k]->write_time >= clear_time){
@@ -181,7 +183,10 @@ void ObjectHistory::clearHistoryBefore(double clear_time){
     }
 
     // clear history we didn't move
-    history.erase(history.cbegin() + next , history.cend());
+    if(next < history.size()){
+        history.erase(history.cbegin() + next , history.cend());
+    }
 
-    
+
+
 }

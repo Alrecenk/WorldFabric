@@ -48,7 +48,7 @@ std::map<double,TEvent*> EventQueue::allNext(glm::vec3 vantage, double time, dou
             if(time_to_run <= time){
                 //printf("queue time: %f\n", time_to_run);
                 if(all_next.find(time_to_run) != all_next.end()){
-                    printf("Events had identical run_time! execution order not guranteed!\n");
+                    //printf("Events had identical run_time! execution order not guranteed!\n");
                     //Variant(e->serialize()).printFormatted();
                     //Variant(all_next[time_to_run]->serialize()).printFormatted();
                     all_next = map<double, TEvent*>();
@@ -173,10 +173,38 @@ std::vector<TEvent*> EventQueue::getBase(double time){
     for(int k=0;k<events.size();k++){
         if(events[k].get() != nullptr && !events[k]->deleted && events[k]->time > time){
             TEvent* spawner = events[k]->spawner ;
-            if(spawner == nullptr || spawner->time < time){
+            if(spawner == nullptr || spawner->time <= time || spawner->deleted){
                 base.push_back(events[k].get());
             }
         }
     }
+    /*
+    if(base.size() !=0 && base.size() != 10){
+        printf("Events at get base current time: %f last_clear_time %f  base time: %f\n", timeline->current_time, timeline->last_clear_time, time); 
+        for(int k=0;k<events.size();k++){
+             if(events[k].get() != nullptr){
+                printf(" %d hash : %d, deleted : %s has spawner: %s\n", k, 
+                Variant(events[k]->serialize()).hash(), 
+                events[k]->deleted ? "true" : "false",
+                events[k]->spawner == nullptr ? "false" : "true");
+                if(events[k]->spawner != nullptr){
+                    printf("spawner hash: %d\n", Variant(events[k]->spawner->serialize()).hash());
+                }
+                Variant(events[k]->serialize()).printFormatted();
+
+                bool base= false;
+                if(events[k].get() != nullptr && !events[k]->deleted && events[k]->time > time){
+                    TEvent* spawner = events[k]->spawner ;
+                    if(spawner == nullptr || spawner->time <= time || spawner->deleted){
+                        base = true ;
+                    }
+                }
+
+                printf("Final verdict for Base event: %s\n", base ? "true" : "false");
+             }
+        }
+        printf("Generated Base events size: %d\n", (int)base.size());
+    }*/
+
     return base ;
 }

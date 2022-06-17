@@ -203,6 +203,20 @@ Variant Timeline::getUpdateFor(const Variant& descriptor, bool server){
     if(server){
         time = fmax(time, last_clear_time); // if requested an update older than cleared time, then send cleared time
     }
+
+    // Correct client clock drift
+    if(!server){
+        double target_time = time+base_age ;
+        if(ping > 1 && ping < 1000){
+            target_time += ping/2000.0 ;
+        }
+        double time_error = abs(current_time - target_time) ;
+        if(time_error > base_age*0.5){
+            printf("Correcting clock in getupdate 4: %f %f %f %d\n", time, target_time, current_time, ping);
+            run(target_time);
+        }
+        //printf("Clock skew: %f\n", current_time - target_time);
+    }
     
     int* other_events = descriptor_map["events"].getIntArray();
     int num_other_events = descriptor_map["events"].getArrayLength();
@@ -256,6 +270,18 @@ Variant Timeline::getUpdateFor(const Variant& descriptor, bool server){
         Variant(update_map).printFormatted();
     }
 
+
+    return Variant(update_map);
+}
+
+// applies a syncrhoniation update produced by another timeline's use of getUpdateFor'
+void Timeline::applyUpdate(const Variant& update, bool server){
+    map<string,Variant> update_map = update.getObject();
+    double time = update_map["time"].getDouble();
+    if(time <= last_clear_time){
+        printf("WTF: received update earlier (%f) than clear time (%f)!\n", time, last_clear_time);
+        return ;
+    }
     // Correct client clock drift
     if(!server){
         double target_time = time+base_age ;
@@ -263,23 +289,12 @@ Variant Timeline::getUpdateFor(const Variant& descriptor, bool server){
             target_time += ping/2000.0 ;
         }
         if(abs(current_time - target_time) > base_age*0.5){
-            //printf("Correcting clock: %f %f %f %d\n", time, target_time, current_time, ping);
+            printf("Correcting clock in applyupdate: %f %f %f %d\n", time, target_time, current_time, ping);
             run(target_time);
         }
         //printf("Clock skew: %f\n", current_time - target_time);
     }
 
-    return Variant(update_map);
-}
-
-// applies a syncrhoniation update produced by another timeline's use of getUpdateFor'
-void Timeline::applyUpdate(const Variant& update){
-    map<string,Variant> update_map = update.getObject();
-    double time = update_map["time"].getDouble();
-    if(time <= last_clear_time){
-        printf("WTF: received update earlier than clear time !\n");
-        return ;
-    }
     
     if(update_map.find("objects") != update_map.end()){
         map<int,Variant> object_updates = update_map["objects"].getIntObject();
@@ -301,7 +316,7 @@ void Timeline::applyUpdate(const Variant& update){
                 */
                 TObject* existing_obj = objects[id].getMutable(time); // write using functionality that triggers rollback
                 if(existing_obj == nullptr){
-                    printf("WTF: Synchronize received update trying to edit an object that is available at that time!\n");
+                    printf("WTF: Synchronize received update trying to edit an object that is not available at that time!\n");
 
                 }else{
                     map<string,Variant> serial_map = serial.getObject() ;
@@ -321,12 +336,12 @@ void Timeline::applyUpdate(const Variant& update){
 std::map<std::string, Variant> Timeline::synchronize(std::map<std::string, Variant>& packet, bool server){
     lock.lock();
     if(packet.find("update") != packet.end()){
-        //printf("Got update!\n");
+        //printf("Got update:\n");
         //packet["update"].printFormatted();
-        applyUpdate(packet["update"]);
+        applyUpdate(packet["update"], server);
     }
     if(packet.find("descriptor") != packet.end()){
-        //printf("Got descriptor!\n");
+        //printf("Got descriptor:\n");
         //packet["descriptor"].printFormatted();
         if(!server){
             long new_sync_time = timeMilliseconds() ;
