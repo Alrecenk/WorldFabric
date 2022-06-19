@@ -85,6 +85,10 @@ class Timeline{
         // Returns the value of an object at the given time deleyed by time warp from the given vantage point
         std::weak_ptr<TObject> getObjectInstant(const glm::vec3& vantage, int id, double time);
 
+        // creates a new mutable instance of the object at the given id at time
+        // rolls back reads after the given time if required
+        std::weak_ptr<TObject> getMutable(int id, double time) ;
+
         void deleteAfter(int id, double time);
 
         // Clears out all events and data changes before the given time
@@ -92,7 +96,7 @@ class Timeline{
         void clearHistoryBefore(double clear_time);
 
         // Return the minimum state required to generate a matching timeline from the given time
-        std::pair<std::vector<std::weak_ptr<TEvent>>, std::map<int, std::weak_ptr<TObject>>> getBaseState(double time);
+        std::pair<std::vector<std::shared_ptr<TEvent>>, std::map<int, std::shared_ptr<TObject>>> getBaseState(double time);
 
         // Returns a serialized descriptor of the state of the this Timeline at the goiven time 
         // that can be used by another Timeline to generate a synchronization update

@@ -40,14 +40,15 @@ bool UnitTests::runAll(){
     /*
     success = UnitTests::checkCollisionRollback() ? "passed" : "failed" ;
     printf("checkCollisionRollback : %s\n", success.c_str());
-    
+    */
     
     
     success = UnitTests::checksimpleTimelineSync() ? "passed" : "failed" ;
     printf("checksimpleTimelineSync : %s\n", success.c_str());
+    
     success = UnitTests::checkSyncExistingObject() ? "passed" : "failed" ;
     printf("checkSyncExistingObject : %s\n", success.c_str());
-    */
+    
     return true; 
 }
 
@@ -110,22 +111,22 @@ std::unique_ptr<TEvent> UnitTests::createEvent(const Variant& serialized){
 // TODO make these proper unit tests that check correctness and don't spam the console if they're passing
 bool UnitTests::createAndMoveCircle(){
     bool s = true ;
-    printf("---createAndMoveCircle---\n");
-    printf("Initializing timeline...\n");
+    //printf("---createAndMoveCircle---\n");
+    //printf("Initializing timeline...\n");
     Timeline t = Timeline(&UnitTests::createEvent, &UnitTests::createObject);
-    printf("setting generators...\n");
-    printf("init circle...\n");
+    //printf("setting generators...\n");
+    //printf("init circle...\n");
     std::unique_ptr<MovingObject> o = std::make_unique<MovingObject>(vec3(1,0,0),vec3(0,2,0), 3.0f) ;
-    printf("create object event...\n");
+    //printf("create object event...\n");
     t.createObject(std::move(o), std::unique_ptr<TEvent>(nullptr), 1.0);
-    printf("running...\n");
+    //printf("running...\n");
     t.run(2.0);
-    printf("updating observables...\n");
+    //printf("updating observables...\n");
     vector<int> ob = t.updateObservables();
     UnitTests::expect(s, ob.size() == 1, "Object not observable after creation!");
 
 
-    printf("Adding first move event...\n");
+    //printf("Adding first move event...\n");
     t.addEvent(std::make_unique<MoveObject>(ob[0], 1.0), 2.0) ;
     t.run(5.0);
 
@@ -134,7 +135,7 @@ bool UnitTests::createAndMoveCircle(){
     UnitTests::expectNear(s, t.getLastObserved(ob[0])->position, vec3(1,8,0), 0.01, "Circle did not move correctly!");
 
 
-    printf("Adding change direction event...\n");
+    //printf("Adding change direction event...\n");
     t.addEvent(std::make_unique<ChangeVelocity>(ob[0], vec3(0,0,1.0)), 5.5) ;
     t.run(10.0);
 
@@ -142,7 +143,7 @@ bool UnitTests::createAndMoveCircle(){
 
     UnitTests::expectNear(s, t.getLastObserved(ob[0])->position, vec3(1,8,5), 0.01, "Circle did not change velocity correctly!");
 
-    printf("Adding retroactive change direction event...\n");
+    //printf("Adding retroactive change direction event...\n");
     t.addEvent(std::make_unique<ChangeVelocity>(ob[0], vec3(0,0,-1.0)), 5.5) ;
     t.run(10.0);
 
@@ -399,12 +400,10 @@ bool UnitTests::checkClearHistory(){
 
 bool UnitTests::checksimpleTimelineSync(){
     bool s = true ;
-    /*
-    Timeline t1 = Timeline();
-    t1.setGenerators(&UnitTests::createEvent, &UnitTests::createObject);
+    
+    Timeline t1 = Timeline(&UnitTests::createEvent, &UnitTests::createObject);
 
-    Timeline t2 = Timeline();
-    t2.setGenerators(&UnitTests::createEvent, &UnitTests::createObject);
+    Timeline t2 = Timeline(&UnitTests::createEvent, &UnitTests::createObject);
 
     std::unique_ptr<MovingObject> o1 = std::make_unique<MovingObject>(vec3(0,0,0),vec3(1,0,0), 1.0f) ;
     std::unique_ptr<MoveObject> o_move1 = std::make_unique<MoveObject>(0.5) ;
@@ -439,13 +438,12 @@ bool UnitTests::checksimpleTimelineSync(){
     expect(s, ob1.size() == 1, "Wrong number of objects after synchronization! 1");
     expect(s, ob2.size() == 1, "Wrong number of objects after synchronization! 2");
     for(int k=0;k<ob1.size();k++){
-        const TObject* a = t1.getLastObserved(ob1[k]);
-        const TObject* b = t2.getLastObserved(ob1[k]); // Note order of observables ids returned is not guarsnteed
+        const std::shared_ptr<TObject> a = t1.getLastObserved(ob1[k]);
+        const std::shared_ptr<TObject> b = t2.getLastObserved(ob1[k]); // Note order of observables ids returned is not guarsnteed
         expectNear(s, a->position, b->position,0.001, "New object differs after syncrhonization!");
     }
 
-    Timeline t3 = Timeline();
-    t3.setGenerators(&UnitTests::createEvent, &UnitTests::createObject);
+    Timeline t3 = Timeline(&UnitTests::createEvent, &UnitTests::createObject);
     Variant d3 = t3.getDescriptor(2.0,false);
     u = t2.getUpdateFor(d3, true);
 
@@ -455,12 +453,7 @@ bool UnitTests::checksimpleTimelineSync(){
     t3.run(3.0);
     d3 = t3.getDescriptor(2.0,false);
     expect(s, d1.hash() == d3.hash(), "Timelines don't match after syncing object!");
-    
-    printf("d1 end:\n");
-    d1.printFormatted();
-    printf("d3 end:\n");
-    d3.printFormatted();
-    
+
     t1.run(10);
     t2.run(10);
     t3.run(10);
@@ -469,19 +462,17 @@ bool UnitTests::checksimpleTimelineSync(){
     d3 = t3.getDescriptor(8.0,false);
     expect(s, d1.hash() == d2.hash(), "Synced timelines diverged!");
     expect(s, d1.hash() == d3.hash(), "Synced timelines diverged!");
-    */
+    
     return s ;
 }
 
 bool UnitTests::checkSyncExistingObject(){
 
     bool s = true ;
-    /*
-    Timeline server = Timeline();
-    server.setGenerators(&UnitTests::createEvent, &UnitTests::createObject);
+    
+    Timeline server = Timeline(&UnitTests::createEvent, &UnitTests::createObject);
 
-    Timeline client = Timeline();
-    client.setGenerators(&UnitTests::createEvent, &UnitTests::createObject);
+    Timeline client = Timeline(&UnitTests::createEvent, &UnitTests::createObject);
 
     std::unique_ptr<MovingObject> o1 = std::make_unique<MovingObject>(vec3(0,0,0),vec3(1,0,0), 1.0f) ;
     std::unique_ptr<MoveObject> o_move1 = std::make_unique<MoveObject>(0.05) ;
@@ -507,8 +498,8 @@ bool UnitTests::checkSyncExistingObject(){
     expect(s, ob1.size() == 1, "Wrong number of objects after synchronization! 1");
     expect(s, ob2.size() == 1, "Wrong number of objects after synchronization! 2");
     for(int k=0;k<ob1.size();k++){
-        const TObject* a = server.getLastObserved(ob1[k]);
-        const TObject* b = client.getLastObserved(ob1[k]); // Note order of observables ids returned is not guarsnteed
+        const std::shared_ptr<TObject> a = server.getLastObserved(ob1[k]);
+        const std::shared_ptr<TObject> b = client.getLastObserved(ob1[k]); // Note order of observables ids returned is not guarsnteed
         expectNear(s, a->position, b->position,0.001, "New object differs after first synchronization!");
     }
 
@@ -527,12 +518,12 @@ bool UnitTests::checkSyncExistingObject(){
     ob1 = server.updateObservables();
     ob2 = client.updateObservables();
     for(int k=0;k<ob1.size();k++){
-        const TObject* a = server.getLastObserved(ob1[k]);
-        const TObject* b = client.getLastObserved(ob1[k]); // Note order of observables ids returned is not guarsnteed
+        const std::shared_ptr<TObject> a = server.getLastObserved(ob1[k]);
+        const std::shared_ptr<TObject> b = client.getLastObserved(ob1[k]); // Note order of observables ids returned is not guarsnteed
         expectNear(s, a->position, b->position,0.001, "New object differs after object synchronization!");
     }
 
-    */
+    
     return s ;
 
 }

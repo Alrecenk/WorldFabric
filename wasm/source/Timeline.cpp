@@ -197,6 +197,24 @@ std::weak_ptr<TObject> Timeline::getObjectInstant(const glm::vec3& vantage, int 
     return instant ;
 }
 
+// creates a new mutable instance of the object at the given id at time
+// rolls back reads after the given time if required
+std::weak_ptr<TObject> Timeline::getMutable(int id, double time){
+    deleteAfter(id, time);
+    weak_ptr<TObject> g = getObjectInstant(id, time);
+
+    if(auto prev_instant = g.lock()){
+        unique_ptr<TObject> new_instant = prev_instant->deepCopy();
+        new_instant->prev = prev_instant ; // make the new shared pointer to previous so it doesnt deleted when we put new in objects
+        objects[id] = std::move(new_instant);
+        prev_instant->next = objects[id];
+        objects[id]->timeline = this;
+        objects[id]->write_time = time ;
+        return objects[id] ;
+    }
+    return weak_ptr<TObject>() ; // tried to get mutable of a nonexisting item
+}
+
 void Timeline::deleteAfter(int id, double time){
     // find the last instant we're going to keep
     shared_ptr<TObject> last_instant = objects[id];
@@ -243,36 +261,220 @@ void Timeline::clearHistoryBefore(double clear_time){
 }
 
 // Return the minimum state required to generate a matching timeline from the given time
-std::pair<std::vector<std::weak_ptr<TEvent>>, std::map<int, std::weak_ptr<TObject>>> Timeline::getBaseState(double time){
-//TODO
-return std::pair<std::vector<std::weak_ptr<TEvent>>, std::map<int, std::weak_ptr<TObject>>>();
+std::pair<std::vector<std::shared_ptr<TEvent>>, std::map<int, std::shared_ptr<TObject>>> Timeline::getBaseState(double time){
+    // get eventsafter time that are not spawned by other events after time
+    std::vector<std::shared_ptr<TEvent>> base_events ;
+    for(int k=0;k<events.size();k++){
+        if(events[k].get() != nullptr && !events[k]->disabled && events[k]->time > time){
+            std::weak_ptr<TEvent> spawner_w = events[k]->spawner ;
+            if(auto spawner = spawner_w.lock()){
+                if(spawner->time <= time || spawner->disabled){
+                    base_events.push_back(events[k]);
+                }
+            }else{
+                base_events.push_back(events[k]);
+            }
+        }
+    }
+
+    // return the value of the object at the time
+    std::map<int, std::shared_ptr<TObject>> base_objects ;
+    for(auto& [id, history] : objects){
+        weak_ptr<TObject> ow = getObjectInstant(id, time);
+        if(auto o = ow.lock()){
+            base_objects[id] = o ;
+        }
+    }
+
+    return std::make_pair(base_events, base_objects) ;
 }
 
 // Returns a serialized descriptor of the state of the this Timeline at the goiven time 
 // that can be used by another Timeline to generate a synchronization update
 Variant Timeline::getDescriptor(double time,bool server){
-    //TODO
-    return Variant();
+    map<string,Variant> descriptor_map ;
+    descriptor_map["time"] = Variant(time);
+    auto [base_events,base_objects] = getBaseState(time);
+    int* base_event_hashes  = (int*)malloc(4 * base_events.size());
+    for(int k=0;k<base_events.size();k++){
+        base_event_hashes[k] = Variant(base_events[k]->serialize()).hash() ;
+    }
+    descriptor_map["events"] = Variant(base_event_hashes, base_events.size() );
+    free(base_event_hashes);
+
+    if(!server){
+        int* base_object_hashes  = (int*)malloc(4 * 2 * base_objects.size());
+        int k=0;
+        for(auto& [id,object] : base_objects){
+            base_object_hashes[k*2] = id;
+            base_object_hashes[k*2+1] = Variant(object->serialize()).hash();
+            k++;
+        }
+        descriptor_map["objects"] = Variant(base_object_hashes, 2 * base_objects.size());
+        free(base_object_hashes);
+    }
+    
+    return Variant(descriptor_map);
 }
 
 // Given another tree's descriptor, produces an update that would bring that tree into sync with this one
 Variant Timeline::getUpdateFor(const Variant& descriptor, bool server){
-    //TODO
-    return Variant();
+    map<string,Variant> descriptor_map  = descriptor.getObject();
+    double time = descriptor_map["time"].getDouble();
+    if(server){
+        time = fmax(time, last_clear_time); // if requested an update older than cleared time, then send cleared time
+    }
+
+    // Correct client clock drift
+    if(!server){
+        double target_time = time+base_age ;
+        if(ping > 1 && ping < 1000){
+            target_time += ping/2000.0 ;
+        }
+        double time_error = abs(current_time - target_time) ;
+        if(time_error > base_age*0.5){
+            printf("Correcting clock in getupdate 4: %f %f %f %d\n", time, target_time, current_time, ping);
+            run(target_time);
+        }
+        //printf("Clock skew: %f\n", current_time - target_time);
+    }
+    
+    int* other_events = descriptor_map["events"].getIntArray();
+    int num_other_events = descriptor_map["events"].getArrayLength();
+    unordered_set<int> other_event_set ;
+    for(int k=0;k<num_other_events;k++){
+        other_event_set.insert(other_events[k]);
+    }
+    
+    map<string,Variant> update_map ;
+    update_map["time"] = Variant(time);
+
+    auto [base_events,base_objects] = getBaseState(time);
+    vector<Variant> event_updates;
+    for(int k=0;k<base_events.size();k++){
+        Variant serial = Variant(base_events[k]->serialize());
+        //serial.printFormatted();
+        int hash = serial.hash();
+        if(other_event_set.find(hash) == other_event_set.end()){ // we have event other didn't have
+            event_updates.emplace_back(std::move(serial)); 
+        }
+    }
+
+    update_map["events"] = Variant(event_updates);
+    if(server){ // only server can update objects
+        int* other_objects = descriptor_map["objects"].getIntArray();
+        int num_other_objects = descriptor_map["objects"].getArrayLength()/2;
+        unordered_map<int,int> other_object_map;
+        for(int k=0;k<num_other_objects ;k++){
+            other_object_map[other_objects[2*k]] = other_objects[2*k+1];
+            //printf("got hash %d for %d\n", other_objects[2*k+1], other_objects[2*k]);
+        }
+        map<int,Variant> object_updates ;
+        for(auto& [id,object] : base_objects){
+            Variant serial = Variant(object->serialize()) ;
+            int hash = serial.hash();
+            //printf("generated hash %d for %d\n", hash, id);
+            if(other_object_map[id] != hash){
+                object_updates[id] = std::move(serial) ;
+            }
+
+        }
+        update_map["objects"] = Variant(object_updates);
+    }
+
+    return Variant(update_map);
 }
 
 // applies a syncrhoniation update produced by another timeline's use of getUpdateFor
 // returns the time of the update
 void Timeline::applyUpdate(const Variant& update, bool server){
-    //TODO
+    map<string,Variant> update_map = update.getObject();
+    double time = update_map["time"].getDouble();
+    if(time <= last_clear_time){
+        printf("WTF: received update earlier (%f) than clear time (%f)!\n", time, last_clear_time);
+        return ;
+    }
+    // Correct client clock drift
+    if(!server){
+        double target_time = time+base_age ;
+        if(ping > 1 && ping < 1000){
+            target_time += ping/2000.0 ;
+        }
+        if(abs(current_time - target_time) > base_age*0.5){
+            printf("Correcting client clock in applyupdate: %f %f %f %d\n", time, target_time, current_time, ping);
+            run(target_time);
+        }
+        //printf("Clock skew: %f\n", current_time - target_time);
+    }else if(time > current_time){
+        printf("WTF: server got update based later (%f) than its run time (%f)!\n", time, last_clear_time);
+        return ;
+    }
+
+    if(update_map.find("objects") != update_map.end()){
+        map<int,Variant> object_updates = update_map["objects"].getIntObject();
+        for(auto& [id,serial] : object_updates){
+            if(objects.find(id) == objects.end()){ // if not present
+                //printf("update creating new baseobject!\n");
+                //serial.printFormatted();
+                if(TObject::generateTypedTObject == nullptr){
+                    printf("WTF: object creator function is not defined! Did you forget to set generators o nthe timeline?\n");
+                }
+                unique_ptr<TObject> new_obj = TObject::generateTypedTObject(serial); // infer type and build using generator
+                //Variant(new_obj->serialize()).printFormatted();
+                objects[id] = std::move(new_obj) ;// place into timeline
+                objects[id]->write_time = time;
+                objects[id]->timeline = this ;
+            }else{ // if already present but nonmatching value
+                weak_ptr<TObject> existing_obj = getMutable(id, time); // write using functionality that triggers rollback
+                if(auto existing = existing_obj.lock()){
+                    map<string,Variant> serial_map = serial.getObject() ;
+                    existing->set(serial_map);
+                }
+            }
+        }
+    }
+
+    vector<Variant> event_updates = update_map["events"].getVariantArray();
+    for(int k=0;k<event_updates.size();k++){
+        //printf("updating event\n");
+        insertEvent(std::move(TEvent::generateTypedTEvent(event_updates[k])));
+    }
 }
 
 // Given a packet with an update and optional descriptor
 // applies the update, and if there was a descriptor returns an ypdate for it
 // and a new descriptor of itself at current_time-base_age
 std::map<std::string, Variant> Timeline::synchronize(std::map<std::string, Variant>& packet, bool server){
-    //TODO
-    return std::map<std::string, Variant>();
+    lock.lock();
+    if(packet.find("update") != packet.end()){
+        //printf("Got update:\n");
+        //packet["update"].printFormatted();
+        applyUpdate(packet["update"], server);
+    }
+    if(packet.find("descriptor") != packet.end()){
+        //printf("Got descriptor:\n");
+        //packet["descriptor"].printFormatted();
+        if(!server){
+            long new_sync_time = timeMilliseconds() ;
+            ping = new_sync_time - last_sync_time ;
+            last_sync_time = new_sync_time;
+        }
+
+
+        map<string,Variant> ret_map;
+        //printf("generating update - > %f...\n", packet["descriptor"]["time"].getDouble());
+        ret_map["update"] = getUpdateFor(packet["descriptor"], server);
+        
+
+        //ret_map["update"].printFormatted();
+        //printf("generating descriptor - > %f...\n", current_time-base_age);
+        ret_map["descriptor"] = getDescriptor(current_time-base_age, server);
+        //ret_map["descriptor"].printFormatted();
+        lock.unlock();
+        return ret_map;
+    }
+    lock.unlock();
+    return std::map<string, Variant>();
 }
 
 // Updates all observables to the current time, performing interpolation as required

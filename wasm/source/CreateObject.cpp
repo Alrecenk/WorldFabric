@@ -70,9 +70,9 @@ void CreateObject::run(){
     //printf("making new object...\n");
 
     timeline->objects[id] = new_object->deepCopy() ;
-
     timeline->objects[id]->timeline = timeline;
     timeline->objects[id]->write_time = make_time ;
+
     if(on_created.get() != nullptr){
         std::unique_ptr<TEvent> new_event = on_created->deepCopy();
         new_event->anchor_id = id ;
