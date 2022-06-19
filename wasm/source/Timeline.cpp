@@ -77,24 +77,24 @@ void Timeline::deleteObject(int id, double send_time){
     printf("deleting IDs is not supported yet!\n");
 }
 
-std::weak_ptr<TEvent> Timeline::nextEventToRun(double time, double info_speed){
+TEvent* Timeline::nextEventToRun(double time, double info_speed){
     double best_time = time;
-    std::shared_ptr<TEvent> best_event;
+    TEvent* best_event = nullptr;
     for(std::shared_ptr<TEvent>& e : events){
         if(e.get() != nullptr && !e->disabled && !e->has_run){
             double time_to_run = e->time ;
             if(time_to_run <= best_time){
                 best_time = time_to_run;
-                best_event = e ;
+                best_event = e.get() ;
             }
         }
     }
     return best_event ;
 }
 
-std::weak_ptr<TEvent> Timeline::nextEventToRun(glm::vec3 vantage, double time, double info_speed){
+TEvent* Timeline::nextEventToRun(glm::vec3 vantage, double time, double info_speed){
     double best_time = time;
-    std::shared_ptr<TEvent> best_event;
+    TEvent* best_event = nullptr;
     for(std::shared_ptr<TEvent>& e : events){
         if(e.get() != nullptr && !e->disabled && !e->has_run){
             weak_ptr<TObject> eo = getObjectInstant(e->anchor_id, e->time) ;
@@ -105,7 +105,7 @@ std::weak_ptr<TEvent> Timeline::nextEventToRun(glm::vec3 vantage, double time, d
             }
             if(time_to_run <= best_time){
                 best_time = time_to_run;
-                best_event = e ;
+                best_event = e.get() ;
             }
         }
     }
@@ -125,25 +125,33 @@ void Timeline::run(double new_time){
         has_vantage= true;
     }
     
-    std::weak_ptr<TEvent>  current_event = nextEventToRun(vantage, new_time, info_speed) ;
-    while(auto ce = current_event.lock()){
-        ce->run();
-        ce->has_run = true;
-        if(ce->wrote_anchor){
-            if(has_vantage && ce->anchor_id == vantage_id ){ // if vantage object changed
-                weak_ptr<TObject> eo = getObjectInstant(ce->anchor_id, new_time) ;
+    TEvent*  current_event = nextEventToRun(vantage, new_time, info_speed) ;
+    while(current_event != nullptr){
+        current_event->run();
+        current_event->has_run = true;
+        if(current_event->wrote_anchor){
+            if(has_vantage && current_event->anchor_id == vantage_id ){ // if vantage object changed
+                weak_ptr<TObject> eo = getObjectInstant(current_event->anchor_id, new_time) ;
                 if(auto eo2 = eo.lock()){
                     vantage = eo2->position; // vantage point may have changed
                 }
             }
         }
+
+        if(auto_clear_history && current_event->time - last_clear_time > history_kept*2){
+            current_time = fmax(current_time,current_event->time) ;
+            clearHistoryBefore(current_time-history_kept);
+        }
+
         if(has_vantage){
             current_event = nextEventToRun(vantage, new_time, info_speed) ;
         }else{
             current_event = nextEventToRun(new_time, info_speed) ;
         }
+        
     }
     current_time = new_time ;
+
     lock.unlock();
 }
 
@@ -262,6 +270,9 @@ void Timeline::clearHistoryBefore(double clear_time){
 
 // Return the minimum state required to generate a matching timeline from the given time
 std::pair<std::vector<std::shared_ptr<TEvent>>, std::map<int, std::shared_ptr<TObject>>> Timeline::getBaseState(double time){
+    if(time < last_clear_time){
+        printf("Base state requested for time older than clear time!\n");
+    }
     // get eventsafter time that are not spawned by other events after time
     std::vector<std::shared_ptr<TEvent>> base_events ;
     for(int k=0;k<events.size();k++){
@@ -326,17 +337,17 @@ Variant Timeline::getUpdateFor(const Variant& descriptor, bool server){
     }
 
     // Correct client clock drift
+    
     if(!server){
         double target_time = time+base_age ;
-        if(ping > 1 && ping < 1000){
-            target_time += ping/2000.0 ;
+        
+        if(ping > 1 && ping < 200){
+            target_time += ping/2000.0 ; // descriptor time comes from server so only aged by one way ping
         }
-        double time_error = abs(current_time - target_time) ;
-        if(time_error > base_age*0.5){
-            printf("Correcting clock in getupdate 4: %f %f %f %d\n", time, target_time, current_time, ping);
-            run(target_time);
+        if(abs(current_time - target_time) > base_age*0.1 && (current_time < target_time || target_time > current_time-base_age)){ 
+            printf("Correcting clock in getupdate 4: update time:%f target:%f current:%f ping:%d\n", time, target_time, current_time, ping);
+            run(target_time); // catch up
         }
-        //printf("Clock skew: %f\n", current_time - target_time);
     }
     
     int* other_events = descriptor_map["events"].getIntArray();
@@ -396,15 +407,16 @@ void Timeline::applyUpdate(const Variant& update, bool server){
     }
     // Correct client clock drift
     if(!server){
+        /*
         double target_time = time+base_age ;
-        if(ping > 1 && ping < 1000){
-            target_time += ping/2000.0 ;
+        if(ping > 1 && ping < 500){
+            target_time += ping/1000.0 ; // time of update is set by us when we sent descriptor so off by round trip ping
         }
-        if(abs(current_time - target_time) > base_age*0.5){
+        if(current_time < target_time || target_time > current_time-last_clear_time){
             printf("Correcting client clock in applyupdate: %f %f %f %d\n", time, target_time, current_time, ping);
             run(target_time);
         }
-        //printf("Clock skew: %f\n", current_time - target_time);
+        */
     }else if(time > current_time){
         printf("WTF: server got update based later (%f) than its run time (%f)!\n", time, last_clear_time);
         return ;

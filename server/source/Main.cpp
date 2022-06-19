@@ -41,7 +41,7 @@ int main(int argc, char** argv) {
     setPacketPointer(packet_ptr);
 
     runUnitTests();
-    /*
+    
 
     // boot up a static webserver on a nonblocking thread to serve the frontend
     char http_address[] = "0.0.0.0";
@@ -55,25 +55,27 @@ int main(int argc, char** argv) {
     // boot up the timeline server on a non-blocking thread
     int timeline_port = 9017;
     cout << "Starting the timeline server on port " << timeline_port << "..." << endl;
-    int width = 1000;
-    int height = 1000;
+    int width = 500;
+    int height = 500;
     float min_radius = 10;
     float max_radius = 40 ;
     float max_speed = 200 ;
-    Timeline* timeline = initialize2DBallTimeline(width, height, 5, min_radius, max_radius, max_speed) ;
+    Timeline* timeline = initialize2DBallTimeline(width, height, 10, min_radius, max_radius, max_speed) ;
     TimelineServer timeline_server(timeline_port, timeline);
 
     cout << "Starting main loop..." << endl;
     signal(SIGINT, quit); // Catch CTRL-C to exit gracefully
+    
     while (running) {
         std::this_thread::sleep_for(std::chrono::milliseconds(20));
         timeline->run();
-        timeline->clearHistoryBefore(timeline->current_time-history_kept);
-        if(randomFloat()<0.1){
+        //timeline->clearHistoryBefore(timeline->current_time-history_kept);
+        
+        if(randomFloat()<0.01){
             addBall(width, height, min_radius, max_radius, max_speed);
         }
     }
     web_server.stop();
     timeline_server.stop();
-    */
+    
 }

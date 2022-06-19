@@ -44,7 +44,6 @@ int selected_animation = -1;
 std::chrono::high_resolution_clock::time_point animation_start_time;
 
 unique_ptr<Timeline> timeline ;
-double history_kept = 1.5;
 
 
 long timeMilliseconds() {
@@ -123,6 +122,7 @@ std::unique_ptr<TEvent> createBallEvent(const Variant& serialized){
 
 Timeline* initializeBallTimeline(){
     timeline = make_unique<Timeline>(&createBallEvent, &createBallObject);
+    timeline->auto_clear_history=true;
     return timeline.get() ;
 }
 
@@ -536,7 +536,7 @@ byte* initialize2DBallTimeline(byte* ptr){
 }
 
 byte* runTimeline(byte* ptr){
-    
+    timeline->auto_clear_history =true;
     auto obj = Variant::deserializeObject(ptr);
     if(obj.find("time") == obj.end()){
         timeline->run();
@@ -544,7 +544,7 @@ byte* runTimeline(byte* ptr){
         float time = obj["time"].getNumberAsFloat();
         timeline->run(time);
     }
-    timeline->clearHistoryBefore(timeline->current_time-history_kept);
+    //timeline->clearHistoryBefore(timeline->current_time-history_kept);
     return emptyReturn();
 }
 
@@ -570,6 +570,7 @@ byte* getTimelineCircles(byte* ptr){
 }
 
 byte* getInitialTimelineRequest(byte* ptr){
+    
     initializeBallTimeline();
     map<string, Variant> sync_data ;
     sync_data["descriptor"] = timeline->getDescriptor(0.0, false);

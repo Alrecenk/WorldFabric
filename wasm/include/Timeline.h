@@ -36,7 +36,10 @@ class Timeline{
         int ping = 0;
         double last_clear_time = -99999 ;
 
-        static constexpr double base_age = 0.75;
+        static constexpr double base_age = 0.5;
+        static constexpr double history_kept = 1.0;
+        bool auto_clear_history = false;
+
         std::recursive_mutex lock ;
 
 
@@ -69,9 +72,9 @@ class Timeline{
          // Creates an event that deletes an object at the earliest possible time
         void deleteObject(int id, double send_time);
 
-        std::weak_ptr<TEvent> nextEventToRun(double time, double info_speed);
+        TEvent* nextEventToRun(double time, double info_speed);
 
-        std::weak_ptr<TEvent> nextEventToRun(glm::vec3 vantage, double time, double info_speed);
+        TEvent* nextEventToRun(glm::vec3 vantage, double time, double info_speed);
 
         // Runs events in the timeline until the location at the vantage object reaches the given time
         void run(double new_time);
