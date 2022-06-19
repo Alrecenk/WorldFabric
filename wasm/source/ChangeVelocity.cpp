@@ -3,6 +3,9 @@
 
 using std::string ;
 using std::map ;
+using std::weak_ptr;
+using std::shared_ptr;
+using std::unique_ptr;
 
 
 ChangeVelocity::ChangeVelocity(){
@@ -38,6 +41,9 @@ void ChangeVelocity::set(std::map<std::string,Variant>& serial){
 // get(id), getMutable(), addEvent, createObject, deleteObject, and getCollisions
 void ChangeVelocity::run(){
     //printf("Running change velocity...\n");
-    MovingObject* o = (MovingObject*)getMutable() ;
-    o->velocity = new_velocity ;
+    weak_ptr<TObject> ow = getMutable() ;
+    if(auto og = ow.lock()){
+        shared_ptr<MovingObject> o = std::static_pointer_cast<MovingObject>(og);
+        o->velocity = new_velocity ;
+    }
 }

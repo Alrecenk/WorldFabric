@@ -2,6 +2,9 @@
 
 using std::map ;
 using std::string ;
+using std::weak_ptr;
+using std::shared_ptr;
+using std::unique_ptr;
 
 CreateObject::CreateObject(){
 
@@ -58,23 +61,27 @@ void CreateObject::run(){
 
     double make_time = time ;
     //printf("getting anchor %d...\n", id);
-    const TObject* anchor = get(anchor_id) ;
-    if(anchor != nullptr){ // anchor may be null when a timeline is creating its vantage object
+    weak_ptr<TObject> anchor = get(anchor_id) ;
+    if(auto a = anchor.lock()){ // anchor may be null when a timeline is creating its vantage object
         //printf("Got an anchor!\n");
-        make_time += glm::length(new_object->position - anchor->position)/timeline->info_speed ;
+        make_time += glm::length(new_object->position - a->position)/timeline->info_speed ;
     }
     //printf("Object being created at time %f\n", make_time);
-    //printf("making object history...\n");
+    //printf("making new object...\n");
 
-    timeline->objects[id] = ObjectHistory(new_object->deepCopy(), make_time);
+    timeline->objects[id] = new_object->deepCopy() ;
 
-    timeline->objects[id].timeline = timeline;
-    if(on_created.get() !=nullptr){
+    timeline->objects[id]->timeline = timeline;
+    timeline->objects[id]->write_time = make_time ;
+    if(on_created.get() != nullptr){
         std::unique_ptr<TEvent> new_event = on_created->deepCopy();
         new_event->anchor_id = id ;
         new_event->time = fmax(new_event->time, make_time) ; 
-         // TODO create object rollback probably needs custom code
+         // TODO create object rollback might need custom code
         addEvent(std::move(new_event));
+        //printf("on created event added!\n");
     }
-    //printf("create object completed...\n");
+    
+    //printf("create object completed:\n");
+    //timeline->objects[id]->print();
 }

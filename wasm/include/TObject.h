@@ -22,7 +22,11 @@ class TObject{
         float radius;
         double write_time ;
         bool deleted = false;
-
+        std::shared_ptr<TObject> prev ;
+        std::weak_ptr<TObject> next ;
+        Timeline* timeline ;
+        std::vector<std::pair<std::weak_ptr<TEvent>, double>> readers ; // events that have read this object instant and when 
+        
         TObject();
 
         virtual ~TObject() = default ;
@@ -47,11 +51,11 @@ class TObject{
 
         // Override this function to provide logic for interpolation after rollback or extrapolation for slowly updating objects
         // If not overridden getObserved returns the raw value of the object
-        virtual std::unique_ptr<TObject> getObserved(const TObject* last_observed);
+        virtual std::unique_ptr<TObject> getObserved(const std::weak_ptr<TObject> last_observed);
 
         void print() const;
 
         // Data and functions below this point are used for maintining the timeline continuity
-        std::vector<std::pair<TEvent*, double>> readers ; // events that have read this object instant and when    
+           
 };
 #endif // #ifndef _TOBJECT_H_

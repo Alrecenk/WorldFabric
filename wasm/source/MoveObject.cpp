@@ -5,6 +5,9 @@ using std::string ;
 using std::map ;
 using std::vector;
 using glm::vec3;
+using std::weak_ptr;
+using std::shared_ptr;
+using std::unique_ptr;
 
 
 MoveObject::MoveObject(){
@@ -47,16 +50,19 @@ void MoveObject::set(std::map<std::string,Variant>& serial){
 // To maintain causality run should only interact with dynamic data by using the privided methods:
 // get(id), getMutable(), addEvent, createObject, deleteObject, and getCollisions
 void MoveObject::run(){
-    MovingObject* o = (MovingObject*)getMutable() ;
-    o->position += o->velocity * (float)interval;
-    //printf("Object moving to : %f,%f, %f\n", o->position.x, o->position.y, o->position.z);
-    if(stop_on_hit){
-        vector<int> collisions = getCollisions();
-        if(collisions.size() != 0){
-             o->velocity = vec3(0,0,0);
+    weak_ptr<TObject> ow = getMutable() ;
+    if(auto og = ow.lock()){
+        shared_ptr<MovingObject> o = std::static_pointer_cast<MovingObject>(og);
+        o->position += o->velocity * (float)interval;
+        //printf("Object moving to : %f,%f, %f\n", o->position.x, o->position.y, o->position.z);
+        if(stop_on_hit){
+            vector<int> collisions = getCollisions();
+            if(collisions.size() != 0){
+                o->velocity = vec3(0,0,0);
+            }
         }
     }
-    
+        
     std::unique_ptr<MoveObject> next_tick = std::make_unique<MoveObject>(anchor_id, interval);
     next_tick->time = time + interval ;
     next_tick->stop_on_hit = stop_on_hit;

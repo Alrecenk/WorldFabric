@@ -80,6 +80,17 @@ TEvent* EventQueue::addEvent(std::unique_ptr<TEvent> event){
 }
 
 void EventQueue::removeDependencies(TEvent* event){
+    // Remove any links on data objects
+    for(int k=0;k<event->read.size();k++){
+        if(event->read[k] != nullptr && !event->read[k]->deleted){
+            for(int j=0;j<event->read[k]->readers.size();j++){
+                if( event->read[k]->readers[j].first == event){
+                    event->read[k]->readers[j].first = nullptr ;
+                }
+            }
+        }
+    }
+    event->read.clear();
     // Delete any data following from this write
     if(event->wrote_anchor){
         timeline->objects[event->anchor_id].deleteAfter(event->time);
@@ -92,18 +103,6 @@ void EventQueue::removeDependencies(TEvent* event){
         }
     }
     event -> spawned_events.clear();
-    // Remove any links on data objects
-    for(int k=0;k<event->read.size();k++){
-        if(event->read[k] != nullptr){
-            for(int j=0;j<event->read[k]->readers.size();j++){
-                if(event->read[k]->readers[j].first == event){
-                    event->read[k]->readers[j].first = nullptr ;
-                }
-            }
-        }
-    }
-    event->read.clear();
-    
     timeline->collisions.removeRequests(event);
 }
 
@@ -152,7 +151,7 @@ void EventQueue::clearHistoryBefore(double clear_time){
 
             // Remove links to event on objects that it read
             for(int i=0;i<events[k]->read.size();i++){
-                if(events[k]->read[i] != nullptr){
+                if(events[k]->read[i] != nullptr && !events[k]->read[i]->deleted){
                     for(int j=0;j<events[k]->read[i]->readers.size();j++){
                         if(events[k]->read[i]->readers[j].first == events[k].get()){
                             events[k]->read[i]->readers[j].first = nullptr ;

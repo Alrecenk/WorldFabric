@@ -75,6 +75,8 @@ void CollisionSystem::onDataChanged(TEvent* event){
         }
     }
     for( TEvent* r : to_rerun){
-        timeline->events.rerunEvent(r);
+        if(!r->deleted && !r->run_pending){
+            timeline->events.rerunEvent(r);
+        }
     }
 }

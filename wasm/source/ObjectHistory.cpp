@@ -87,7 +87,8 @@ TObject* ObjectHistory::get(double time){
 // Deletes the object at the given time
 void ObjectHistory::deleteAfter(double time){
     
-    int delete_from = history.size();
+    
+    int delete_from = 0;
     for(int k=history.size()-1;k>=0; k--){
         if(!history[k]->deleted){
             if(history[k]->write_time < time){ // finding first one from end not being deleted
@@ -97,7 +98,7 @@ void ObjectHistory::deleteAfter(double time){
         }
     }
 
-
+    
     for(int k=delete_from;k<history.size(); k++){
         if(!history[k]->deleted){
             for(auto& [reader, read_time] : history[k]->readers){
@@ -107,6 +108,16 @@ void ObjectHistory::deleteAfter(double time){
             }
             if(k != delete_from){ // check for reruns in last surviving instant but don't delete it
                 history[k]->deleted = true;
+                // unmark this as a read item in all its readers
+                for(int j=0;j<history[k]->readers.size();j++){
+                    if(history[k]->readers[j].first != nullptr){ // if the reader wasn't deleted first
+                        for(int i=0;i<history[k]->readers[j].first->read.size();i++){
+                            if(history[k]->readers[j].first->read[i] == history[k].get()){
+                                history[k]->readers[j].first->read[i] = nullptr ;
+                            }
+                        }
+                    }
+                }
             }
         }
     }

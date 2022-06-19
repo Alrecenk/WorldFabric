@@ -80,6 +80,16 @@ class BallBounceMode extends ExecutionMode{
         */
 
         tools.API.call("runTimeline", {}, new Serializer());
+        
+        
+
+
+    }
+
+    // Called when the app should be redrawn
+    // Note: the elements to draw onto or with should be included in the tools on construction and saved for the duration of the mode
+    drawFrame(frame_id){
+        tools.API.call("runTimeline", {}, new Serializer());
         let observables = tools.API.call("getTimelineCircles", {}, new Serializer()).observables;
 
         //console.log(observables);
@@ -97,14 +107,6 @@ class BallBounceMode extends ExecutionMode{
             this.drawCircle(p[0], p[1], radius, "#004F00", "#000000", 2) ;
             */
         }
-
-
-    }
-
-    // Called when the app should be redrawn
-    // Note: the elements to draw onto or with should be included in the tools on construction and saved for the duration of the mode
-    drawFrame(frame_id){
-        
         
     }
 

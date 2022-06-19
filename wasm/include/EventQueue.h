@@ -15,7 +15,7 @@ class EventQueue{
 
     public:
         Timeline* timeline;
-        std::vector<std::unique_ptr<TEvent>> events;
+        std::vector<std::shared_ptr<TEvent>> events;
         int add_pointer = 0 ; // place to start looking for slot to add events
 
         // Returns the next event to be run from the given perspective

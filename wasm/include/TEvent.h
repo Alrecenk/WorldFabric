@@ -21,6 +21,17 @@ class TEvent{
         double time ; // time this event occurs
         int anchor_id; // The id of the TObject this event is anchored to (and the only object it can edit)
 
+        bool has_run = false; //whether the event has run yet
+        bool disabled = false; // whether the event should run
+        std::weak_ptr<TEvent> spawner ; // event that spawned this event if it was spawned by another timeline event
+
+        bool wrote_anchor = false; // whether this event wrote to its anchor object last time it ran
+        std::vector<std::weak_ptr<TEvent>> spawned_events ; //events spawned by this event when it was last run
+        std::vector<std::weak_ptr<TObject>> read; // Objects this event read the last time it was run
+        
+        Timeline* timeline ; // a link to the timeline hois event is in
+        std::weak_ptr<TEvent> weak_this ; // a weak pointer to the timeline shared pointer to use for safe links
+
         virtual ~TEvent() = default;
 
         // pointer to user defined function to generated typed TEvents for their app
@@ -45,12 +56,15 @@ class TEvent{
             printf("Run not defined for event!\n");
         }
 
+        // Unrun an event (remove data changes and rigger rerunsof all readers and disable all spawned events)
+        void unrun();
+
         // Returns the latest data for the given object available to this event
-        const TObject* get(int id);
+        const std::weak_ptr<TObject> get(int id);
 
         // Returns a mutable version of the object this event is anchored to
         // This is how you edit objects from inside events.
-        TObject* getMutable();
+        std::weak_ptr<TObject> getMutable();
 
         // Adds an event to the Timeline this event is in
         // If no time is set on the event it will be run at the earliest possible time
@@ -72,16 +86,6 @@ class TEvent{
         virtual std::unique_ptr<TEvent> deepCopy();
 
         void print() const;
-
-        // Data and functions below this point are used for maintaining the timeline continuity
-
-        bool run_pending = true; //whether the event still needs to be run
-        std::vector<TEvent*> spawned_events ; //events spawen by this event when it was last run
-        TEvent* spawner = nullptr ; // event that spawned this event if it was spawned by another timeline event
-        bool wrote_anchor=false; // whether this event wrote to its anchor object last time it ran
-        bool deleted = false;
-        std::vector<TObject*> read;
         
-        Timeline* timeline ;
 };
 #endif // #ifndef _TEVENT_H_
