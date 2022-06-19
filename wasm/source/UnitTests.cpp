@@ -22,18 +22,26 @@ using std::vector;
 using glm::vec3;
 using std::string;
 using std::map;
+using std::shared_ptr;
+using std::weak_ptr;
+using std::unique_ptr;
 
 bool UnitTests::runAll(){
     string success = UnitTests::createAndMoveCircle() ? "passed" : "failed" ;
     printf("createAndMoveCircle : %s\n", success.c_str());
     success = UnitTests::checkSimpleTimeWarp() ? "passed" : "failed" ;
     printf("checkSimpleTimeWarp : %s\n", success.c_str());
+
+    success = UnitTests::checkClearHistory() ? "passed" : "failed" ;
+    printf("checkClearHistory : %s\n", success.c_str());
+
+
+
     /*
     success = UnitTests::checkCollisionRollback() ? "passed" : "failed" ;
     printf("checkCollisionRollback : %s\n", success.c_str());
     
-    success = UnitTests::checkClearHistory() ? "passed" : "failed" ;
-    printf("checkClearHistory : %s\n", success.c_str());
+    
     
     success = UnitTests::checksimpleTimelineSync() ? "passed" : "failed" ;
     printf("checksimpleTimelineSync : %s\n", success.c_str());
@@ -57,6 +65,19 @@ void UnitTests::expectNear(bool& success, glm::vec3 a, glm::vec3 b, float dist, 
         printf("(%f,%f,%f) != (%f,%f,%f)\n", a.x,a.y,a.z,b.x,b.y,b.z);
     }
     success &= condition;
+}
+
+int UnitTests::countHistory(shared_ptr<TObject> recent){
+    shared_ptr<TObject> instant = recent;
+    if(!instant){
+        return 0 ;
+    }
+    double count = 1 ;
+    while(instant->prev){
+        instant = instant->prev ;
+        count++;
+    }
+    return count ;
 }
 
 std::unique_ptr<TObject> UnitTests::createObject(const Variant& serialized){
@@ -290,8 +311,8 @@ bool UnitTests::checkCollisionRollback(){
 bool UnitTests::checkClearHistory(){
     //printf("---checkSimpleTimeWarp---\n");
     bool s = true ;
-    /*
-    Timeline t = Timeline();
+    
+    Timeline t = Timeline(&UnitTests::createEvent, &UnitTests::createObject);
     
     for(int k=0;k<10;k++){
         std::unique_ptr<MovingObject> o = std::make_unique<MovingObject>(vec3(k*100,k*1000%77,0),vec3((k*2)%3 - 1,k%3 - 1,0), 1.0f) ;
@@ -299,7 +320,7 @@ bool UnitTests::checkClearHistory(){
         t.createObject(std::move(o), std::move(o_move) , 1.001 + 0.001*k);
     }
     t.run(1.1);
-    expect(s, t.events.events.size() == 30, "Wrong number of events after first step!");
+    expect(s, t.events.size() == 30, "Wrong number of events after first step!");
     //printf("%d\n",(int)t.events.events.size());
 
     double time = 10;
@@ -307,22 +328,22 @@ bool UnitTests::checkClearHistory(){
 
     
     t.run(time);
-    expect(s, t.events.events.size() == 200, "Wrong number of events after running!");
+    expect(s, t.events.size() == 200, "Wrong number of events after running!");
     //printf("%d\n",(int)t.events.events.size());
 
-    expect(s, t.objects[1].history.size() == 19, "Wrong number of object instances after running!");
+    expect(s, countHistory(t.objects[1]) == 19, "Wrong number of object instances after running!");
     //printf("%d\n",(int)t.objects[1].history.size());
 
-    TObject* o1 = t.objects[1].get(clear_time) ;
+    shared_ptr<TObject> o1 = t.getObjectInstant(1, clear_time).lock() ;
 
     t.clearHistoryBefore(clear_time);
-    expect(s, t.events.events.size() == 200, "Wrong number of events after first clear!");
+    expect(s, t.events.size() == 200, "Wrong number of events after first clear!");
     //printf("%d\n",(int)t.events.events.size());
 
-    TObject* o1c = t.objects[1].get(clear_time) ;
+    shared_ptr<TObject> o1c = t.getObjectInstant(1, clear_time).lock() ;
     expect(s, o1c == o1, "Object at clear time changed after clear!");
 
-    expect(s, t.objects[1].history.size() == 17, "Wrong number of object instances after first clear!");
+    expect(s, countHistory(t.objects[1]) == 17, "Wrong number of object instances after first clear!");
     //printf("%d\n",(int)t.objects[1].history.size());
 
     t.run(time+1);
@@ -332,10 +353,10 @@ bool UnitTests::checkClearHistory(){
         t.run(time);
         t.clearHistoryBefore(clear_time);
 
-        expect(s, t.events.events.size() == 370, "Wrong number of events after clear!");
+        expect(s, t.events.size() == 370, "Wrong number of events after clear!");
         //printf("%d\n",(int)t.events.events.size());
 
-        expect(s, t.objects[2].history.size() == 17, "Wrong number of object instances after clear!");
+        expect(s, countHistory(t.objects[2]) == 17, "Wrong number of object instances after clear!");
         //printf("%d\n",(int)t.objects[1].history.size());
     }
 
@@ -364,15 +385,15 @@ bool UnitTests::checkClearHistory(){
             expectNear(s,positions[k], c_pos, 0.001,"Object moved after warped clear history!");
         }
 
-        expect(s, t.events.events.size() == 370, "Wrong number of events after time warp clear!");
+        expect(s, t.events.size() == 370, "Wrong number of events after time warp clear!");
         //printf("%d\n",(int)t.events.events.size());
 
-        expect(s, t.objects[2].history.size() <= 17, "Too many object instances after time warp clear!");
+        expect(s, countHistory(t.objects[2])<= 17, "Too many object instances after time warp clear!");
         //printf("%d\n",(int)t.objects[2].history.size());
 
     }
 
-    */
+    
     return s ;
 }
 
