@@ -568,7 +568,7 @@ byte* getTimelineCircles(byte* ptr){
         }
     }
     //ret_map["observables"] = Variant(output);
-    ret_map["observables"] = Variant(circles, ob.size()*3);
+    ret_map["observables"] = Variant(circles, ob.size()*4);
     free(circles);
     return pack(ret_map);
 }

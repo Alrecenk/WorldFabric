@@ -4,7 +4,7 @@
 #include "Variant.h"
 #include "TEvent.h"
 #include "TObject.h"
-//#include "CollisionSystem.h"
+#include "CollisionSystem.h"
 
 #include "glm/vec3.hpp"
 #include "glm/gtx/transform.hpp"
@@ -43,14 +43,12 @@ class Timeline{
         std::recursive_mutex lock ;
 
 
-        std::vector<std::shared_ptr<TEvent>> events;
+        std::vector<std::shared_ptr<TEvent>> events; // events in memory in no particular order
         int event_add_pointer = 0 ;
-
         // pointer to the most recent value of each object by id
         std::unordered_map<int, std::shared_ptr<TObject>> objects ;
-
- 
         std::unordered_map<int, std::shared_ptr<TObject>> last_observed ;
+        CollisionSystem collisions;
 
         //std::vector<std::weak_ptr<TEvent>> pending_external_events ; // tracks externally created events for quicksend
 

@@ -60,7 +60,7 @@ int main(int argc, char** argv) {
     float min_radius = 10;
     float max_radius = 40 ;
     float max_speed = 200 ;
-    Timeline* timeline = initialize2DBallTimeline(width, height, 10, min_radius, max_radius, max_speed) ;
+    Timeline* timeline = initialize2DBallTimeline(width, height, 8, min_radius, max_radius, max_speed) ;
     TimelineServer timeline_server(timeline_port, timeline);
 
     cout << "Starting main loop..." << endl;

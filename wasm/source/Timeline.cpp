@@ -26,6 +26,7 @@ Timeline::Timeline(std::unique_ptr<TEvent> (*event_generator)(const Variant& ser
     last_run_time = timeMilliseconds();
     TEvent::generateTypedTEvent = event_generator;
     TObject::generateTypedTObject = object_generator ;
+    collisions.timeline = this ;
 }
 
 
@@ -130,6 +131,7 @@ void Timeline::run(double new_time){
         current_event->run();
         current_event->has_run = true;
         if(current_event->wrote_anchor){
+            collisions.onDataChanged(current_event);
             if(has_vantage && current_event->anchor_id == vantage_id ){ // if vantage object changed
                 weak_ptr<TObject> eo = getObjectInstant(current_event->anchor_id, new_time) ;
                 if(auto eo2 = eo.lock()){
@@ -250,9 +252,10 @@ void Timeline::clearHistoryBefore(double clear_time){
     lock.lock();
     clear_time = fmin(clear_time, current_time);// don't allow clearing beyond the current time
 
-    // clear out run events older than the time andany disabled events stil lingering
+    // clear out run events older than the time and any disabled events stil lingering
     for(int k=0;k<events.size();k++){
         if(events[k] && (events[k]->disabled || (events[k]->has_run && events[k]->time < clear_time))){
+            collisions.removeRequests(events[k].get());
             events[k].reset();
         }
     }

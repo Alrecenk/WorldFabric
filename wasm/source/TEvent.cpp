@@ -98,15 +98,14 @@ void TEvent::unrun(){
         }
     }
     spawned_events.clear();
+    timeline->collisions.removeRequests(this);
     has_run = false;
 }
 
 // Returns the IDs of all TObjects colliding with the bounding sphere of the anchor object
 // at the time of this event
 std::vector<int> TEvent::getCollisions(){
-    //TODO
-    return std::vector<int>() ;
-    //return timeline->collisions.getCollisions(this);
+    return timeline->collisions.getCollisions(this);
 }
 
 std::unique_ptr<TEvent> TEvent::deepCopy(){

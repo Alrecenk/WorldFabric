@@ -72,19 +72,22 @@ void MoveBouncingBall::run(){
         }
 
         vector<int> collisions = getCollisions();
-        /*
+        
         if(collisions.size()>0){
-            const BouncingBall* c = (const BouncingBall*)get(collisions[0]) ;
-            vec3 to_hit = c->position - o->position ;
-            to_hit = glm::normalize(to_hit);
-            if(glm::dot(o->velocity, to_hit) > 0){
-                vec3 c = to_hit * glm::dot(o->velocity,to_hit);
-                o->velocity -= c * 2.0f ;
-                //o->velocity.x *= -1;
-                //o->velocity.y *= -1 ;
+            //const BouncingBall* c = (const BouncingBall*)get(collisions[0]) ;
+            weak_ptr<TObject> cw = get(collisions[0]) ; // only dealing with first collision per frame
+            if(auto cg = cw.lock()){
+                shared_ptr<BouncingBall> c = std::static_pointer_cast<BouncingBall>(cg);
+                //mirror as though hitting a nonmovable object
+                vec3 to_hit = c->position - o->position ;
+                to_hit = glm::normalize(to_hit);
+                if(glm::dot(o->velocity, to_hit) > 0){//don't remirror if already turned away but still colliding
+                    vec3 c = to_hit * glm::dot(o->velocity,to_hit);
+                    o->velocity -= c * 2.0f ;
+                }
             }
         }
-        */
+        
     }
 
     std::unique_ptr<MoveBouncingBall> next_tick = std::make_unique<MoveBouncingBall>(anchor_id, interval);
