@@ -27,20 +27,16 @@ using std::unique_ptr;
 bool UnitTests::runAll(){
     string success = UnitTests::createAndMoveCircle() ? "passed" : "failed" ;
     printf("createAndMoveCircle : %s\n", success.c_str());
+    
     success = UnitTests::checkSimpleTimeWarp() ? "passed" : "failed" ;
     printf("checkSimpleTimeWarp : %s\n", success.c_str());
 
     success = UnitTests::checkClearHistory() ? "passed" : "failed" ;
     printf("checkClearHistory : %s\n", success.c_str());
 
-
-
-    /*
     success = UnitTests::checkCollisionRollback() ? "passed" : "failed" ;
     printf("checkCollisionRollback : %s\n", success.c_str());
-    */
-    
-    
+   
     success = UnitTests::checksimpleTimelineSync() ? "passed" : "failed" ;
     printf("checksimpleTimelineSync : %s\n", success.c_str());
     
@@ -222,8 +218,8 @@ bool UnitTests::checkSimpleTimeWarp(){
 
 bool UnitTests::checkCollisionRollback(){
     bool s = true ;
-    /*
-    Timeline t = Timeline();
+    
+    Timeline t = Timeline(&UnitTests::createEvent, &UnitTests::createObject);
 
     std::unique_ptr<MovingObject> a = std::make_unique<MovingObject>(vec3(0,0,0),vec3(1,0,0), 1.0f) ;
     std::unique_ptr<MoveObject> a_move = std::make_unique<MoveObject>(0.5) ;
@@ -248,10 +244,10 @@ bool UnitTests::checkCollisionRollback(){
     int b_id = ob[0] == a_id ? ob[1] : ob[0];
     //printf("B created! %d \n", b_id);
 
-    UnitTests::expectNear(s, ((MovingObject*)t.getLastObserved(a_id ))->position, vec3(0.5,0,0), 0.01,
+    UnitTests::expectNear(s, t.getLastObserved(a_id )->position, vec3(0.5,0,0), 0.01,
         "A did not initialize correctly!");
 
-    UnitTests::expectNear(s, ((MovingObject*)t.getLastObserved(b_id ))->position, vec3(5,4.5,0), 0.01,
+    UnitTests::expectNear(s, t.getLastObserved(b_id )->position, vec3(5,4.5,0), 0.01,
         "B did not initialize correctly!");
 
     //printf("Searching for collisions!\n");
@@ -260,50 +256,54 @@ bool UnitTests::checkCollisionRollback(){
         time+=0.1;
         t.run(time);
         ob = t.updateObservables();
-        MovingObject* ao = (MovingObject*)t.getLastObserved(a_id) ;
-        a_stopped =  glm::length(ao->velocity) < 0.01;
+
+        weak_ptr<TObject> ow = t.getLastObserved(a_id) ;
+        if(auto og = ow.lock()){
+            shared_ptr<MovingObject> o = std::static_pointer_cast<MovingObject>(og);
+            a_stopped =  glm::length(o->velocity) < 0.01;
+        }
     }
     //printf("A stopped at time : %f \n", time);
     UnitTests::expect(s, (time - 5.1)<0.01, "A did not collide and stop at correct time!");
     t.run(10.1);
     ob = t.updateObservables();
     
-    
+    /*
     printf("A at time 10 : \n");
     t.getLastObserved(a_id)->print() ;
     printf("B at time 10 : \n");
     t.getLastObserved(b_id)->print() ;
-    
-    UnitTests::expectNear(s, ((MovingObject*)t.getLastObserved(a_id ))->position, vec3(4,0,0), 0.01,
+    */
+    UnitTests::expectNear(s, t.getLastObserved(a_id)->position, vec3(4,0,0), 0.01,
         "A at incorrect position after collision");
 
     //printf("Adding retroactive change direction event that prevent collisions and running to time 10...\n");
     t.addEvent(std::make_unique<ChangeVelocity>(b_id, vec3(0,0,0)), 1.01) ;
     t.run(10.1);
     ob = t.updateObservables();
-    
+    /*
     printf("A at time 10 : \n");
     t.getLastObserved(a_id)->print() ;
     printf("B at time 10 : \n");
     t.getLastObserved(b_id)->print() ;
-    
-    UnitTests::expectNear(s, ((MovingObject*)t.getLastObserved(a_id ))->position, vec3(9.5,0,0), 0.01,
+    */
+    UnitTests::expectNear(s, t.getLastObserved(a_id)->position, vec3(10.0,0,0), 0.01,
         "A at incorrect position  after rolled back non collision");
 
     //printf("Adding retroactive change direction event that makes collision happen again and running to time 10...\n");
     t.addEvent(std::make_unique<ChangeVelocity>(b_id, vec3(0,-1,0)), 1.02) ;
     t.run(10.1);
     ob = t.updateObservables();
-    
+    /*
     printf("A at time 10 : \n");
     t.getLastObserved(a_id)->print() ;
     printf("B at time 10 : \n");
     t.getLastObserved(b_id)->print() ;
-    
-
-    UnitTests::expectNear(s, ((MovingObject*)t.getLastObserved(a_id ))->position, vec3(4,0,0), 0.01,
-        "A at incorrect position after rolled back recollision");
     */
+
+    UnitTests::expectNear(s, t.getLastObserved(a_id)->position, vec3(5,0,0), 0.01,
+        "A at incorrect position after rolled back recollision");
+    
     return s ;
 }
 
