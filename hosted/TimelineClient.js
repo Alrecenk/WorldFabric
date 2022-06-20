@@ -7,7 +7,8 @@ class TimelineClient{
     //The websocket
     socket = null ; 
     active = false;
-
+    update_delay = 10; // milliseconds to wait before actually sending a packet (used for simulating latency)
+    sync_ping = 0 ;
     
     // Opens a websocket on creation to connect to a TableServer (cpp) on the same server as the web-hosting
     constructor(port, module){
@@ -33,6 +34,14 @@ class TimelineClient{
         return this.socket.readyState == WebSocket.OPEN ;
     }
 
+    send(message){
+        timeline_client.socket.send(message);
+    }
+
+    sendUpdate(message){
+        setTimeout(timeline_client.send, this.update_delay, message);
+    }
+
     
 
     // Sends all table data requests currently pending on any WASM TableReader implementers
@@ -54,14 +63,17 @@ class TimelineClient{
         if(!last_sync){
             last_sync = new Date().getTime();
         }
-        console.log("last sync delay:" + (new Date().getTime() - last_sync));
+        this.sync_ping = (new Date().getTime() - last_sync) ;
         last_sync = new Date().getTime();
         this.active = active;
         let request_ptr = wasm_module.call("synchronizeTimeline", packet_byte_array); 
         let request_size = wasm_module.getReturnSize();
         let request = wasm_module.getByteArray(request_ptr, request_size);
-        this.socket.send(request.buffer);
+        //this.socket.send(request.buffer);
+        this.sendUpdate(request.buffer);
     }
+
+
 
 
 }

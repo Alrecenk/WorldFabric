@@ -18,6 +18,8 @@ class BallBounceMode extends ExecutionMode{
     start_time ;
     last_time ;
 
+    balls = []; // packed array of x,y,radius,id
+
 
     // Tools is an object with string keys that may include things such as the canvas,
     // API WASM Module, an Interface manager, and/or a mesh manager for shared webGL functionality
@@ -80,23 +82,8 @@ class BallBounceMode extends ExecutionMode{
         */
 
         tools.API.call("runTimeline", {}, new Serializer());
-        let observables = tools.API.call("getTimelineCircles", {}, new Serializer()).observables;
-
-        //console.log(observables);
-        let context = tools.canvas.getContext("2d");
-        context.clearRect(0, 0, context.canvas.width, context.canvas.height);
-
-        for(let k=0;k<observables.length;k+=3){
-            let x = observables[k];
-            let y = observables[k+1];
-            let r = observables[k+2];
-            this.drawCircle(x, y, r, "#004F00", "#000000", 2) ;
-            /*
-            let p = observables[k].p;
-            let radius = observables[k].r ;
-            this.drawCircle(p[0], p[1], radius, "#004F00", "#000000", 2) ;
-            */
-        }
+        
+        
 
 
     }
@@ -104,7 +91,24 @@ class BallBounceMode extends ExecutionMode{
     // Called when the app should be redrawn
     // Note: the elements to draw onto or with should be included in the tools on construction and saved for the duration of the mode
     drawFrame(frame_id){
-        
+        tools.API.call("runTimeline", {}, new Serializer());
+        this.observables = tools.API.call("getTimelineCircles", {}, new Serializer()).observables;
+
+        //console.log(observables);
+        let context = tools.canvas.getContext("2d");
+        context.clearRect(0, 0, context.canvas.width, context.canvas.height);
+
+        for(let k=0;k<this.observables.length;k+=4){
+            let x = this.observables[k];
+            let y = this.observables[k+1];
+            let r = this.observables[k+2];
+            this.drawCircle(x, y, r, "#004F00", "#000000", 2) ;
+            /*
+            let p = observables[k].p;
+            let radius = observables[k].r ;
+            this.drawCircle(p[0], p[1], radius, "#004F00", "#000000", 2) ;
+            */
+        }
         
     }
 
@@ -119,6 +123,16 @@ class BallBounceMode extends ExecutionMode{
 		this.mouse_button = pointers[0].button ;
         
         if(this.mouse_button != 2){
+            for(let k=0;k<this.observables.length;k+=4){
+                let x = this.observables[k];
+                let y = this.observables[k+1];
+                let r = this.observables[k+2];
+                let id = this.observables[k+3];
+                let dist2 = (x-this.mouse_down_x)*(x-this.mouse_down_x) + (y-this.mouse_down_y)*(y-this.mouse_down_y) ;
+                if(dist2 < r*r){
+                    tools.API.call("randomizeBallVelocity",{id:id,max_speed:300}, new Serializer());
+                }
+            }
         }else{
 
             

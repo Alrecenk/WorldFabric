@@ -47,6 +47,6 @@ std::unique_ptr<TObject> BouncingBall::deepCopy(){
 
 // Override this function to provide logic for interpolation after rollback or extrapolation for slowly updating objects
 // If not overridden getObserved returns the raw value of the object
-std::unique_ptr<TObject> BouncingBall::getObserved(const TObject* last_observed){
+std::unique_ptr<TObject> BouncingBall::getObserved(const std::weak_ptr<TObject> last_observed){
     return deepCopy();
 }

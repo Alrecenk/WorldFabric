@@ -16,9 +16,11 @@
 #include "Timeline.h"
 #include "TObject.h"
 #include "TEvent.h"
+#include "CreateObject.h"
 #include "BouncingBall.h"
 #include "MoveBouncingBall.h"
-#include "CreateObject.h"
+#include "ChangeBallVelocity.h"
+
 
 using std::vector;
 using std::string;
@@ -29,6 +31,8 @@ using glm::vec4;
 using glm::mat4;
 using std::unique_ptr ;
 using std::make_unique ;
+using std::weak_ptr;
+using std::shared_ptr;
 
 // Outermost API holds a global reference to the core data model
 map<string,GLTF> meshes;
@@ -42,7 +46,6 @@ int selected_animation = -1;
 std::chrono::high_resolution_clock::time_point animation_start_time;
 
 unique_ptr<Timeline> timeline ;
-double history_kept = 1.5;
 
 
 long timeMilliseconds() {
@@ -75,7 +78,6 @@ byte* emptyReturn() {
     map<string, Variant> ret_map;
     return pack(ret_map);
 }
-
 
 std::chrono::high_resolution_clock::time_point now(){
     return std::chrono::high_resolution_clock::now();
@@ -110,6 +112,8 @@ std::unique_ptr<TEvent> createBallEvent(const Variant& serialized){
         event = std::make_unique<CreateObject>();
     }else if(map["dt"].type_ == Variant::DOUBLE){
         event = std::make_unique<MoveBouncingBall>();
+    }else if(map["v"].type_ == Variant::FLOAT_ARRAY){
+        event = std::make_unique<ChangeBallVelocity>();
     }else{
         printf("Event not parsed!\n");
         serialized.printFormatted();
@@ -120,19 +124,15 @@ std::unique_ptr<TEvent> createBallEvent(const Variant& serialized){
 }
 
 Timeline* initializeBallTimeline(){
-    timeline = make_unique<Timeline>();
-    timeline->setGenerators(&createBallEvent, &createBallObject);
+    timeline = make_unique<Timeline>(&createBallEvent, &createBallObject);
+    timeline->auto_clear_history=true;
     return timeline.get() ;
 }
 
-Timeline* initialize2DBallTimeline(int width, int height, int amount, float min_radius, float max_radius, float max_speed){
-    printf("initializing timeline!\n");
-    initializeBallTimeline();
-    //printf("amount: %d\n", amount);
+void addBall(int width, int height, float min_radius, float max_radius, float max_speed){
     vec3 box_min(0,0,-10000);
     vec3 box_max(width,height,10000);
-    for(int k=0;k<amount;k++){
-        float radius = min_radius + randomFloat()*(max_radius-min_radius);
+    float radius = min_radius + randomFloat()*(max_radius-min_radius);
         vec3 position(radius *2 + randomFloat()*(width-radius*4), radius * 2 + randomFloat()*(height-radius*4), 0);
         float angle = randomFloat()*6.29;
         float speed = randomFloat()*max_speed ;
@@ -141,7 +141,19 @@ Timeline* initialize2DBallTimeline(int width, int height, int amount, float min_
         
         std::unique_ptr<BouncingBall> o = std::make_unique<BouncingBall>(position, velocity, radius, box_min, box_max) ;
         std::unique_ptr<MoveBouncingBall> o_move = std::make_unique<MoveBouncingBall>(1.0/60.0) ;
-        timeline->createObject(std::move(o), std::move(o_move) , k*0.001/(double)amount);
+        float timeoffset = randomFloat() ;
+        printf("new ball in %f\n", timeoffset);
+        timeline->createObject(std::move(o), std::move(o_move) , timeline->current_time + timeoffset);
+
+}
+
+Timeline* initialize2DBallTimeline(int width, int height, int amount, float min_radius, float max_radius, float max_speed){
+    printf("initializing timeline!\n");
+    initializeBallTimeline();
+    //printf("amount: %d\n", amount);
+    
+    for(int k=0;k<amount;k++){
+        addBall(width, height, min_radius, max_radius, max_speed);
         
     }
     timeline->run(1.0);
@@ -527,7 +539,7 @@ byte* initialize2DBallTimeline(byte* ptr){
 }
 
 byte* runTimeline(byte* ptr){
-    
+    timeline->auto_clear_history =true;
     auto obj = Variant::deserializeObject(ptr);
     if(obj.find("time") == obj.end()){
         timeline->run();
@@ -535,7 +547,7 @@ byte* runTimeline(byte* ptr){
         float time = obj["time"].getNumberAsFloat();
         timeline->run(time);
     }
-    timeline->clearHistoryBefore(timeline->current_time-history_kept);
+    //timeline->clearHistoryBefore(timeline->current_time-history_kept);
     return emptyReturn();
 }
 
@@ -543,22 +555,26 @@ byte* getTimelineCircles(byte* ptr){
     vector<int> ob = timeline->updateObservables();
 
     map<string, Variant> ret_map ;
-    int* circles = (int*)malloc(ob.size()*3*4);
+    int* circles = (int*)malloc(ob.size()*4*4);
     //vector<Variant> output ;
     for(int k=0;k<ob.size();k++){
-        const TObject* o = timeline->getLastObserved(ob[k]) ;
-        circles[3*k] = (int)o->position.x;
-        circles[3*k+1] = (int)o->position.y;
-        circles[3*k+2] = (int)o->radius;
+        weak_ptr<TObject> ow = timeline->getLastObserved(ob[k]) ;
+        if(auto o = ow.lock()){
+            circles[4*k] = (int)o->position.x;
+            circles[4*k+1] = (int)o->position.y;
+            circles[4*k+2] = (int)o->radius;
+            circles[4*k+3] = ob[k];
         //output.push_back(Variant(timeline->getLastObserved(ob[k])->serialize()));
+        }
     }
     //ret_map["observables"] = Variant(output);
-    ret_map["observables"] = Variant(circles, ob.size()*3);
-
+    ret_map["observables"] = Variant(circles, ob.size()*4);
+    free(circles);
     return pack(ret_map);
 }
 
 byte* getInitialTimelineRequest(byte* ptr){
+    
     initializeBallTimeline();
     map<string, Variant> sync_data ;
     sync_data["descriptor"] = timeline->getDescriptor(0.0, false);
@@ -571,6 +587,17 @@ byte* synchronizeTimeline(byte* ptr){
     map<string, Variant> sync_data = Variant::deserializeObject(ptr);
     map<string, Variant> out_packet = timeline->synchronize(sync_data, false) ;
     return pack(out_packet);
+}
+
+byte* randomizeBallVelocity(byte* ptr){
+    auto obj = Variant::deserializeObject(ptr);
+    int id = obj["id"].getInt();
+    float max_speed = obj["max_speed"].getNumberAsFloat();
+    float angle = randomFloat()*6.29;
+    float speed = randomFloat()*max_speed ;
+    vec3 velocity(sin(angle)*speed, cos(angle)*speed,0);
+    timeline->addEvent(std::make_unique<ChangeBallVelocity>(id, velocity), timeline->current_time+0.02) ;
+    return emptyReturn();
 }
 
 }// end extern C

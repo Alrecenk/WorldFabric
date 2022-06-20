@@ -5,6 +5,9 @@ using std::string ;
 using std::map ;
 using std::vector;
 using glm::vec3;
+using std::weak_ptr;
+using std::shared_ptr;
+using std::unique_ptr;
 
 
 MoveBouncingBall::MoveBouncingBall(){
@@ -46,45 +49,45 @@ void MoveBouncingBall::set(std::map<std::string,Variant>& serial){
 // To maintain causality run should only interact with dynamic data by using the privided methods:
 // get(id), getMutable(), addEvent, createObject, deleteObject, and getCollisions
 void MoveBouncingBall::run(){
-    BouncingBall* o = (BouncingBall*)getMutable() ;
-    o->position += o->velocity * (float)interval;
-    //printf("Object moving to : %f,%f, %f\n", o->position.x, o->position.y, o->position.z);
-    /*
-    if(stop_on_hit){
-        vector<int> collisions = getCollisions();
-        if(collisions.size() != 0){
-             o->velocity = vec3(0,0,0);
-        }
-    }
-    */
-    if(o->position.x + o->radius > o->box_max.x){
-        o->position.x = o->box_max.x - o->radius;
-        o->velocity.x *= -1 ;
-    }
-    if(o->position.y + o->radius > o->box_max.y){
-        o->position.y = o->box_max.y - o->radius;
-        o->velocity.y *= -1 ;
-    }
-    if(o->position.x - o->radius < o->box_min.x){
-        o->position.x = o->box_min.x + o->radius;
-        o->velocity.x *= -1 ;
-    }
-    if(o->position.y - o->radius < o->box_min.y){
-        o->position.y = o->box_min.y + o->radius;
-        o->velocity.y *= -1 ;
-    }
+    weak_ptr<TObject> ow = getMutable() ;
+    if(auto og = ow.lock()){
+        shared_ptr<BouncingBall> o = std::static_pointer_cast<BouncingBall>(og);
+        o->position += o->velocity * (float)interval;
 
-    vector<int> collisions = getCollisions();
-    if(collisions.size()>0){
-        const BouncingBall* c = (const BouncingBall*)get(collisions[0]) ;
-        vec3 to_hit = c->position - o->position ;
-        to_hit = glm::normalize(to_hit);
-        if(glm::dot(o->velocity, to_hit) > 0){
-            vec3 c = to_hit * glm::dot(o->velocity,to_hit);
-            o->velocity -= c * 2.0f ;
-            //o->velocity.x *= -1;
-            //o->velocity.y *= -1 ;
+        if(o->position.x + o->radius > o->box_max.x){
+            o->position.x = o->box_max.x - o->radius;
+            o->velocity.x *= -1 ;
         }
+        if(o->position.y + o->radius > o->box_max.y){
+            o->position.y = o->box_max.y - o->radius;
+            o->velocity.y *= -1 ;
+        }
+        if(o->position.x - o->radius < o->box_min.x){
+            o->position.x = o->box_min.x + o->radius;
+            o->velocity.x *= -1 ;
+        }
+        if(o->position.y - o->radius < o->box_min.y){
+            o->position.y = o->box_min.y + o->radius;
+            o->velocity.y *= -1 ;
+        }
+
+        vector<int> collisions = getCollisions();
+        
+        if(collisions.size()>0){
+            //const BouncingBall* c = (const BouncingBall*)get(collisions[0]) ;
+            weak_ptr<TObject> cw = get(collisions[0]) ; // only dealing with first collision per frame
+            if(auto cg = cw.lock()){
+                shared_ptr<BouncingBall> c = std::static_pointer_cast<BouncingBall>(cg);
+                //mirror as though hitting a nonmovable object
+                vec3 to_hit = c->position - o->position ;
+                to_hit = glm::normalize(to_hit);
+                if(glm::dot(o->velocity, to_hit) > 0){//don't remirror if already turned away but still colliding
+                    vec3 c = to_hit * glm::dot(o->velocity,to_hit);
+                    o->velocity -= c * 2.0f ;
+                }
+            }
+        }
+        
     }
 
     std::unique_ptr<MoveBouncingBall> next_tick = std::make_unique<MoveBouncingBall>(anchor_id, interval);

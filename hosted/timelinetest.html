@@ -79,7 +79,8 @@ function canvasApp() {
         //document.addEventListener('pointermove', pointerMove, true) ;
             
 	
-        window.setInterval(timeListener, 1000.0/120.0);
+        window.setInterval(timeListener, 1000.0/60.0);
+        requestAnimationFrame(onFrame);
 	}
 
     function timeListener(){
@@ -92,6 +93,12 @@ function canvasApp() {
             tools.current_mode.timer();
             
         }
+    }
+    function onFrame(){
+        if(tools.current_mode!=null){
+            tools.current_mode.drawFrame(0); 
+        }
+        requestAnimationFrame(onFrame);
     }
 
 	function keyDownListener(evt) {

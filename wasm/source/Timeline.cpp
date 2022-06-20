@@ -16,33 +16,54 @@ using std::string ;
 using std::unordered_map;
 using std::unordered_set;
 using std::unique_ptr;
+using std::shared_ptr;
+using std::weak_ptr ;
 
-
-Timeline::Timeline(){
-    events.timeline = this;
-    collisions.timeline = this ;
-    last_run_time = timeMilliseconds();
-}
 
 // Set the functions to be used for generating typed timeline events and objects from serialized data
-void Timeline::setGenerators(std::unique_ptr<TEvent> (*event_generator)(const Variant& serialized), 
+Timeline::Timeline(std::unique_ptr<TEvent> (*event_generator)(const Variant& serialized), 
                             std::unique_ptr<TObject>(*object_generator)(const Variant& serialized)){
+    last_run_time = timeMilliseconds();
     TEvent::generateTypedTEvent = event_generator;
     TObject::generateTypedTObject = object_generator ;
+    collisions.timeline = this ;
 }
+
 
 // Adds an event to this timeline
 // Peforms rollback and correction as required
-void Timeline::addEvent(std::unique_ptr<TEvent> e, double send_time){
-    e->time = send_time ;
-    TObject* vo = objects[vantage_id].get(send_time) ;
-    TObject* eo = objects[e->anchor_id].get(send_time) ;
+void Timeline::addEvent(std::unique_ptr<TEvent> event, double send_time){
+    event->time = send_time ;
+    weak_ptr<TObject> vo = getObjectInstant(vantage_id, send_time) ;
+    weak_ptr<TObject> eo = getObjectInstant(event->anchor_id, send_time) ;
 
-    if(vo!= nullptr && eo !=nullptr){ // if position data available
+    if(auto vo2 = vo.lock()){
+    if(auto eo2 = eo.lock()){
+        // if position data available
         // delay event creation by time warp effect
-        e->time = send_time + glm::length(vo->position - eo->position)/info_speed ;
+        event->time = send_time + glm::length(vo2->position - eo2->position)/info_speed ;
+    }}
+    insertEvent(std::move(event));
+    //pending_external_events.push_back(event->weak_this);
+}
+
+std::weak_ptr<TEvent> Timeline::insertEvent(std::unique_ptr<TEvent> event){
+    event->timeline = this ;
+    
+    // Put it in the slot of a delted item if posible
+    for(int k=0;k<events.size();k++){
+        int p = (k + event_add_pointer)%events.size();
+        if(events[p].get() == nullptr || (events[p]->disabled && !events[p]->has_run)){
+            events[p] = std::move(event) ;
+            event_add_pointer = p+1; // next time start checking from the slot after the one we just filled
+            events[p]->weak_this = events[p];
+            return events[p];
+        }
     }
-    pending_external_events.push_back(events.addEvent(std::move(e)));
+    // No free slots, push on the end
+    events.push_back(std::move(event));
+    events[events.size()-1]->weak_this = events[events.size()-1];
+    return events[events.size()-1];
 }
 
 // Creates an event that creates an object at the earliest possible time
@@ -54,82 +75,89 @@ void Timeline::createObject(std::unique_ptr<TObject> obj, std::unique_ptr<TEvent
 
     // Creates an event that deletes an object at the earliest possible time
 void Timeline::deleteObject(int id, double send_time){
-    //TODO
+    printf("deleting IDs is not supported yet!\n");
+}
+
+TEvent* Timeline::nextEventToRun(double time, double info_speed){
+    double best_time = time;
+    TEvent* best_event = nullptr;
+    for(std::shared_ptr<TEvent>& e : events){
+        if(e.get() != nullptr && !e->disabled && !e->has_run){
+            double time_to_run = e->time ;
+            if(time_to_run <= best_time){
+                best_time = time_to_run;
+                best_event = e.get() ;
+            }
+        }
+    }
+    return best_event ;
+}
+
+TEvent* Timeline::nextEventToRun(glm::vec3 vantage, double time, double info_speed){
+    double best_time = time;
+    TEvent* best_event = nullptr;
+    for(std::shared_ptr<TEvent>& e : events){
+        if(e.get() != nullptr && !e->disabled && !e->has_run){
+            weak_ptr<TObject> eo = getObjectInstant(e->anchor_id, e->time) ;
+            double time_to_run = e->time ;
+            if(auto eo2 = eo.lock()){
+                double dist = glm::length(vantage- eo2->position);
+                time_to_run = e->time + dist/info_speed;
+            }
+            if(time_to_run <= best_time){
+                best_time = time_to_run;
+                best_event = e.get() ;
+            }
+        }
+    }
+    return best_event ;
 }
 
 // Runs events in the timeline until the location at the vantage object reaches the given time
 void Timeline::run(double new_time){
-    //printf("timeline running......\n");
     lock.lock();
     last_run_time = timeMilliseconds();
 
-    TObject* vo = objects[vantage_id].get(new_time) ;
+    weak_ptr<TObject> vo = getObjectInstant(vantage_id, new_time) ;
     vec3 vantage(0,0,0) ;
-    if(vo!= nullptr){ // if position data available
-        vantage = vo->position ;
+    bool has_vantage = false;
+    if(auto vo2 = vo.lock()){ // if position data available
+        vantage = vo2->position ;
+        has_vantage= true;
     }
-    /*
-    TEvent* current_event = events.next(vantage, new_time, info_speed) ;
+    
+    TEvent*  current_event = nextEventToRun(vantage, new_time, info_speed) ;
     while(current_event != nullptr){
         current_event->run();
-        current_event->run_pending = false;
+        current_event->has_run = true;
         if(current_event->wrote_anchor){
-            collisions.onDataChanged(current_event); // trigger rollback from potential retroactive changes to collision requests
-            if(current_event->anchor_id == vantage_id ){ // if vantage object changed
-                TObject* eo = objects[current_event->anchor_id].get(new_time) ;
-                if(eo!=nullptr){
-                    vantage = eo->position; // vantage point may have changed
+            collisions.onDataChanged(current_event);
+            if(has_vantage && current_event->anchor_id == vantage_id ){ // if vantage object changed
+                weak_ptr<TObject> eo = getObjectInstant(current_event->anchor_id, new_time) ;
+                if(auto eo2 = eo.lock()){
+                    vantage = eo2->position; // vantage point may have changed
                 }
             }
         }
-        current_event = events.next(vantage, new_time, info_speed) ;
-    }
-    */
 
-    map<double, TEvent*> events_to_run = events.allNext(vantage, new_time, info_speed) ;
-    //printf("events to run: %d\n", (int)events_to_run.size());
-    //double last_time = 0 ;
-    while(events_to_run.size()>0){
-        double max_time = new_time ;
-        for(auto& [event_run_time,current_event] : events_to_run){
-            if(current_event->time > max_time){ // this event occurs after an event spawned during this batch
-                break;
-            }
-            /*
-            if(last_time > current_event->time){
-                printf(" %f Event ran out of order! %f > %f\n", event_run_time, last_time, current_event->time);
-            }
-            last_time = current_event->time ; 
-            */
-            //printf("even time:%f\n", event_run_time);
-            current_event->run();
-            current_event->run_pending = false;
-            if(current_event->wrote_anchor){
-                collisions.onDataChanged(current_event);
-                if(current_event->anchor_id == vantage_id){ // if vantage object changed
-                    TObject* eo = objects[current_event->anchor_id].get(new_time) ;
-                    if(eo!=nullptr){ // vantaghe object actually exists
-                        if(eo->position != vantage){ // vantage point changed
-                            vantage = eo->position; // vantage point may have changed
-                            //events_to_run = events.allNext(vantage, new_time, info_speed) ; // recompute order with new vantage point
-                            break;
-                        }
-                    }else{
-                        printf("WTF: vantage object edited during run but doesn't exist! Maybe it's moving too fast?\n");
-                    }
-                }
-            }
-            for(TEvent* s : current_event->spawned_events){
-                    max_time = fmin(max_time,  s->time);
-            }
+        if(auto_clear_history && current_event->time - last_clear_time > history_kept*2){
+            current_time = fmax(current_time,current_event->time) ;
+            clearHistoryBefore(current_time-history_kept);
         }
-        events_to_run = events.allNext(vantage, new_time, info_speed) ;
-    }
 
+        if(has_vantage){
+            current_event = nextEventToRun(vantage, new_time, info_speed) ;
+        }else{
+            current_event = nextEventToRun(new_time, info_speed) ;
+        }
+        
+    }
     current_time = new_time ;
+
     lock.unlock();
 }
 
+// Runs the current timeline based on the real-time passed since last clal to either run function
 void Timeline::run(){
     long run_time = timeMilliseconds();
     double new_time = current_time + (run_time - last_run_time)/1000.0 ;
@@ -137,42 +165,154 @@ void Timeline::run(){
         printf("Run() time : %f\n", new_time);
     }*/
     run(new_time);
-    last_run_time = run_time ; // make sure clock move matches exactly what we executed based on
+    last_run_time = run_time ;
+}
+
+std::weak_ptr<TObject> Timeline::getObjectInstant(int id, double time){
+    // objecvt has never been written
+    if(objects.find(id) == objects.end()){
+        return std::weak_ptr<TObject>();
+    }
+    shared_ptr<TObject> instant = objects[id];
+    while(instant->write_time > time && instant->prev){
+        //instant->print();
+        instant = instant->prev ;
+    }
+    //reached oldest object and it was too new to be read
+    if(instant->write_time > time){
+        return std::weak_ptr<TObject>();
+    }
+    //instant->print();
+    return instant ;
+
+}
+
+// Returns the value of an object at the given time deleyed by time warp from the given vantage point
+std::weak_ptr<TObject> Timeline::getObjectInstant(const glm::vec3& vantage, int id, double time){
+// objecvt has never been written
+    if(objects.find(id) == objects.end()){
+        return std::weak_ptr<TObject>();
+    }
+
+    shared_ptr<TObject> instant = objects[id];
+    double available_time = instant->write_time + glm::length(instant->position-vantage)/info_speed ;
+    while(available_time > time && instant->prev){
+        instant = instant->prev ;
+        available_time = instant->write_time + glm::length(instant->position-vantage)/info_speed ;
+    }
+    //reached oldest object and it was too new to be read
+    if(available_time > time){
+        return std::weak_ptr<TObject>();
+    }
+    return instant ;
+}
+
+// creates a new mutable instance of the object at the given id at time
+// rolls back reads after the given time if required
+std::weak_ptr<TObject> Timeline::getMutable(int id, double time){
+    deleteAfter(id, time);
+    weak_ptr<TObject> g = getObjectInstant(id, time);
+
+    if(auto prev_instant = g.lock()){
+        unique_ptr<TObject> new_instant = prev_instant->deepCopy();
+        new_instant->prev = prev_instant ; // make the new shared pointer to previous so it doesnt deleted when we put new in objects
+        objects[id] = std::move(new_instant);
+        prev_instant->next = objects[id];
+        objects[id]->timeline = this;
+        objects[id]->write_time = time ;
+        return objects[id] ;
+    }
+    return weak_ptr<TObject>() ; // tried to get mutable of a nonexisting item
+}
+
+void Timeline::deleteAfter(int id, double time){
+    if(objects.find(id) == objects.end()){
+        return ;
+    }
+    // find the last instant we're going to keep
+    shared_ptr<TObject> last_instant = objects[id];
+    while(last_instant->write_time > time && last_instant->prev){
+        last_instant = last_instant->prev ;
+        // unrun all events that read data we're gonna wipe
+        for(int k=0;k<last_instant->readers.size();k++){
+            if(auto rk = last_instant->readers[k].first.lock()){
+                if(rk->has_run && rk->time > time){ // have to check time because the last instant may only have some reruns
+                    rk->unrun();
+                    last_instant->readers[k].first.reset() ; // remove the link to the reader since it might not read this when it reruns
+                }
+            }
+        }
+    }
+    objects[id] = last_instant ; //since backward links are the only shared_pt this should cause proper deletion
 }
 
 // Clears out all events and data changes before the given time
 // Objects may have a single instant before the clear time, so their value at that time can be fetched
 void Timeline::clearHistoryBefore(double clear_time){
     lock.lock();
-    clear_time = fmin(clear_time, current_time); // don't allow clearing beyond the current time
-    events.clearHistoryBefore(clear_time);
-    for(auto& [id, history] : objects){
-        history.clearHistoryBefore(clear_time);
+    clear_time = fmin(clear_time, current_time);// don't allow clearing beyond the current time
+
+    // clear out run events older than the time and any disabled events stil lingering
+    for(int k=0;k<events.size();k++){
+        if(events[k] && (events[k]->disabled || (events[k]->has_run && events[k]->time < clear_time))){
+            collisions.removeRequests(events[k].get());
+            events[k].reset();
+        }
     }
+
+    for(auto& [id, most_recent] : objects){
+        // find the first instant written before the clear time
+        shared_ptr<TObject> first_instant = most_recent;
+        while(first_instant->write_time >= clear_time && first_instant->prev){
+            first_instant = first_instant->prev ;
+        }
+        // delete everything before that instanrt
+        first_instant->prev.reset();
+    }
+    
     last_clear_time = clear_time ;
     lock.unlock();
 }
 
 // Return the minimum state required to generate a matching timeline from the given time
-std::pair<std::vector<TEvent*>, std::map<int, TObject*>> Timeline::getBaseState(double time){
+std::pair<std::vector<std::shared_ptr<TEvent>>, std::map<int, std::shared_ptr<TObject>>> Timeline::getBaseState(double time){
     if(time < last_clear_time){
-        printf("base state requested earlier than clear time! Something will definitely break.\n");
+        printf("Base state requested for time older than clear time!\n");
     }
-    std::pair<std::vector<TEvent*>, std::map<int, TObject*>> state ;
-    state.first = events.getBase(time) ;
-    for(auto& [id, history] : objects){
-        TObject* bo = history.get(time);
-        if(bo!=nullptr){
-            state.second[id] = bo ;
+    // get eventsafter time that are not spawned by other events after time
+    std::vector<std::shared_ptr<TEvent>> base_events ;
+    for(int k=0;k<events.size();k++){
+        if(events[k].get() != nullptr && !events[k]->disabled && events[k]->time > time){
+            std::weak_ptr<TEvent> spawner_w = events[k]->spawner ;
+            if(auto spawner = spawner_w.lock()){
+                if(spawner->time <= time || spawner->disabled){
+                    base_events.push_back(events[k]);
+                }
+            }else{
+                base_events.push_back(events[k]);
+            }
         }
     }
-    return state ;
+
+    // return the value of the object at the time
+    std::map<int, std::shared_ptr<TObject>> base_objects ;
+    for(auto& [id, history] : objects){
+        weak_ptr<TObject> ow = getObjectInstant(id, time);
+        if(auto o = ow.lock()){
+            base_objects[id] = o ;
+        }
+    }
+
+    return std::make_pair(base_events, base_objects) ;
 }
 
-// Returns a serialized descriptor of the state of the this Timeline that can be used by another Timeline ot generate a synchronization update
-Variant Timeline::getDescriptor(double time, bool server){
+// Returns a serialized descriptor of the state of the this Timeline at the goiven time 
+// that can be used by another Timeline to generate a synchronization update
+Variant Timeline::getDescriptor(double time,bool server){
     map<string,Variant> descriptor_map ;
+    time = fmax(time, last_clear_time);
     descriptor_map["time"] = Variant(time);
+    
     auto [base_events,base_objects] = getBaseState(time);
     int* base_event_hashes  = (int*)malloc(4 * base_events.size());
     for(int k=0;k<base_events.size();k++){
@@ -196,26 +336,26 @@ Variant Timeline::getDescriptor(double time, bool server){
     return Variant(descriptor_map);
 }
 
-// Given another tree's descriptor, produces an update that woulds bring that tree into syncwith this one
+// Given another tree's descriptor, produces an update that would bring that tree into sync with this one
 Variant Timeline::getUpdateFor(const Variant& descriptor, bool server){
     map<string,Variant> descriptor_map  = descriptor.getObject();
     double time = descriptor_map["time"].getDouble();
-    if(server){
+    //if(server){
         time = fmax(time, last_clear_time); // if requested an update older than cleared time, then send cleared time
-    }
+    //}
 
     // Correct client clock drift
+    
     if(!server){
         double target_time = time+base_age ;
-        if(ping > 1 && ping < 1000){
-            target_time += ping/2000.0 ;
+        
+        if(ping > 1 && ping < 200){
+            target_time += ping/2000.0 ; // descriptor time comes from server so only aged by one way ping
         }
-        double time_error = abs(current_time - target_time) ;
-        if(time_error > base_age*0.5){
-            printf("Correcting clock in getupdate 4: %f %f %f %d\n", time, target_time, current_time, ping);
-            run(target_time);
+        if(abs(current_time - target_time) > base_age*0.1 && (current_time < target_time || target_time > current_time-base_age)){ 
+            //printf("Correcting clock in getupdate 4: update time:%f target:%f current:%f ping:%d\n", time, target_time, current_time, ping);
+            run(target_time); // catch up
         }
-        //printf("Clock skew: %f\n", current_time - target_time);
     }
     
     int* other_events = descriptor_map["events"].getIntArray();
@@ -231,8 +371,7 @@ Variant Timeline::getUpdateFor(const Variant& descriptor, bool server){
     auto [base_events,base_objects] = getBaseState(time);
     vector<Variant> event_updates;
     for(int k=0;k<base_events.size();k++){
-        TEvent* event = base_events[k] ;
-        Variant serial = Variant(event->serialize());
+        Variant serial = Variant(base_events[k]->serialize());
         //serial.printFormatted();
         int hash = serial.hash();
         if(other_event_set.find(hash) == other_event_set.end()){ // we have event other didn't have
@@ -262,40 +401,35 @@ Variant Timeline::getUpdateFor(const Variant& descriptor, bool server){
         update_map["objects"] = Variant(object_updates);
     }
 
-    if(event_updates.size() > 0){
-        printf("current time: %f last clear time: %f\n", current_time, last_clear_time);
-        printf("descriptor:\n");
-        Variant(descriptor_map).printFormatted();
-        printf("update:\n");
-        Variant(update_map).printFormatted();
-    }
-
-
     return Variant(update_map);
 }
 
-// applies a syncrhoniation update produced by another timeline's use of getUpdateFor'
+// applies a syncrhoniation update produced by another timeline's use of getUpdateFor
+// returns the time of the update
 void Timeline::applyUpdate(const Variant& update, bool server){
     map<string,Variant> update_map = update.getObject();
     double time = update_map["time"].getDouble();
     if(time <= last_clear_time){
-        printf("WTF: received update earlier (%f) than clear time (%f)!\n", time, last_clear_time);
+        //printf("WTF: received update earlier (%f) than clear time (%f)!\n", time, last_clear_time);
         return ;
     }
     // Correct client clock drift
     if(!server){
+        /*
         double target_time = time+base_age ;
-        if(ping > 1 && ping < 1000){
-            target_time += ping/2000.0 ;
+        if(ping > 1 && ping < 500){
+            target_time += ping/1000.0 ; // time of update is set by us when we sent descriptor so off by round trip ping
         }
-        if(abs(current_time - target_time) > base_age*0.5){
-            printf("Correcting clock in applyupdate: %f %f %f %d\n", time, target_time, current_time, ping);
+        if(current_time < target_time || target_time > current_time-last_clear_time){
+            printf("Correcting client clock in applyupdate: %f %f %f %d\n", time, target_time, current_time, ping);
             run(target_time);
         }
-        //printf("Clock skew: %f\n", current_time - target_time);
+        */
+    }else if(time > current_time){
+        //printf("WTF: server got update based later (%f) than its run time (%f)!\n", time, last_clear_time);
+        return ;
     }
 
-    
     if(update_map.find("objects") != update_map.end()){
         map<int,Variant> object_updates = update_map["objects"].getIntObject();
         for(auto& [id,serial] : object_updates){
@@ -307,20 +441,14 @@ void Timeline::applyUpdate(const Variant& update, bool server){
                 }
                 unique_ptr<TObject> new_obj = TObject::generateTypedTObject(serial); // infer type and build using generator
                 //Variant(new_obj->serialize()).printFormatted();
-                objects[id] = ObjectHistory(std::move(new_obj), time); // place into timeline
+                objects[id] = std::move(new_obj) ;// place into timeline
+                objects[id]->write_time = time;
+                objects[id]->timeline = this ;
             }else{ // if already present but nonmatching value
-                /*printf("update updating base object!\n");
-                serial.printFormatted();
-                const TObject* eo = objects[id].get(time);
-                Variant(eo->serialize()).printFormatted();
-                */
-                TObject* existing_obj = objects[id].getMutable(time); // write using functionality that triggers rollback
-                if(existing_obj == nullptr){
-                    printf("WTF: Synchronize received update trying to edit an object that is not available at that time!\n");
-
-                }else{
+                weak_ptr<TObject> existing_obj = getMutable(id, time); // write using functionality that triggers rollback
+                if(auto existing = existing_obj.lock()){
                     map<string,Variant> serial_map = serial.getObject() ;
-                    existing_obj->set(serial_map);
+                    existing->set(serial_map);
                 }
             }
         }
@@ -329,10 +457,13 @@ void Timeline::applyUpdate(const Variant& update, bool server){
     vector<Variant> event_updates = update_map["events"].getVariantArray();
     for(int k=0;k<event_updates.size();k++){
         //printf("updating event\n");
-        events.addEvent(std::move(TEvent::generateTypedTEvent(event_updates[k])));
+        insertEvent(std::move(TEvent::generateTypedTEvent(event_updates[k])));
     }
 }
 
+// Given a packet with an update and optional descriptor
+// applies the update, and if there was a descriptor returns an ypdate for it
+// and a new descriptor of itself at current_time-base_age
 std::map<std::string, Variant> Timeline::synchronize(std::map<std::string, Variant>& packet, bool server){
     lock.lock();
     if(packet.find("update") != packet.end()){
@@ -353,7 +484,9 @@ std::map<std::string, Variant> Timeline::synchronize(std::map<std::string, Varia
         map<string,Variant> ret_map;
         //printf("generating update - > %f...\n", packet["descriptor"]["time"].getDouble());
         ret_map["update"] = getUpdateFor(packet["descriptor"], server);
-        
+        if(!ret_map["update"].defined()){
+            ret_map.erase("update");
+        }
 
         //ret_map["update"].printFormatted();
         //printf("generating descriptor - > %f...\n", current_time-base_age);
@@ -369,26 +502,40 @@ std::map<std::string, Variant> Timeline::synchronize(std::map<std::string, Varia
 // Updates all observables to the current time, performing interpolation as required
 // and returnsa list of ID for all observables
 std::vector<int> Timeline::updateObservables(){
-    TObject* vo = objects[vantage_id].get(current_time) ;
+
+    weak_ptr<TObject> vo = getObjectInstant(vantage_id, current_time) ;
+    vec3 vantage(0,0,0) ;
+    bool has_vantage = false;
+    if(auto vo2 = vo.lock()){ // if position data available
+        vantage = vo2->position ;
+        has_vantage= true;
+    }
+
     vector<int> observed_ids;
     for(auto& [id, object_history] : objects){
-        TObject* read = nullptr ;
-        if(vo != nullptr){
-            read = object_history.get(vo->position,current_time, info_speed);
+
+        weak_ptr<TObject> eo = getObjectInstant(id, current_time) ;
+        weak_ptr<TObject> read ;
+        if(auto vo2 = vo.lock()){
+            read = getObjectInstant(vo2->position, id, current_time) ;
         }else{
-            read = object_history.get(current_time);
+            read = getObjectInstant(id, current_time) ;
         }
-        if(read != nullptr){
-            last_observed[id] = std::move(read->getObserved(last_observed[id].get()));
+        if(auto read2 = read.lock()){
+            last_observed[id] = std::move(read2->getObserved(last_observed[id]));
             observed_ids.push_back(id);
         }
     }
     return observed_ids ;
+
 }
 
 // Returns a reference to the last observed value of a given ID
-const TObject* Timeline::getLastObserved(int id){
-    return last_observed[id].get();
+const std::shared_ptr<TObject> Timeline::getLastObserved(int id){
+    if(last_observed.find(id) != last_observed.end()){
+        return last_observed[id] ;
+    }
+    return std::shared_ptr<TObject>();
 }
 
 // returns the next valid ID that should be used for a created object
@@ -400,7 +547,7 @@ int Timeline::getNextID(){
     return max_id + 1 ;
 }
 
-long Timeline::timeMilliseconds() const {
+long Timeline::timeMilliseconds() const{
     return std::chrono::duration_cast<std::chrono::milliseconds>(
             std::chrono::system_clock::now().time_since_epoch()).count();
 }
