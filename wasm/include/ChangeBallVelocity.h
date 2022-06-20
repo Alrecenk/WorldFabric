@@ -1,5 +1,5 @@
-#ifndef _CHANGE_VELOCITY_H_
-#define _CHANGE_VELOCITY_H_ 1
+#ifndef _CHANGE_BALL_VELOCITY_H_
+#define _CHANGE_BALL_VELOCITY_H_ 1
 
 #include "TEvent.h"
 #include "TObject.h"
@@ -9,16 +9,16 @@
 #include <map>
 
 
-class ChangeVelocity : public TEvent{
+class ChangeBallVelocity : public TEvent{
 
     public:
         glm::vec3 new_velocity;
 
-        ChangeVelocity();
+        ChangeBallVelocity();
 
-        ChangeVelocity(int moving_object, glm::vec3 v);
+        ChangeBallVelocity(int moving_object, glm::vec3 v);
 
-        ~ChangeVelocity() override;
+        ~ChangeBallVelocity() override;
 
         // Serialize this event's data, so it can be efficiently moved between timelines
         std::map<std::string,Variant> serialize() const override;
@@ -31,6 +31,7 @@ class ChangeVelocity : public TEvent{
         // To maintain causality run should only interact with dynamic data by using the privided methods:
         // get(id), getMutable(), addEvent, createObject, deleteObject, and getCollisions
         void run() override;
+
         
 };
-#endif // #ifndef _CHANGE_VELOCITY_H_
+#endif // #ifndef _CHANGE_BALL_VELOCITY_H_

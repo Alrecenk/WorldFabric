@@ -16,9 +16,11 @@
 #include "Timeline.h"
 #include "TObject.h"
 #include "TEvent.h"
+#include "CreateObject.h"
 #include "BouncingBall.h"
 #include "MoveBouncingBall.h"
-#include "CreateObject.h"
+#include "ChangeBallVelocity.h"
+
 
 using std::vector;
 using std::string;
@@ -77,7 +79,6 @@ byte* emptyReturn() {
     return pack(ret_map);
 }
 
-
 std::chrono::high_resolution_clock::time_point now(){
     return std::chrono::high_resolution_clock::now();
 } 
@@ -111,6 +112,8 @@ std::unique_ptr<TEvent> createBallEvent(const Variant& serialized){
         event = std::make_unique<CreateObject>();
     }else if(map["dt"].type_ == Variant::DOUBLE){
         event = std::make_unique<MoveBouncingBall>();
+    }else if(map["v"].type_ == Variant::FLOAT_ARRAY){
+        event = std::make_unique<ChangeBallVelocity>();
     }else{
         printf("Event not parsed!\n");
         serialized.printFormatted();
@@ -552,14 +555,15 @@ byte* getTimelineCircles(byte* ptr){
     vector<int> ob = timeline->updateObservables();
 
     map<string, Variant> ret_map ;
-    int* circles = (int*)malloc(ob.size()*3*4);
+    int* circles = (int*)malloc(ob.size()*4*4);
     //vector<Variant> output ;
     for(int k=0;k<ob.size();k++){
         weak_ptr<TObject> ow = timeline->getLastObserved(ob[k]) ;
         if(auto o = ow.lock()){
-            circles[3*k] = (int)o->position.x;
-            circles[3*k+1] = (int)o->position.y;
-            circles[3*k+2] = (int)o->radius;
+            circles[4*k] = (int)o->position.x;
+            circles[4*k+1] = (int)o->position.y;
+            circles[4*k+2] = (int)o->radius;
+            circles[4*k+3] = ob[k];
         //output.push_back(Variant(timeline->getLastObserved(ob[k])->serialize()));
         }
     }
@@ -583,6 +587,17 @@ byte* synchronizeTimeline(byte* ptr){
     map<string, Variant> sync_data = Variant::deserializeObject(ptr);
     map<string, Variant> out_packet = timeline->synchronize(sync_data, false) ;
     return pack(out_packet);
+}
+
+byte* randomizeBallVelocity(byte* ptr){
+    auto obj = Variant::deserializeObject(ptr);
+    int id = obj["id"].getInt();
+    float max_speed = obj["max_speed"].getNumberAsFloat();
+    float angle = randomFloat()*6.29;
+    float speed = randomFloat()*max_speed ;
+    vec3 velocity(sin(angle)*speed, cos(angle)*speed,0);
+    timeline->addEvent(std::make_unique<ChangeBallVelocity>(id, velocity), timeline->current_time+0.02) ;
+    return emptyReturn();
 }
 
 }// end extern C

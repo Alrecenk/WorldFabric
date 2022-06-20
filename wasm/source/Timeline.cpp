@@ -224,6 +224,9 @@ std::weak_ptr<TObject> Timeline::getMutable(int id, double time){
 }
 
 void Timeline::deleteAfter(int id, double time){
+    if(objects.find(id) == objects.end()){
+        return ;
+    }
     // find the last instant we're going to keep
     shared_ptr<TObject> last_instant = objects[id];
     while(last_instant->write_time > time && last_instant->prev){
@@ -304,7 +307,9 @@ std::pair<std::vector<std::shared_ptr<TEvent>>, std::map<int, std::shared_ptr<TO
 // that can be used by another Timeline to generate a synchronization update
 Variant Timeline::getDescriptor(double time,bool server){
     map<string,Variant> descriptor_map ;
+    time = fmax(time, last_clear_time);
     descriptor_map["time"] = Variant(time);
+    
     auto [base_events,base_objects] = getBaseState(time);
     int* base_event_hashes  = (int*)malloc(4 * base_events.size());
     for(int k=0;k<base_events.size();k++){
@@ -332,9 +337,9 @@ Variant Timeline::getDescriptor(double time,bool server){
 Variant Timeline::getUpdateFor(const Variant& descriptor, bool server){
     map<string,Variant> descriptor_map  = descriptor.getObject();
     double time = descriptor_map["time"].getDouble();
-    if(server){
+    //if(server){
         time = fmax(time, last_clear_time); // if requested an update older than cleared time, then send cleared time
-    }
+    //}
 
     // Correct client clock drift
     
@@ -345,7 +350,7 @@ Variant Timeline::getUpdateFor(const Variant& descriptor, bool server){
             target_time += ping/2000.0 ; // descriptor time comes from server so only aged by one way ping
         }
         if(abs(current_time - target_time) > base_age*0.1 && (current_time < target_time || target_time > current_time-base_age)){ 
-            printf("Correcting clock in getupdate 4: update time:%f target:%f current:%f ping:%d\n", time, target_time, current_time, ping);
+            //printf("Correcting clock in getupdate 4: update time:%f target:%f current:%f ping:%d\n", time, target_time, current_time, ping);
             run(target_time); // catch up
         }
     }
@@ -402,7 +407,7 @@ void Timeline::applyUpdate(const Variant& update, bool server){
     map<string,Variant> update_map = update.getObject();
     double time = update_map["time"].getDouble();
     if(time <= last_clear_time){
-        printf("WTF: received update earlier (%f) than clear time (%f)!\n", time, last_clear_time);
+        //printf("WTF: received update earlier (%f) than clear time (%f)!\n", time, last_clear_time);
         return ;
     }
     // Correct client clock drift
@@ -418,7 +423,7 @@ void Timeline::applyUpdate(const Variant& update, bool server){
         }
         */
     }else if(time > current_time){
-        printf("WTF: server got update based later (%f) than its run time (%f)!\n", time, last_clear_time);
+        //printf("WTF: server got update based later (%f) than its run time (%f)!\n", time, last_clear_time);
         return ;
     }
 
@@ -476,7 +481,9 @@ std::map<std::string, Variant> Timeline::synchronize(std::map<std::string, Varia
         map<string,Variant> ret_map;
         //printf("generating update - > %f...\n", packet["descriptor"]["time"].getDouble());
         ret_map["update"] = getUpdateFor(packet["descriptor"], server);
-        
+        if(!ret_map["update"].defined()){
+            ret_map.erase("update");
+        }
 
         //ret_map["update"].printFormatted();
         //printf("generating descriptor - > %f...\n", current_time-base_age);

@@ -41,6 +41,7 @@ std::weak_ptr<TObject> TEvent::getMutable(){
         prev_instant->next = timeline->objects[anchor_id];
         timeline->objects[anchor_id]->timeline = timeline;
         timeline->objects[anchor_id]->write_time = time ;
+        wrote_anchor = true;
         return timeline->objects[anchor_id] ;
     }
     return weak_ptr<TObject>() ; // tried to get mutable of a nonexisting item

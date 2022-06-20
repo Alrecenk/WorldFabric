@@ -43,6 +43,7 @@ EXPORTED_FUNCTIONS =[\
 	'_getTimelineCircles',\
 	'_getInitialTimelineRequest',\
 	'_synchronizeTimeline',\
+	'_randomizeBallVelocity',\
 	'_free']
 EXTRA_EXPORTED_RUNTIME_METHODS=['ccall']
 API_MAIN = ${API_DIR}source/api.cpp
@@ -59,7 +60,8 @@ API_SRC    =${API_DIR}source/Variant.cpp \
 			${API_DIR}source/ChangeVelocity.cpp \
 			${API_DIR}source/MoveObject.cpp \
 			${API_DIR}source/BouncingBall.cpp \
-			${API_DIR}source/MoveBouncingBall.cpp
+			${API_DIR}source/MoveBouncingBall.cpp \
+			${API_DIR}source/ChangeBallVelocity.cpp
 
 			
 default: all

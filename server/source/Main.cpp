@@ -71,9 +71,9 @@ int main(int argc, char** argv) {
         timeline->run();
         //timeline->clearHistoryBefore(timeline->current_time-history_kept);
         
-        if(randomFloat()<0.01){
+        /*if(randomFloat()<0.01){
             addBall(width, height, min_radius, max_radius, max_speed);
-        }
+        }*/
     }
     web_server.stop();
     timeline_server.stop();
