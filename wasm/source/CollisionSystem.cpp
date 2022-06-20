@@ -1,6 +1,5 @@
 #include "CollisionSystem.h"
 
-#include "ObjectHistory.h"
 #include "Timeline.h"
 #include "TObject.h"
 #include "TEvent.h"

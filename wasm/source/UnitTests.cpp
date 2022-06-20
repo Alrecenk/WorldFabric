@@ -3,8 +3,6 @@
 #include "glm/vec3.hpp"
 #include "TObject.h"
 #include "TEvent.h"
-#include "EventQueue.h"
-#include "ObjectHistory.h"
 #include "CreateObject.h"
 
 #include "MovingObject.h"
