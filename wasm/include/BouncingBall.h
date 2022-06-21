@@ -7,12 +7,14 @@ class BouncingBall : public TObject{
 
     public:
         glm::vec3 velocity;
-        glm::vec3 box_min;
-        glm::vec3 box_max ;
+        glm::vec3 box_min = glm::vec3(-10E15,-10E15,-10E15);
+        glm::vec3 box_max = glm::vec3(10E15,10E15,10E15); ;
 
         BouncingBall();
 
         BouncingBall(glm::vec3 p, glm::vec3 v, float r, glm::vec3 min, glm::vec3 max);
+
+        BouncingBall(glm::vec3 p, glm::vec3 v, float r);
 
         ~BouncingBall() override;
 
@@ -29,6 +31,11 @@ class BouncingBall : public TObject{
         // Override this function to provide logic for interpolation after rollback or extrapolation for slowly updating objects
         // If not overridden getObserved returns the raw value of the object
         std::unique_ptr<TObject> getObserved(const std::weak_ptr<TObject> last_observed) override;
+
+
+        static std::unique_ptr<TObject> createObject(const Variant& serialized);
+
+        static std::unique_ptr<TEvent> createEvent(const Variant& serialized);
 
         
 };

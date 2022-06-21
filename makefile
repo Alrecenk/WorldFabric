@@ -57,9 +57,6 @@ API_SRC    =${API_DIR}source/Variant.cpp \
 			${API_DIR}source/TEvent.cpp \
 			${API_DIR}source/CollisionSystem.cpp \
 			${API_DIR}source/CreateObject.cpp \
-			${API_DIR}source/MovingObject.cpp \
-			${API_DIR}source/ChangeVelocity.cpp \
-			${API_DIR}source/MoveObject.cpp \
 			${API_DIR}source/BouncingBall.cpp \
 			${API_DIR}source/MoveBouncingBall.cpp \
 			${API_DIR}source/ChangeBallVelocity.cpp

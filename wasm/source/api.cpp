@@ -87,44 +87,8 @@ int millisBetween(std::chrono::high_resolution_clock::time_point start, std::chr
     return (int)(std::chrono::duration_cast<std::chrono::duration<double>>(end - start).count()*1000);
 }
 
-std::unique_ptr<TObject> createBallObject(const Variant& serialized){
-    //printf("callec create ball object!\n");
-    //serialized.printFormatted();
-    if(serialized.type_ != Variant::OBJECT){
-        printf("timeline attemped to create an object with a nonobject variabnt!\n");
-    }
-    auto map = serialized.getObject() ;
-    auto o = std::make_unique<BouncingBall>();
-    o->set(map);
-    return std::move(o);
-}
-
-std::unique_ptr<TEvent> createBallEvent(const Variant& serialized){
-    
-    //TODO add a type system to make this check more intuitive
-    if(serialized.type_ == Variant::NULL_VARIANT){ // events can hold poiners to other events which may be null
-        return std::unique_ptr<TEvent>(nullptr);
-    }
-    auto map = serialized.getObject() ;
-    std::unique_ptr<TEvent> event ;
-    //TODO better way to distinguish event types
-    if(map["o"].type_ == Variant::OBJECT){
-        event = std::make_unique<CreateObject>();
-    }else if(map["dt"].type_ == Variant::DOUBLE){
-        event = std::make_unique<MoveBouncingBall>();
-    }else if(map["v"].type_ == Variant::FLOAT_ARRAY){
-        event = std::make_unique<ChangeBallVelocity>();
-    }else{
-        printf("Event not parsed!\n");
-        serialized.printFormatted();
-        //event = std::make_unique<ChangeVelocity>();
-    }
-    event->set(map);
-    return std::move(event);
-}
-
 Timeline* initializeBallTimeline(){
-    timeline = make_unique<Timeline>(&createBallEvent, &createBallObject);
+    timeline = make_unique<Timeline>(&BouncingBall::createEvent, &BouncingBall::createObject);
     timeline->auto_clear_history=true;
     return timeline.get() ;
 }
