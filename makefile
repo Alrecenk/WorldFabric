@@ -43,7 +43,7 @@ EXPORTED_FUNCTIONS =[\
 	'_getTimelineCircles',\
 	'_getInitialTimelineRequest',\
 	'_synchronizeTimeline',\
-	'_randomizeBallVelocity',\
+	'_setBallVelocity',\
 	'_free']
 EXTRA_EXPORTED_RUNTIME_METHODS=['ccall']
 API_MAIN = ${API_DIR}source/api.cpp

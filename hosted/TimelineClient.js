@@ -7,7 +7,7 @@ class TimelineClient{
     //The websocket
     socket = null ; 
     active = false;
-    update_delay = 10; // milliseconds to wait before actually sending a packet (used for simulating latency)
+    update_delay = 15; // milliseconds to wait before actually sending a packet (used for simulating latency)
     sync_ping = 0 ;
     
     // Opens a websocket on creation to connect to a TableServer (cpp) on the same server as the web-hosting

@@ -69,6 +69,9 @@ void TEvent::deleteObject(int id){
 }
 
 void TEvent::unrun(){
+    has_run = false;
+    timeline->collisions.removeRequests(this);
+
     // Remove links for the data this event accessed on run ( so we don't get rerun if that data changes
     for(int k=0;k<read.size();k++){
         if(auto rk = read[k].lock()){
@@ -82,7 +85,6 @@ void TEvent::unrun(){
         }
     }
     read.clear();
-
     // Delete any data following from this write
     if(wrote_anchor){
         timeline->deleteAfter(anchor_id, time);
@@ -98,13 +100,13 @@ void TEvent::unrun(){
         }
     }
     spawned_events.clear();
-    timeline->collisions.removeRequests(this);
-    has_run = false;
+    
 }
 
 // Returns the IDs of all TObjects colliding with the bounding sphere of the anchor object
 // at the time of this event
 std::vector<int> TEvent::getCollisions(){
+    //return std::vector<int>();
     return timeline->collisions.getCollisions(this);
 }
 
