@@ -75,15 +75,17 @@ void CollisionSystem::onDataChanged(TEvent* event){
                     if(now_collides != then_collided){
                         //printf("rolling back event due to collision change!\n");
                         //caller->print();
-                        //timeline->events.rerunEvent(caller);
                         to_rerun.push_back(caller);
+                        //caller->unrun();
                     }
                 }
             }
         }
     }
+    
     for( TEvent* r : to_rerun){
         if(!r->disabled && r->has_run){
+            timeline->collisions.removeRequests(r); // aggressive removal prevents recursive unruns from slowing down on this function           
             r->unrun();
         }
     }

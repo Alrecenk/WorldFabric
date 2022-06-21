@@ -36,8 +36,8 @@ class Timeline{
         int ping = 0;
         double last_clear_time = -99999 ;
 
-        static constexpr double base_age = 0.5;
-        static constexpr double history_kept = 1.0;
+        double base_age = 0.5;
+        double history_kept = 1.0;
         bool auto_clear_history = false;
 
         std::recursive_mutex lock ;
@@ -69,8 +69,6 @@ class Timeline{
 
          // Creates an event that deletes an object at the earliest possible time
         void deleteObject(int id, double send_time);
-
-        TEvent* nextEventToRun(double time, double info_speed);
 
         TEvent* nextEventToRun(glm::vec3 vantage, double time, double info_speed);
 

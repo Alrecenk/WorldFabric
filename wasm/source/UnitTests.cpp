@@ -359,9 +359,11 @@ bool UnitTests::checksimpleTimelineSync(){
     bool s = true ;
     
     Timeline t1 = Timeline(&BouncingBall::createEvent, &BouncingBall::createObject);
-
+    t1.history_kept = 1000;
+    t1.base_age = 100 ;
     Timeline t2 = Timeline(&BouncingBall::createEvent, &BouncingBall::createObject);
-
+    t2.history_kept = 1000;
+    t2.base_age = 100 ;
     std::unique_ptr<BouncingBall> o1 = std::make_unique<BouncingBall>(vec3(0,0,0),vec3(1,0,0), 1.0f) ;
     std::unique_ptr<MoveBouncingBall> o_move1 = std::make_unique<MoveBouncingBall>(0.5) ;
     t1.createObject(std::move(o1), std::move(o_move1) , 1.0);
@@ -401,6 +403,7 @@ bool UnitTests::checksimpleTimelineSync(){
     }
 
     Timeline t3 = Timeline(&BouncingBall::createEvent, &BouncingBall::createObject);
+    t3.run(3.0);
     Variant d3 = t3.getDescriptor(2.0,false);
     u = t2.getUpdateFor(d3, true);
 

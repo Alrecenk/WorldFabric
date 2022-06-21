@@ -4,6 +4,10 @@ class BallBounceMode extends ExecutionMode{
     // Mouse position
 	mouse_x;
 	mouse_y;
+    mouse_time;
+    last_mouse_x ;
+    last_mouse_y ;
+    last_mouse_time ;
 	// Where the mouse was last pressed down.
 	mouse_down_x;
 	mouse_down_y;
@@ -81,6 +85,33 @@ class BallBounceMode extends ExecutionMode{
         }
         */
 
+        if(this.dragging){
+
+            for(let k=0;k<this.observables.length;k+=4){
+                let x = this.observables[k];
+                let y = this.observables[k+1];
+                let r = this.observables[k+2];
+                let id = this.observables[k+3];
+                if(id == this.drag_id){
+                    let dist2 = (x-this.mouse_x)*(x-this.mouse_x) + (y-this.mouse_y)*(y-this.mouse_y) ;
+                    let new_v = [0,0,0] ;
+                    if(dist2 < r*r*.25){ // if mouse is on held object
+                        // set velocity to mouse velocity
+                        new_v[0] = (this.mouse_x - this.last_mouse_x) / (this.mouse_time  - this.last_mouse_time);
+                        new_v[1] = (this.mouse_y - this.last_mouse_y) / (this.mouse_time  - this.last_mouse_time);
+                    }else{
+                        // move toward mouse at high speed (half the distance each tick)
+                        new_v[0] = (this.mouse_x - x) ;
+                        new_v[1] = (this.mouse_y - y) ;
+                        let s = 300.0/Math.sqrt(new_v[0]*new_v[0] + new_v[1]*new_v[1]);
+                        new_v[0]*= s ;
+                        new_v[1]*= s ;
+                    }
+                    tools.API.call("setBallVelocity",{id:this.drag_id,v:new Float32Array(new_v)}, new Serializer());
+                }
+            }
+        }
+
         tools.API.call("runTimeline", {}, new Serializer());
         
         
@@ -123,6 +154,7 @@ class BallBounceMode extends ExecutionMode{
 		this.mouse_button = pointers[0].button ;
         
         if(this.mouse_button != 2){
+            
             for(let k=0;k<this.observables.length;k+=4){
                 let x = this.observables[k];
                 let y = this.observables[k+1];
@@ -130,7 +162,9 @@ class BallBounceMode extends ExecutionMode{
                 let id = this.observables[k+3];
                 let dist2 = (x-this.mouse_down_x)*(x-this.mouse_down_x) + (y-this.mouse_down_y)*(y-this.mouse_down_y) ;
                 if(dist2 < r*r){
-                    tools.API.call("randomizeBallVelocity",{id:id,max_speed:300}, new Serializer());
+                    this.dragging = true ;
+                    this.drag_id = id ;
+                    //tools.API.call("randomizeBallVelocity",{id:id,max_speed:300}, new Serializer());
                 }
             }
         }else{
@@ -140,13 +174,17 @@ class BallBounceMode extends ExecutionMode{
     }
 
 	pointerMove(pointers){
+        let new_mouse_time = new Date().getTime() ;
+        if(new_mouse_time != this.mouse_time){
+            this.last_mouse_x = this.mouse_x ;
+            this.last_mouse_y = this.mouse_y ;
+            this.last_mouse_time =  this.mouse_time;
+        }
+        this.mouse_time = new_mouse_time;
 		this.mouse_x = pointers[0].x;
 		this.mouse_y = pointers[0].y;
 		if(this.mouse_down){
-            if(this.dragging){
-  
-            }else if(this.rotating){
-            }
+            
 		}
     }
 
@@ -155,11 +193,22 @@ class BallBounceMode extends ExecutionMode{
 			return ;
         }
         if(this.dragging){
-            
+            /*
+            let id = this.drag_id;
+            let new_v = [0,0,0] ;
+            // set velocity to mouse velocity
+            new_v[0] = (this.mouse_x - this.last_mouse_x) / (1+(this.mouse_time  - this.last_mouse_time));
+            new_v[1] = (this.mouse_y - this.last_mouse_y) / (1+(this.mouse_time  - this.last_mouse_time));
+            let s = 300.0/Math.sqrt(new_v[0]*new_v[0] + new_v[1]*new_v[1]);
+            if( s < 1.0){
+                new_v[0]*= s ;
+                new_v[1]*= s ;
+            }
+            tools.API.call("setBallVelocity",{id:id,v:new Float32Array(new_v)}, new Serializer());
+            */
         }
         this.mouse_down = false ;
         this.dragging = false;
-        this.rotating = false;
     }
 
     mouseWheelListener(event){

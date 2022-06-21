@@ -553,14 +553,11 @@ byte* synchronizeTimeline(byte* ptr){
     return pack(out_packet);
 }
 
-byte* randomizeBallVelocity(byte* ptr){
+byte* setBallVelocity(byte* ptr){
     auto obj = Variant::deserializeObject(ptr);
     int id = obj["id"].getInt();
-    float max_speed = obj["max_speed"].getNumberAsFloat();
-    float angle = randomFloat()*6.29;
-    float speed = randomFloat()*max_speed ;
-    vec3 velocity(sin(angle)*speed, cos(angle)*speed,0);
-    timeline->addEvent(std::make_unique<ChangeBallVelocity>(id, velocity), timeline->current_time+0.02) ;
+    vec3 velocity = obj["v"].getVec3();
+    timeline->addEvent(std::make_unique<ChangeBallVelocity>(id, velocity), timeline->current_time+0.02 + 0.01*randomFloat()) ;
     return emptyReturn();
 }
 
