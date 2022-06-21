@@ -1,5 +1,9 @@
 #include "BouncingBall.h"
 
+#include "CreateObject.h"
+#include "MoveBouncingBall.h"
+#include "ChangeBallVelocity.h"
+
 using std::map;
 using std::string;
 using std::vector;
@@ -12,6 +16,12 @@ BouncingBall::BouncingBall(glm::vec3 p, glm::vec3 v, float r, glm::vec3 min, glm
     radius = r ;
     box_min = min ;
     box_max = max ;
+}
+
+BouncingBall::BouncingBall(glm::vec3 p, glm::vec3 v, float r){
+    position = p ;
+    velocity = v;
+    radius = r ;
 }
 
 BouncingBall::~BouncingBall() {}
@@ -49,4 +59,40 @@ std::unique_ptr<TObject> BouncingBall::deepCopy(){
 // If not overridden getObserved returns the raw value of the object
 std::unique_ptr<TObject> BouncingBall::getObserved(const std::weak_ptr<TObject> last_observed){
     return deepCopy();
+}
+
+std::unique_ptr<TObject> BouncingBall::createObject(const Variant& serialized){
+    //printf("callec create ball object!\n");
+    //serialized.printFormatted();
+    if(serialized.type_ != Variant::OBJECT){
+        printf("timeline attemped to create an object with a nonobject variabnt!\n");
+    }
+    auto map = serialized.getObject() ;
+    auto o = std::make_unique<BouncingBall>();
+    o->set(map);
+    return std::move(o);
+}
+
+std::unique_ptr<TEvent> BouncingBall::createEvent(const Variant& serialized){
+    
+    //TODO add a type system to make this check more intuitive
+    if(serialized.type_ == Variant::NULL_VARIANT){ // events can hold poiners to other events which may be null
+        return std::unique_ptr<TEvent>(nullptr);
+    }
+    auto map = serialized.getObject() ;
+    std::unique_ptr<TEvent> event ;
+    //TODO better way to distinguish event types
+    if(map["o"].type_ == Variant::OBJECT){
+        event = std::make_unique<CreateObject>();
+    }else if(map["dt"].type_ == Variant::DOUBLE){
+        event = std::make_unique<MoveBouncingBall>();
+    }else if(map["v"].type_ == Variant::FLOAT_ARRAY){
+        event = std::make_unique<ChangeBallVelocity>();
+    }else{
+        printf("Event not parsed!\n");
+        serialized.printFormatted();
+        //event = std::make_unique<ChangeVelocity>();
+    }
+    event->set(map);
+    return std::move(event);
 }

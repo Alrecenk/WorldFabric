@@ -34,7 +34,6 @@ class MoveBouncingBall : public TEvent{
         void run() override;
 
         double interval ;
-
         
 };
 #endif // #ifndef _MOVE_BOUNCING_BALL_H_

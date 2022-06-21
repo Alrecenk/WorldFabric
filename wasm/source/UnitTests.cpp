@@ -5,9 +5,9 @@
 #include "TEvent.h"
 #include "CreateObject.h"
 
-#include "MovingObject.h"
-#include "ChangeVelocity.h"
-#include "MoveObject.h"
+#include "BouncingBall.h"
+#include "MoveBouncingBall.h"
+#include "ChangeBallVelocity.h"
 
 #include <unordered_map>
 #include <vector>
@@ -75,42 +75,15 @@ int UnitTests::countHistory(shared_ptr<TObject> recent){
     return count ;
 }
 
-std::unique_ptr<TObject> UnitTests::createObject(const Variant& serialized){
-    auto map = serialized.getObject() ;
-    auto o = std::make_unique<MovingObject>();
-    o->set(map);
-    return std::move(o);
-}
-
-std::unique_ptr<TEvent> UnitTests::createEvent(const Variant& serialized){
-    
-    //TODO add a type system to make this check more intuitive
-    if(serialized.type_ == Variant::NULL_VARIANT){ // events can hold poiners to other events which may be null
-        return std::unique_ptr<TEvent>(nullptr);
-    }
-    auto map = serialized.getObject() ;
-    std::unique_ptr<TEvent> event ;
-    //TODO better way to distinguish event types
-    if(map["o"].type_ == Variant::OBJECT){
-        event = std::make_unique<CreateObject>();
-    }else if(map["dt"].type_ == Variant::DOUBLE){
-        event = std::make_unique<MoveObject>();
-    }else{
-        event = std::make_unique<ChangeVelocity>();
-    }
-    event->set(map);
-    return std::move(event);
-}
-
 // TODO make these proper unit tests that check correctness and don't spam the console if they're passing
 bool UnitTests::createAndMoveCircle(){
     bool s = true ;
     //printf("---createAndMoveCircle---\n");
     //printf("Initializing timeline...\n");
-    Timeline t = Timeline(&UnitTests::createEvent, &UnitTests::createObject);
+    Timeline t = Timeline(&BouncingBall::createEvent, &BouncingBall::createObject);
     //printf("setting generators...\n");
     //printf("init circle...\n");
-    std::unique_ptr<MovingObject> o = std::make_unique<MovingObject>(vec3(1,0,0),vec3(0,2,0), 3.0f) ;
+    std::unique_ptr<BouncingBall> o = std::make_unique<BouncingBall>(vec3(1,0,0),vec3(0,2,0), 3.0f) ;
     //printf("create object event...\n");
     t.createObject(std::move(o), std::unique_ptr<TEvent>(nullptr), 1.0);
     //printf("running...\n");
@@ -121,7 +94,7 @@ bool UnitTests::createAndMoveCircle(){
 
 
     //printf("Adding first move event...\n");
-    t.addEvent(std::make_unique<MoveObject>(ob[0], 1.0), 2.0) ;
+    t.addEvent(std::make_unique<MoveBouncingBall>(ob[0], 1.0), 2.0) ;
     t.run(5.0);
 
     ob = t.updateObservables();
@@ -130,7 +103,7 @@ bool UnitTests::createAndMoveCircle(){
 
 
     //printf("Adding change direction event...\n");
-    t.addEvent(std::make_unique<ChangeVelocity>(ob[0], vec3(0,0,1.0)), 5.5) ;
+    t.addEvent(std::make_unique<ChangeBallVelocity>(ob[0], vec3(0,0,1.0)), 5.5) ;
     t.run(10.0);
 
     ob = t.updateObservables();
@@ -138,7 +111,7 @@ bool UnitTests::createAndMoveCircle(){
     UnitTests::expectNear(s, t.getLastObserved(ob[0])->position, vec3(1,8,5), 0.01, "Circle did not change velocity correctly!");
 
     //printf("Adding retroactive change direction event...\n");
-    t.addEvent(std::make_unique<ChangeVelocity>(ob[0], vec3(0,0,-1.0)), 5.5) ;
+    t.addEvent(std::make_unique<ChangeBallVelocity>(ob[0], vec3(0,0,-1.0)), 5.5) ;
     t.run(10.0);
 
 
@@ -156,14 +129,14 @@ bool UnitTests::checkSimpleTimeWarp(){
     //printf("---checkSimpleTimeWarp---\n");
     bool s = true ;
     
-    Timeline t = Timeline(&UnitTests::createEvent, &UnitTests::createObject);
+    Timeline t = Timeline(&BouncingBall::createEvent, &BouncingBall::createObject);
     t.info_speed = 10;
 
     //printf("Initialized timeline with %f info speed.\n", t.info_speed);
 
     //printf("setting generators...\n");
     //printf("init vantage at (0,0,0) at time 0.0...\n");
-    std::unique_ptr<MovingObject> v = std::make_unique<MovingObject>(vec3(0,0,0),vec3(0,0,0), 1.0f) ;
+    std::unique_ptr<BouncingBall> v = std::make_unique<BouncingBall>(vec3(0,0,0),vec3(0,0,0), 0.0001f) ;
     t.createObject(std::move(v), std::unique_ptr<TEvent>(nullptr), 0.0);
     //printf("running...\n");
     t.run(1);
@@ -178,8 +151,8 @@ bool UnitTests::checkSimpleTimeWarp(){
 
     // Create an object at the distance of the info speed so it should take 2 time to appear in observables
     //printf("Attempting to create an object at (10,0,0) from vantage at time 1.0\n");
-    std::unique_ptr<MovingObject> a = std::make_unique<MovingObject>(vec3(10,0,0),vec3(-1.0,0,0), 1.0f) ;
-    t.createObject(std::move(a), std::make_unique<MoveObject>(0.1), 1.0);
+    std::unique_ptr<BouncingBall> a = std::make_unique<BouncingBall>(vec3(10,0,0),vec3(-1.0,0,0), 0.0001f) ;
+    t.createObject(std::move(a), std::make_unique<MoveBouncingBall>(0.1), 1.0);
     double time = 1.0; 
     bool found_new = false;
     while(!found_new){
@@ -196,8 +169,6 @@ bool UnitTests::checkSimpleTimeWarp(){
     //Variant(t.getLastObserved(ob[1])->serialize()).printFormatted(); 
 
     UnitTests::expect(s,(found_time - 3.0f)<0.0001, "Observation of created object with time warp is at wrong time!");
-
-    
 
     bool reached = false ;
     while(!reached){
@@ -218,12 +189,9 @@ bool UnitTests::checkSimpleTimeWarp(){
 
 bool UnitTests::checkCollisionRollback(){
     bool s = true ;
-    
-    Timeline t = Timeline(&UnitTests::createEvent, &UnitTests::createObject);
-
-    std::unique_ptr<MovingObject> a = std::make_unique<MovingObject>(vec3(0,0,0),vec3(1,0,0), 1.0f) ;
-    std::unique_ptr<MoveObject> a_move = std::make_unique<MoveObject>(0.5) ;
-    a_move->stop_on_hit = true;
+    Timeline t = Timeline(&BouncingBall::createEvent, &BouncingBall::createObject);
+    std::unique_ptr<BouncingBall> a = std::make_unique<BouncingBall>(vec3(0,0,0),vec3(1,0,0), 0.5f) ;
+    std::unique_ptr<MoveBouncingBall> a_move = std::make_unique<MoveBouncingBall>(0.1) ;
     t.createObject(std::move(a), std::move(a_move), 1.0);
     //printf("A created!\n");
     t.run(1.1);
@@ -231,12 +199,10 @@ bool UnitTests::checkCollisionRollback(){
     vector<int> ob = t.updateObservables();
     a_id = ob[0]; 
     //printf("A_id : %d!\n", a_id);
-    std::unique_ptr<MovingObject> b = std::make_unique<MovingObject>(vec3(5,5,0),vec3(0,-1,0), 1.0f) ;
-    std::unique_ptr<MoveObject> b_move = std::make_unique<MoveObject>(0.5) ;
-    b_move->stop_on_hit = false;
+    std::unique_ptr<BouncingBall> b = std::make_unique<BouncingBall>(vec3(5,5,0),vec3(0,-1,0), 0.5f) ;
+    std::unique_ptr<MoveBouncingBall> b_move = std::make_unique<MoveBouncingBall>(0.1) ;
     t.createObject(std::move(b), std::move(b_move) , 1.001);
 
-    
     double time = 1.1 ;
     t.run(time);
    
@@ -244,41 +210,38 @@ bool UnitTests::checkCollisionRollback(){
     int b_id = ob[0] == a_id ? ob[1] : ob[0];
     //printf("B created! %d \n", b_id);
 
-    UnitTests::expectNear(s, t.getLastObserved(a_id )->position, vec3(0.5,0,0), 0.01,
+    UnitTests::expectNear(s, t.getLastObserved(a_id )->position, vec3(0.1,0,0), 0.01,
         "A did not initialize correctly!");
 
-    UnitTests::expectNear(s, t.getLastObserved(b_id )->position, vec3(5,4.5,0), 0.01,
+    UnitTests::expectNear(s, t.getLastObserved(b_id )->position, vec3(5,4.9,0), 0.01,
         "B did not initialize correctly!");
 
     //printf("Searching for collisions!\n");
-    bool a_stopped = false;
-    while(!a_stopped && time < 10.0){
+    bool a_hit = false;
+    while(!a_hit && time < 10.0){
         time+=0.1;
         t.run(time);
         ob = t.updateObservables();
 
         weak_ptr<TObject> ow = t.getLastObserved(a_id) ;
         if(auto og = ow.lock()){
-            shared_ptr<MovingObject> o = std::static_pointer_cast<MovingObject>(og);
-            a_stopped =  glm::length(o->velocity) < 0.01;
+            shared_ptr<BouncingBall> o = std::static_pointer_cast<BouncingBall>(og);
+            a_hit =  o->velocity.x <= 0.5 ; // bounced and now has less v.x
         }
     }
-    //printf("A stopped at time : %f \n", time);
-    UnitTests::expect(s, (time - 5.1)<0.01, "A did not collide and stop at correct time!");
+    //printf("A hit at time : %f  %f\n", time , fabs(time - 5.0));
+    UnitTests::expect(s, fabs(time - 5.5)<0.2, "A did not collide at correct time!");
     t.run(10.1);
     ob = t.updateObservables();
-    
     /*
     printf("A at time 10 : \n");
     t.getLastObserved(a_id)->print() ;
     printf("B at time 10 : \n");
     t.getLastObserved(b_id)->print() ;
     */
-    UnitTests::expectNear(s, t.getLastObserved(a_id)->position, vec3(4,0,0), 0.01,
-        "A at incorrect position after collision");
-
+    UnitTests::expect(s, t.getLastObserved(a_id)->position.x < 7, "A at incorrect position after collision");
     //printf("Adding retroactive change direction event that prevent collisions and running to time 10...\n");
-    t.addEvent(std::make_unique<ChangeVelocity>(b_id, vec3(0,0,0)), 1.01) ;
+    t.addEvent(std::make_unique<ChangeBallVelocity>(b_id, vec3(0,0,0)), 1.01) ;
     t.run(10.1);
     ob = t.updateObservables();
     /*
@@ -287,11 +250,9 @@ bool UnitTests::checkCollisionRollback(){
     printf("B at time 10 : \n");
     t.getLastObserved(b_id)->print() ;
     */
-    UnitTests::expectNear(s, t.getLastObserved(a_id)->position, vec3(10.0,0,0), 0.01,
-        "A at incorrect position  after rolled back non collision");
-
+    UnitTests::expect(s, t.getLastObserved(a_id)->position.x > 7, "A at incorrect position  after rolled back non collision");
     //printf("Adding retroactive change direction event that makes collision happen again and running to time 10...\n");
-    t.addEvent(std::make_unique<ChangeVelocity>(b_id, vec3(0,-1,0)), 1.02) ;
+    t.addEvent(std::make_unique<ChangeBallVelocity>(b_id, vec3(0,-1,0)), 1.02) ;
     t.run(10.1);
     ob = t.updateObservables();
     /*
@@ -300,9 +261,7 @@ bool UnitTests::checkCollisionRollback(){
     printf("B at time 10 : \n");
     t.getLastObserved(b_id)->print() ;
     */
-
-    UnitTests::expectNear(s, t.getLastObserved(a_id)->position, vec3(5,0,0), 0.01,
-        "A at incorrect position after rolled back recollision");
+    UnitTests::expect(s, t.getLastObserved(a_id)->position.x < 7, "A at incorrect position after rolled back recollision");
     
     return s ;
 }
@@ -311,11 +270,11 @@ bool UnitTests::checkClearHistory(){
     //printf("---checkSimpleTimeWarp---\n");
     bool s = true ;
     
-    Timeline t = Timeline(&UnitTests::createEvent, &UnitTests::createObject);
+    Timeline t = Timeline(&BouncingBall::createEvent, &BouncingBall::createObject);
     
     for(int k=0;k<10;k++){
-        std::unique_ptr<MovingObject> o = std::make_unique<MovingObject>(vec3(k*100,k*1000%77,0),vec3((k*2)%3 - 1,k%3 - 1,0), 1.0f) ;
-        std::unique_ptr<MoveObject> o_move = std::make_unique<MoveObject>(0.5) ;
+        std::unique_ptr<BouncingBall> o = std::make_unique<BouncingBall>(vec3(k*100,k*1000%77,0),vec3((k*2)%3 - 1,k%3 - 1,0), 1.0f) ;
+        std::unique_ptr<MoveBouncingBall> o_move = std::make_unique<MoveBouncingBall>(0.5) ;
         t.createObject(std::move(o), std::move(o_move) , 1.001 + 0.001*k);
     }
     t.run(1.1);
@@ -399,12 +358,12 @@ bool UnitTests::checkClearHistory(){
 bool UnitTests::checksimpleTimelineSync(){
     bool s = true ;
     
-    Timeline t1 = Timeline(&UnitTests::createEvent, &UnitTests::createObject);
+    Timeline t1 = Timeline(&BouncingBall::createEvent, &BouncingBall::createObject);
 
-    Timeline t2 = Timeline(&UnitTests::createEvent, &UnitTests::createObject);
+    Timeline t2 = Timeline(&BouncingBall::createEvent, &BouncingBall::createObject);
 
-    std::unique_ptr<MovingObject> o1 = std::make_unique<MovingObject>(vec3(0,0,0),vec3(1,0,0), 1.0f) ;
-    std::unique_ptr<MoveObject> o_move1 = std::make_unique<MoveObject>(0.5) ;
+    std::unique_ptr<BouncingBall> o1 = std::make_unique<BouncingBall>(vec3(0,0,0),vec3(1,0,0), 1.0f) ;
+    std::unique_ptr<MoveBouncingBall> o_move1 = std::make_unique<MoveBouncingBall>(0.5) ;
     t1.createObject(std::move(o1), std::move(o_move1) , 1.0);
 
     Variant d1 = t1.getDescriptor(0,false);
@@ -441,7 +400,7 @@ bool UnitTests::checksimpleTimelineSync(){
         expectNear(s, a->position, b->position,0.001, "New object differs after syncrhonization!");
     }
 
-    Timeline t3 = Timeline(&UnitTests::createEvent, &UnitTests::createObject);
+    Timeline t3 = Timeline(&BouncingBall::createEvent, &BouncingBall::createObject);
     Variant d3 = t3.getDescriptor(2.0,false);
     u = t2.getUpdateFor(d3, true);
 
@@ -468,12 +427,12 @@ bool UnitTests::checkSyncExistingObject(){
 
     bool s = true ;
     
-    Timeline server = Timeline(&UnitTests::createEvent, &UnitTests::createObject);
+    Timeline server = Timeline(&BouncingBall::createEvent, &BouncingBall::createObject);
 
-    Timeline client = Timeline(&UnitTests::createEvent, &UnitTests::createObject);
+    Timeline client = Timeline(&BouncingBall::createEvent, &BouncingBall::createObject);
 
-    std::unique_ptr<MovingObject> o1 = std::make_unique<MovingObject>(vec3(0,0,0),vec3(1,0,0), 1.0f) ;
-    std::unique_ptr<MoveObject> o_move1 = std::make_unique<MoveObject>(0.05) ;
+    std::unique_ptr<BouncingBall> o1 = std::make_unique<BouncingBall>(vec3(0,0,0),vec3(1,0,0), 1.0f) ;
+    std::unique_ptr<MoveBouncingBall> o_move1 = std::make_unique<MoveBouncingBall>(0.05) ;
     server.createObject(std::move(o1), std::move(o_move1) , 1.0);
 
 
@@ -501,7 +460,7 @@ bool UnitTests::checkSyncExistingObject(){
         expectNear(s, a->position, b->position,0.001, "New object differs after first synchronization!");
     }
 
-    server.addEvent(std::make_unique<ChangeVelocity>(ob1[0], vec3(0,0,0)), 3.01) ;
+    server.addEvent(std::make_unique<ChangeBallVelocity>(ob1[0], vec3(0,0,0)), 3.01) ;
     server.run(4.0);
     client.run(4.0);
 
