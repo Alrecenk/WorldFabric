@@ -17,6 +17,7 @@
 #include <string>
 #include <mutex>
 #include <memory>
+#include <queue>
 
 
 
@@ -49,6 +50,7 @@ class Timeline{
         std::unordered_map<int, std::shared_ptr<TObject>> objects ;
         std::unordered_map<int, std::shared_ptr<TObject>> last_observed ;
         CollisionSystem collisions;
+        std::vector<std::weak_ptr<TEvent>> recent_unruns ; // tracker for rolbacks so we can reinstert into run sequence without recomuting it entirely
 
         //std::vector<std::weak_ptr<TEvent>> pending_external_events ; // tracks externally created events for quicksend
 
@@ -71,6 +73,8 @@ class Timeline{
         void deleteObject(int id, double send_time);
 
         TEvent* nextEventToRun(glm::vec3 vantage, double time, double info_speed);
+
+        std::priority_queue<std::pair<double, TEvent*>> getAllEvenstToRun(glm::vec3 vantage, double time, double info_speed);
 
         // Runs events in the timeline until the location at the vantage object reaches the given time
         void run(double new_time);

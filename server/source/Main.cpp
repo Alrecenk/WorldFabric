@@ -42,7 +42,7 @@ int main(int argc, char** argv) {
 
     runUnitTests();
     
-
+    
     // boot up a static webserver on a nonblocking thread to serve the frontend
     char http_address[] = "0.0.0.0";
     int http_port = 8080;
@@ -58,9 +58,9 @@ int main(int argc, char** argv) {
     int width = 500;
     int height = 500;
     float min_radius = 10;
-    float max_radius = 40 ;
+    float max_radius = 20 ;
     float max_speed = 200 ;
-    Timeline* timeline = initialize2DBallTimeline(width, height, 8, min_radius, max_radius, max_speed) ;
+    Timeline* timeline = initialize2DBallTimeline(width, height, 100, min_radius, max_radius, max_speed) ;
     TimelineServer timeline_server(timeline_port, timeline);
 
     cout << "Starting main loop..." << endl;
@@ -70,10 +70,6 @@ int main(int argc, char** argv) {
         std::this_thread::sleep_for(std::chrono::milliseconds(20));
         timeline->run();
         //timeline->clearHistoryBefore(timeline->current_time-history_kept);
-        
-        /*if(randomFloat()<0.01){
-            addBall(width, height, min_radius, max_radius, max_speed);
-        }*/
     }
     web_server.stop();
     timeline_server.stop();

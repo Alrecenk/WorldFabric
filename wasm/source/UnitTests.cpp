@@ -81,6 +81,8 @@ bool UnitTests::createAndMoveCircle(){
     //printf("---createAndMoveCircle---\n");
     //printf("Initializing timeline...\n");
     Timeline t = Timeline(&BouncingBall::createEvent, &BouncingBall::createObject);
+    t.history_kept = 1000;
+    t.base_age = 100 ;
     //printf("setting generators...\n");
     //printf("init circle...\n");
     std::unique_ptr<BouncingBall> o = std::make_unique<BouncingBall>(vec3(1,0,0),vec3(0,2,0), 3.0f) ;
@@ -131,6 +133,8 @@ bool UnitTests::checkSimpleTimeWarp(){
     
     Timeline t = Timeline(&BouncingBall::createEvent, &BouncingBall::createObject);
     t.info_speed = 10;
+    t.history_kept = 1000;
+    t.base_age = 100 ;
 
     //printf("Initialized timeline with %f info speed.\n", t.info_speed);
 

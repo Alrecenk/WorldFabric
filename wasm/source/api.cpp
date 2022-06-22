@@ -106,7 +106,6 @@ void addBall(int width, int height, float min_radius, float max_radius, float ma
         std::unique_ptr<BouncingBall> o = std::make_unique<BouncingBall>(position, velocity, radius, box_min, box_max) ;
         std::unique_ptr<MoveBouncingBall> o_move = std::make_unique<MoveBouncingBall>(1.0/60.0) ;
         float timeoffset = randomFloat() ;
-        printf("new ball in %f\n", timeoffset);
         timeline->createObject(std::move(o), std::move(o_move) , timeline->current_time + timeoffset);
 
 }
