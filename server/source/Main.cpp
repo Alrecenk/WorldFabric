@@ -55,12 +55,12 @@ int main(int argc, char** argv) {
     // boot up the timeline server on a non-blocking thread
     int timeline_port = 9017;
     cout << "Starting the timeline server on port " << timeline_port << "..." << endl;
-    int width = 500;
-    int height = 500;
+    int width = 750;
+    int height = 750;
     float min_radius = 10;
     float max_radius = 20 ;
     float max_speed = 200 ;
-    Timeline* timeline = initialize2DBallTimeline(width, height, 100, min_radius, max_radius, max_speed) ;
+    Timeline* timeline = initialize2DBallTimeline(width, height, 150, min_radius, max_radius, max_speed) ;
     TimelineServer timeline_server(timeline_port, timeline);
 
     cout << "Starting main loop..." << endl;
@@ -69,7 +69,6 @@ int main(int argc, char** argv) {
     while (running) {
         std::this_thread::sleep_for(std::chrono::milliseconds(20));
         timeline->run();
-        //timeline->clearHistoryBefore(timeline->current_time-history_kept);
     }
     web_server.stop();
     timeline_server.stop();

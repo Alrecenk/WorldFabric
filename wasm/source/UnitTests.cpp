@@ -275,6 +275,8 @@ bool UnitTests::checkClearHistory(){
     bool s = true ;
     
     Timeline t = Timeline(&BouncingBall::createEvent, &BouncingBall::createObject);
+    t.history_kept = 1;
+    t.base_age = 0.5 ;
     
     for(int k=0;k<10;k++){
         std::unique_ptr<BouncingBall> o = std::make_unique<BouncingBall>(vec3(k*100,k*1000%77,0),vec3((k*2)%3 - 1,k%3 - 1,0), 1.0f) ;
@@ -363,11 +365,11 @@ bool UnitTests::checksimpleTimelineSync(){
     bool s = true ;
     
     Timeline t1 = Timeline(&BouncingBall::createEvent, &BouncingBall::createObject);
-    t1.history_kept = 1000;
-    t1.base_age = 100 ;
+    t1.history_kept = 1;
+    t1.base_age = 0.5 ;
     Timeline t2 = Timeline(&BouncingBall::createEvent, &BouncingBall::createObject);
-    t2.history_kept = 1000;
-    t2.base_age = 100 ;
+    t2.history_kept = 1;
+    t2.base_age = 0.5 ;
     std::unique_ptr<BouncingBall> o1 = std::make_unique<BouncingBall>(vec3(0,0,0),vec3(1,0,0), 1.0f) ;
     std::unique_ptr<MoveBouncingBall> o_move1 = std::make_unique<MoveBouncingBall>(0.5) ;
     t1.createObject(std::move(o1), std::move(o_move1) , 1.0);
@@ -407,6 +409,8 @@ bool UnitTests::checksimpleTimelineSync(){
     }
 
     Timeline t3 = Timeline(&BouncingBall::createEvent, &BouncingBall::createObject);
+    t3.history_kept = 1;
+    t3.base_age = 0.5 ;
     t3.run(3.0);
     Variant d3 = t3.getDescriptor(2.0,false);
     u = t2.getUpdateFor(d3, true);
@@ -435,8 +439,12 @@ bool UnitTests::checkSyncExistingObject(){
     bool s = true ;
     
     Timeline server = Timeline(&BouncingBall::createEvent, &BouncingBall::createObject);
+    server.history_kept = 1;
+    server.base_age = 0.5 ;
 
     Timeline client = Timeline(&BouncingBall::createEvent, &BouncingBall::createObject);
+    client.history_kept = 1;
+    client.base_age = 0.5 ;
 
     std::unique_ptr<BouncingBall> o1 = std::make_unique<BouncingBall>(vec3(0,0,0),vec3(1,0,0), 1.0f) ;
     std::unique_ptr<MoveBouncingBall> o_move1 = std::make_unique<MoveBouncingBall>(0.05) ;

@@ -27,6 +27,7 @@ Timeline::Timeline(std::unique_ptr<TEvent> (*event_generator)(const Variant& ser
     TEvent::generateTypedTEvent = event_generator;
     TObject::generateTypedTObject = object_generator ;
     collisions.timeline = this ;
+    events.reserve(10000);
 }
 
 
@@ -36,14 +37,15 @@ void Timeline::addEvent(std::unique_ptr<TEvent> event, double send_time){
     lock.lock();
     event->time = send_time ;
     weak_ptr<TObject> vo = getObjectInstant(vantage_id, send_time) ;
-    weak_ptr<TObject> eo = getObjectInstant(event->anchor_id, send_time) ;
-
+    
     if(auto vo2 = vo.lock()){
-    if(auto eo2 = eo.lock()){
-        // if position data available
-        // delay event creation by time warp effect
-        event->time = send_time + glm::length(vo2->position - eo2->position)/info_speed ;
-    }}
+        weak_ptr<TObject> eo = getObjectInstant(event->anchor_id, send_time) ;
+        if(auto eo2 = eo.lock()){
+            // if position data available
+            // delay event creation by time warp effect
+            event->time = send_time + glm::length(vo2->position - eo2->position)/info_speed ;
+        }
+    }
     insertEvent(std::move(event));
     lock.unlock();
     //pending_external_events.push_back(event->weak_this);
@@ -378,7 +380,7 @@ std::pair<std::vector<std::shared_ptr<TEvent>>, std::map<int, std::shared_ptr<TO
         printf("Base state requested for time newer than current time!\n");
 
     }
-    // get eventsafter time that are not spawned by other events after time
+    // get events after time that are not spawned by other events after time
     std::vector<std::shared_ptr<TEvent>> base_events ;
     for(int k=0;k<events.size();k++){
         if(events[k].get() != nullptr && !events[k]->disabled && events[k]->time > time){

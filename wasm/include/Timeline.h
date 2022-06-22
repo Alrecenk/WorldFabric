@@ -37,8 +37,8 @@ class Timeline{
         int ping = 0;
         double last_clear_time = -99999 ;
 
-        double base_age = 0.5;
-        double history_kept = 1.0;
+        double base_age = 0.2;
+        double history_kept = 0.5;
         bool auto_clear_history = false;
 
         std::recursive_mutex lock ;

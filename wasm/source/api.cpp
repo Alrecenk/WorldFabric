@@ -510,7 +510,6 @@ byte* runTimeline(byte* ptr){
         float time = obj["time"].getNumberAsFloat();
         timeline->run(time);
     }
-    //timeline->clearHistoryBefore(timeline->current_time-history_kept);
     return emptyReturn();
 }
 
