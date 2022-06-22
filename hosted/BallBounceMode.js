@@ -87,12 +87,14 @@ class BallBounceMode extends ExecutionMode{
 
         if(this.dragging){
 
-            for(let k=0;k<this.observables.length;k+=4){
-                let x = this.observables[k];
-                let y = this.observables[k+1];
-                let r = this.observables[k+2];
-                let id = this.observables[k+3];
+            for(let k=0;k<this.observables.length;k+=this.stride){
+                let id = this.observables[k];
+                let type = this.observables[k+1];
                 if(id == this.drag_id){
+                    let x = this.observables[k+2]; // dragged items are gauranteed to be balls
+                    let y = this.observables[k+3];
+                    let r = this.observables[k+4];
+
                     let dist2 = (x-this.mouse_x)*(x-this.mouse_x) + (y-this.mouse_y)*(y-this.mouse_y) ;
                     let new_v = [0,0,0] ;
                     if(dist2 < r*r*.25){ // if mouse is on held object
@@ -103,7 +105,7 @@ class BallBounceMode extends ExecutionMode{
                         // move toward mouse at high speed (half the distance each tick)
                         new_v[0] = (this.mouse_x - x) ;
                         new_v[1] = (this.mouse_y - y) ;
-                        let s = 300.0/Math.sqrt(new_v[0]*new_v[0] + new_v[1]*new_v[1]);
+                        let s = 200.0/Math.sqrt(new_v[0]*new_v[0] + new_v[1]*new_v[1]);
                         new_v[0]*= s ;
                         new_v[1]*= s ;
                     }
@@ -123,17 +125,31 @@ class BallBounceMode extends ExecutionMode{
     // Note: the elements to draw onto or with should be included in the tools on construction and saved for the duration of the mode
     drawFrame(frame_id){
         tools.API.call("runTimeline", {}, new Serializer());
-        this.observables = tools.API.call("getTimelineCircles", {}, new Serializer()).observables;
+        let render_data = tools.API.call("getBallObjects", {}, new Serializer()) ;
+        this.observables = render_data.observables;
+        this.stride = render_data.stride ;
 
         //console.log(observables);
         let context = tools.canvas.getContext("2d");
         context.clearRect(0, 0, context.canvas.width, context.canvas.height);
 
-        for(let k=0;k<this.observables.length;k+=4){
-            let x = this.observables[k];
-            let y = this.observables[k+1];
-            let r = this.observables[k+2];
-            this.drawCircle(x, y, r, "#004F00", "#000000", 2) ;
+        for(let k=0;k<this.observables.length;k+=this.stride){
+            let id = this.observables[k];
+            let type = this.observables[k+1];
+            if(type == 1){ // ball
+                let x = this.observables[k+2]; 
+                let y = this.observables[k+3];
+                let r = this.observables[k+4];
+
+                this.drawCircle(x, y, r, null, "#004F00", 4) ;
+            }else if(type == 2){ // wall
+                let min_x = this.observables[k+2];
+                let min_y = this.observables[k+3];
+                let max_x = this.observables[k+4];
+                let max_y = this.observables[k+5];
+                InterfaceButton.drawRoundedRect(context, min_x, min_y, max_x-min_x, max_y-min_y, 2, null,  "#300030", 4);
+
+            }
             /*
             let p = observables[k].p;
             let radius = observables[k].r ;
@@ -155,16 +171,19 @@ class BallBounceMode extends ExecutionMode{
         
         if(this.mouse_button != 2){
             
-            for(let k=0;k<this.observables.length;k+=4){
-                let x = this.observables[k];
-                let y = this.observables[k+1];
-                let r = this.observables[k+2];
-                let id = this.observables[k+3];
-                let dist2 = (x-this.mouse_down_x)*(x-this.mouse_down_x) + (y-this.mouse_down_y)*(y-this.mouse_down_y) ;
-                if(dist2 < r*r){
-                    this.dragging = true ;
-                    this.drag_id = id ;
-                    //tools.API.call("randomizeBallVelocity",{id:id,max_speed:300}, new Serializer());
+            for(let k=0;k<this.observables.length;k+=this.stride){
+                let id = this.observables[k];
+                let type = this.observables[k+1];
+                if(type == 1){ // ball
+                    let x = this.observables[k+2]; 
+                    let y = this.observables[k+3];
+                    let r = this.observables[k+4];
+                    let dist2 = (x-this.mouse_down_x)*(x-this.mouse_down_x) + (y-this.mouse_down_y)*(y-this.mouse_down_y) ;
+                    if(dist2 < r*r){
+                        this.dragging = true ;
+                        this.drag_id = id ;
+                        //tools.API.call("randomizeBallVelocity",{id:id,max_speed:300}, new Serializer());
+                    }
                 }
             }
         }else{

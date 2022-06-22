@@ -9,11 +9,12 @@ using std::unique_ptr;
 
 
 ChangeBallVelocity::ChangeBallVelocity(){
-
+    type = 3 ;
 }
 ChangeBallVelocity::ChangeBallVelocity(int moving_object, glm::vec3 v){
     anchor_id = moving_object;
     new_velocity = v ;
+    type = 3 ;
 }
 
 ChangeBallVelocity::~ChangeBallVelocity() {}

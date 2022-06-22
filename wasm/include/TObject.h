@@ -20,6 +20,8 @@ class TObject{
 
         glm::vec3 position;
         float radius;
+        short type = -1 ; // a numerical type you can check when you ned to cast (if the overriders use it!)
+
         double write_time ;
         bool deleted = false;
         std::shared_ptr<TObject> prev ;

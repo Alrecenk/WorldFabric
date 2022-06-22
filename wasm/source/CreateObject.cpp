@@ -7,12 +7,13 @@ using std::shared_ptr;
 using std::unique_ptr;
 
 CreateObject::CreateObject(){
-
+    type = 1 ;
 }
 
 CreateObject::CreateObject(std::unique_ptr<TObject> no, std::unique_ptr<TEvent> oc){
     new_object = std::move(no);
     on_created = std::move(oc) ;
+    type = 1 ;
 }
 
 CreateObject::~CreateObject() {}

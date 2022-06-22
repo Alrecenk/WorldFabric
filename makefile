@@ -40,7 +40,7 @@ EXPORTED_FUNCTIONS =[\
 	'_runTimelineUnitTests',\
 	'_initialize2DBallTimeline',\
 	'_runTimeline',\
-	'_getTimelineCircles',\
+	'_getBallObjects',\
 	'_getInitialTimelineRequest',\
 	'_synchronizeTimeline',\
 	'_setBallVelocity',\
@@ -58,6 +58,7 @@ API_SRC    =${API_DIR}source/Variant.cpp \
 			${API_DIR}source/CollisionSystem.cpp \
 			${API_DIR}source/CreateObject.cpp \
 			${API_DIR}source/BouncingBall.cpp \
+			${API_DIR}source/BallWall.cpp \
 			${API_DIR}source/MoveBouncingBall.cpp \
 			${API_DIR}source/ChangeBallVelocity.cpp
 
