@@ -103,6 +103,25 @@ TEvent* Timeline::nextEventToRun(glm::vec3 vantage, double time, double info_spe
     return best_event ;
 }
 
+std::priority_queue<std::pair<double, TEvent*>> Timeline::getAllEvenstToRun(glm::vec3 vantage, double time, double info_speed){
+    std::priority_queue<std::pair<double, TEvent*>> event_queue ;
+    for(std::shared_ptr<TEvent>& e : events){
+        if(e.get() != nullptr && !e->disabled && !e->has_run){
+            weak_ptr<TObject> eo = getObjectInstant(e->anchor_id, e->time) ;
+            double time_to_run = e->time ;
+            if(auto eo2 = eo.lock()){
+                double dist = glm::length(vantage - eo2->position);
+                time_to_run = e->time + dist/info_speed;
+            }
+            if(time_to_run <= time){
+                event_queue.push(std::pair<double,TEvent*>(-time_to_run, e.get())); // priority queue runs highest first
+            }
+        }
+    }
+    recent_unruns.clear(); // recent unruns tracks edits for this queue,so wipe it whenever we remake the queue from scratch
+    return event_queue ;
+}
+
 // Runs events in the timeline until the location at the vantage object reaches the given time
 void Timeline::run(double new_time){
     lock.lock();
@@ -116,13 +135,13 @@ void Timeline::run(double new_time){
         vantage = vo2->position ;
         has_vantage= true;
     }
-    
+
+    /*
     TEvent*  current_event = nextEventToRun(vantage, new_time, info_speed) ;
     int run_events = 0 ;
     while(current_event != nullptr){
         current_event->run();
         current_event->has_run = true;
-        run_events++;
         if(current_event->wrote_anchor){
             collisions.onDataChanged(current_event);
             if(has_vantage && current_event->anchor_id == vantage_id ){ // if vantage object changed
@@ -141,6 +160,76 @@ void Timeline::run(double new_time){
         current_event = nextEventToRun(vantage, new_time, info_speed) ;
 
     }
+    */
+    std::priority_queue<std::pair<double, TEvent*>> event_queue = getAllEvenstToRun(vantage, new_time, info_speed);
+    while(!event_queue.empty()){
+        TEvent*  current_event = event_queue.top().second;
+        event_queue.pop();
+        if(current_event->disabled || current_event->has_run){ // events could be squashed or duplicated from rollback operations
+            continue ;
+        }
+        current_event->run();
+        current_event->has_run = true;
+        bool requeued = false;
+        if(current_event->wrote_anchor){
+            collisions.onDataChanged(current_event);
+            if(has_vantage && current_event->anchor_id == vantage_id ){ // if vantage object changed
+                weak_ptr<TObject> eo = getObjectInstant(current_event->anchor_id, new_time) ;
+                if(auto eo2 = eo.lock()){
+                    if(eo2->position != vantage){// vantage point may have changed
+                        vantage = eo2->position; 
+                        event_queue = getAllEvenstToRun(vantage, new_time, info_speed); // regenerate event queue with new vantage
+                        requeued = true ;
+                    }
+                }
+            }
+        }
+
+        if(!requeued){ // if we didn't just reset the queue after a vantage point move
+            // add any newly spawned events to the current queue
+            for(int k=0;k<current_event->spawned_events.size();k++){
+                weak_ptr<TEvent> ew = current_event->spawned_events[k];
+                if(auto e = ew.lock()){
+                    if(!e->disabled && !e->has_run){
+                        weak_ptr<TObject> eo = getObjectInstant(e->anchor_id, e->time) ;
+                        double time_to_run = e->time ;
+                        if(auto eo2 = eo.lock()){
+                            double dist = glm::length(vantage - eo2->position);
+                            time_to_run = e->time + dist/info_speed;
+                        }
+                        if(time_to_run <= new_time){
+                            event_queue.push(std::pair<double,TEvent*>(-time_to_run, e.get())); // priority queue runs highest first
+                        }
+                    }
+                }
+            }
+
+            // add any rolled_back events to the queue that may not have been picked up (there may be duplicates in th queue but it's fine)
+            for(int k=0;k<recent_unruns.size();k++){
+                weak_ptr<TEvent> ew = recent_unruns[k];
+                if(auto e = ew.lock()){
+                    if(!e->disabled && !e->has_run){
+                        weak_ptr<TObject> eo = getObjectInstant(e->anchor_id, e->time) ;
+                        double time_to_run = e->time ;
+                        if(auto eo2 = eo.lock()){
+                            double dist = glm::length(vantage - eo2->position);
+                            time_to_run = e->time + dist/info_speed;
+                        }
+                        if(time_to_run <= new_time){
+                            event_queue.push(std::pair<double,TEvent*>(-time_to_run, e.get())); // priority queue runs highest first
+                        }
+                    }
+                }
+            }
+            recent_unruns.clear();
+        }
+
+        if(auto_clear_history && current_event->time - last_clear_time > history_kept*2){
+            current_time = fmax(current_time,current_event->time) ;
+            clearHistoryBefore(current_time-history_kept);
+        }
+    }
+
     current_time = new_time ;
     //printf("run  %d events to time: %f\n", run_events, new_time);
     lock.unlock();
@@ -370,7 +459,7 @@ Variant Timeline::getUpdateFor(const Variant& descriptor, bool server){
             target_time += ping/2000.0 ; // descriptor time comes from server so only aged by one way ping
         }*/
         if(fabs(current_time - target_time) > base_age*0.1 && (current_time < target_time || target_time > current_time-last_clear_time)){ 
-            printf("Correcting clock in getupdateFor: update time:%f target:%f current:%f ping:%d\n", time, target_time, current_time, ping);
+            //printf("Correcting clock in getupdateFor: update time:%f target:%f current:%f ping:%d\n", time, target_time, current_time, ping);
             run(target_time); // catch up
         }
     }
@@ -436,7 +525,7 @@ void Timeline::applyUpdate(const Variant& update, bool server){
         double target_time = time+base_age ;
        
         if(target_time - current_time > base_age*0.1){  // apply update can only push the clock forward
-            printf("Correcting clock in applyUpdate: update time:%f target:%f current:%f ping:%d\n", time, target_time, current_time, ping);
+            //printf("Correcting clock in applyUpdate: update time:%f target:%f current:%f ping:%d\n", time, target_time, current_time, ping);
             run(target_time); // catch up
         }
     }
