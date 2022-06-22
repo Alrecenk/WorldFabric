@@ -1,20 +1,19 @@
-#ifndef _BOUNCING_BALL_H_
-#define _BOUNCING_BALL_H_ 1
+#ifndef _BALL_WALL_H_
+#define _BALL_WALL_H_ 1
 
 #include "TObject.h"
 
-class BouncingBall : public TObject{
+class BallWall : public TObject{
 
     public:
-        glm::vec3 velocity;
+        glm::vec3 min = glm::vec3(-10E15,-10E15,-10E15);
+        glm::vec3 max = glm::vec3(10E15,10E15,10E15); ;
 
-        BouncingBall();
+        BallWall();
 
-        BouncingBall(glm::vec3 p, glm::vec3 v, float r, glm::vec3 min, glm::vec3 max);
+        BallWall(glm::vec3 min, glm::vec3 max);
 
-        BouncingBall(glm::vec3 p, glm::vec3 v, float r);
-
-        ~BouncingBall() override;
+        ~BallWall() override;
 
         // Serialize this object, so it can be efficiently moved between timelines
         std::map<std::string,Variant> serialize() const override;
@@ -37,4 +36,4 @@ class BouncingBall : public TObject{
 
         
 };
-#endif // #ifndef _BOUNCING_BALL_H_
+#endif // #ifndef _BALL_WALL_H_

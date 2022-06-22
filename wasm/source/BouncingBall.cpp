@@ -3,25 +3,21 @@
 #include "CreateObject.h"
 #include "MoveBouncingBall.h"
 #include "ChangeBallVelocity.h"
+#include "BallWall.h"
 
 using std::map;
 using std::string;
 using std::vector;
 
-BouncingBall::BouncingBall(){}
-
-BouncingBall::BouncingBall(glm::vec3 p, glm::vec3 v, float r, glm::vec3 min, glm::vec3 max){
-    position = p ;
-    velocity = v;
-    radius = r ;
-    box_min = min ;
-    box_max = max ;
+BouncingBall::BouncingBall(){
+    type = 1 ;
 }
 
 BouncingBall::BouncingBall(glm::vec3 p, glm::vec3 v, float r){
     position = p ;
     velocity = v;
     radius = r ;
+    type = 1 ;
 }
 
 BouncingBall::~BouncingBall() {}
@@ -32,8 +28,6 @@ std::map<std::string,Variant> BouncingBall::serialize() const{
     map<string,Variant> serial;
     serial["p"] = Variant(position);
     serial["v"] = Variant(velocity);
-    serial["min"] = Variant(box_min);
-    serial["max"] = Variant(box_max);
     serial["r"] = Variant(radius);
     return serial;
 }
@@ -43,8 +37,6 @@ void BouncingBall::set(std::map<std::string,Variant>& serial){
     //printf("setting a bouncing ball\n");
     position = serial["p"].getVec3();
     velocity = serial["v"].getVec3();
-    box_min = serial["min"].getVec3();
-    box_max = serial["max"].getVec3();
     radius = serial["r"].getFloat();
     //printf("finished setting a bouncing ball\n");
 }
@@ -52,7 +44,7 @@ void BouncingBall::set(std::map<std::string,Variant>& serial){
 // Override this to provide an efficient deep copy of this object
 // If not overridden serialize and set will be used to copy your object (which will be inefficent)
 std::unique_ptr<TObject> BouncingBall::deepCopy(){
-    return std::make_unique<BouncingBall>(position, velocity, radius, box_min, box_max);
+    return std::make_unique<BouncingBall>(position, velocity, radius);
 }
 
 // Override this function to provide logic for interpolation after rollback or extrapolation for slowly updating objects
@@ -68,9 +60,14 @@ std::unique_ptr<TObject> BouncingBall::createObject(const Variant& serialized){
         printf("timeline attemped to create an object with a nonobject variabnt!\n");
     }
     auto map = serialized.getObject() ;
-    auto o = std::make_unique<BouncingBall>();
-    o->set(map);
-    return std::move(o);
+    std::unique_ptr<TObject> obj ;
+    if(map.find("p") != map.end()){
+        obj = std::make_unique<BouncingBall>();
+    }else{
+        obj = std::make_unique<BallWall>();
+    }
+    obj->set(map);
+    return std::move(obj);
 }
 
 std::unique_ptr<TEvent> BouncingBall::createEvent(const Variant& serialized){

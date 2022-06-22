@@ -20,6 +20,7 @@ class TEvent{
 
         double time ; // time this event occurs
         int anchor_id; // The id of the TObject this event is anchored to (and the only object it can edit)
+        short type = -1; // a numerical type you can check when you ned to cast (if the overriders use it!)
 
         bool has_run = false; //whether the event has run yet
         bool disabled = false; // whether the event should run

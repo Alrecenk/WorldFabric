@@ -37,7 +37,7 @@ class Timeline{
         int ping = 0;
         double last_clear_time = -99999 ;
 
-        double base_age = 0.2;
+        double base_age = 0.3;
         double history_kept = 0.5;
         bool auto_clear_history = false;
 

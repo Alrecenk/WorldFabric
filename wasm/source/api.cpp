@@ -20,6 +20,7 @@
 #include "BouncingBall.h"
 #include "MoveBouncingBall.h"
 #include "ChangeBallVelocity.h"
+#include "BallWall.h"
 
 
 using std::vector;
@@ -94,8 +95,6 @@ Timeline* initializeBallTimeline(){
 }
 
 void addBall(int width, int height, float min_radius, float max_radius, float max_speed){
-    vec3 box_min(0,0,-10000);
-    vec3 box_max(width,height,10000);
     float radius = min_radius + randomFloat()*(max_radius-min_radius);
         vec3 position(radius *2 + randomFloat()*(width-radius*4), radius * 2 + randomFloat()*(height-radius*4), 0);
         float angle = randomFloat()*6.29;
@@ -103,9 +102,14 @@ void addBall(int width, int height, float min_radius, float max_radius, float ma
 
         vec3 velocity(sin(angle)*speed, cos(angle)*speed,0);
         
-        std::unique_ptr<BouncingBall> o = std::make_unique<BouncingBall>(position, velocity, radius, box_min, box_max) ;
+        std::unique_ptr<BouncingBall> o = std::make_unique<BouncingBall>(position, velocity, radius) ;
         std::unique_ptr<MoveBouncingBall> o_move = std::make_unique<MoveBouncingBall>(1.0/60.0) ;
         float timeoffset = randomFloat() ;
+        timeline->createObject(std::move(o), std::move(o_move) , timeline->current_time + timeoffset);
+
+        o = std::make_unique<BouncingBall>(position, velocity*1.2f, radius*0.4f) ;
+        o_move = std::make_unique<MoveBouncingBall>(1.0/60.0) ;
+        timeoffset = randomFloat() ;
         timeline->createObject(std::move(o), std::move(o_move) , timeline->current_time + timeoffset);
 
 }
@@ -119,6 +123,13 @@ Timeline* initialize2DBallTimeline(int width, int height, int amount, float min_
         addBall(width, height, min_radius, max_radius, max_speed);
         
     }
+
+    std::unique_ptr<BallWall> center_wall = std::make_unique<BallWall>(vec3(width/2-100,height/2-50,-100), vec3(width/2+100,height/2+50,100)) ;
+    timeline->createObject(std::move(center_wall), std::unique_ptr<TEvent>(nullptr) , 0.1 * randomFloat());
+
+    std::unique_ptr<BallWall> outer_wall = std::make_unique<BallWall>(vec3(10,10,-100), vec3(width-10,height-10, 100)) ;
+    timeline->createObject(std::move(outer_wall), std::unique_ptr<TEvent>(nullptr) , 0.1 * randomFloat());
+
     timeline->run(1.0);
     return timeline.get();
 }
@@ -513,25 +524,39 @@ byte* runTimeline(byte* ptr){
     return emptyReturn();
 }
 
-byte* getTimelineCircles(byte* ptr){
+byte* getBallObjects(byte* ptr){
     vector<int> ob = timeline->updateObservables();
 
     map<string, Variant> ret_map ;
-    int* circles = (int*)malloc(ob.size()*4*4);
+    int num_per_obj = 6 ;
+    int* render_data = (int*)malloc(ob.size()*4*num_per_obj);
     //vector<Variant> output ;
     for(int k=0;k<ob.size();k++){
         weak_ptr<TObject> ow = timeline->getLastObserved(ob[k]) ;
         if(auto o = ow.lock()){
-            circles[4*k] = (int)o->position.x;
-            circles[4*k+1] = (int)o->position.y;
-            circles[4*k+2] = (int)o->radius;
-            circles[4*k+3] = ob[k];
+            render_data[num_per_obj*k] = ob[k];
+            render_data[num_per_obj*k+1] = o->type;
+            if(o->type == 1) { // ball
+                render_data[num_per_obj*k+2] = (int)o->position.x;
+                render_data[num_per_obj*k+3] = (int)o->position.y;
+                render_data[num_per_obj*k+4] = (int)o->radius;
+
+            }else if(o->type == 2){ // wall
+                shared_ptr<BallWall> w = std::static_pointer_cast<BallWall>(o);
+                render_data[num_per_obj*k+2] = (int)w->min.x;
+                render_data[num_per_obj*k+3] = (int)w->min.y;
+                render_data[num_per_obj*k+4] = (int)w->max.x;
+                render_data[num_per_obj*k+5] = (int)w->max.y;
+            }
+            
+            
         //output.push_back(Variant(timeline->getLastObserved(ob[k])->serialize()));
         }
     }
     //ret_map["observables"] = Variant(output);
-    ret_map["observables"] = Variant(circles, ob.size()*4);
-    free(circles);
+    ret_map["stride"] = Variant(num_per_obj) ;
+    ret_map["observables"] = Variant(render_data, ob.size()*num_per_obj);
+    free(render_data);
     return pack(ret_map);
 }
 

@@ -34,6 +34,8 @@ class MoveBouncingBall : public TEvent{
         void run() override;
 
         double interval ;
+
+        static glm::vec3 getClosestPoint(std::pair<glm::vec3,glm::vec3> lines, glm::vec3 point);
         
 };
 #endif // #ifndef _MOVE_BOUNCING_BALL_H_
