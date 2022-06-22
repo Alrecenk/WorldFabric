@@ -107,11 +107,6 @@ void addBall(int width, int height, float min_radius, float max_radius, float ma
         float timeoffset = randomFloat() ;
         timeline->createObject(std::move(o), std::move(o_move) , timeline->current_time + timeoffset);
 
-        o = std::make_unique<BouncingBall>(position, velocity*1.2f, radius*0.4f) ;
-        o_move = std::make_unique<MoveBouncingBall>(1.0/60.0) ;
-        timeoffset = randomFloat() ;
-        timeline->createObject(std::move(o), std::move(o_move) , timeline->current_time + timeoffset);
-
 }
 
 Timeline* initialize2DBallTimeline(int width, int height, int amount, float min_radius, float max_radius, float max_speed){
@@ -124,10 +119,10 @@ Timeline* initialize2DBallTimeline(int width, int height, int amount, float min_
         
     }
 
-    std::unique_ptr<BallWall> center_wall = std::make_unique<BallWall>(vec3(width/2-100,height/2-50,-100), vec3(width/2+100,height/2+50,100)) ;
+    std::unique_ptr<BallWall> center_wall = std::make_unique<BallWall>(vec3(width/2-100,height/2-50,-1), vec3(width/2+100,height/2+50,1)) ;
     timeline->createObject(std::move(center_wall), std::unique_ptr<TEvent>(nullptr) , 0.1 * randomFloat());
 
-    std::unique_ptr<BallWall> outer_wall = std::make_unique<BallWall>(vec3(10,10,-100), vec3(width-10,height-10, 100)) ;
+    std::unique_ptr<BallWall> outer_wall = std::make_unique<BallWall>(vec3(10,10,-1), vec3(width-10,height-10, 1)) ;
     timeline->createObject(std::move(outer_wall), std::unique_ptr<TEvent>(nullptr) , 0.1 * randomFloat());
 
     timeline->run(1.0);
