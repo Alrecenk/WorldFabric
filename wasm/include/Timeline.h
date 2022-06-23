@@ -52,6 +52,8 @@ class Timeline{
         CollisionSystem collisions;
         std::vector<std::weak_ptr<TEvent>> recent_unruns ; // tracker for rolbacks so we can reinstert into run sequence without recomuting it entirely
 
+        int total_runs=0;
+        int total_unruns=0 ;
         //std::vector<std::weak_ptr<TEvent>> pending_external_events ; // tracks externally created events for quicksend
 
         // Set the functions to be used for generating typed timeline events and objects from serialized data

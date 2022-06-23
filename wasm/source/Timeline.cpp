@@ -170,6 +170,7 @@ void Timeline::run(double new_time){
         if(current_event->disabled || current_event->has_run){ // events could be squashed or duplicated from rollback operations
             continue ;
         }
+        total_runs++;
         current_event->run();
         current_event->has_run = true;
         bool requeued = false;

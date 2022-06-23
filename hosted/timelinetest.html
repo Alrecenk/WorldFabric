@@ -50,6 +50,9 @@ function canvasApp() {
 
     var mouse_x, mouse_y, mouse_down_x, mouse_down_y ;
 
+    var frame = 0 ;
+    var last_time = new Date().getTime();
+    var framerate = 0 ;
 
 	function init() {
 
@@ -95,6 +98,40 @@ function canvasApp() {
         }
     }
     function onFrame(){
+
+        //Update FPS label
+        frame++;
+        if(frame >= 30){
+            var time = new Date().getTime();
+            framerate = (frame*1000/ (time-last_time));
+            
+            frame = 0 ;
+            if(tools.buttons["fps_label"]){ // TODO not really the responsibility of the general rendering
+                tools.buttons["fps_label"].text = "FPS:" + Math.round(framerate);
+            
+                if(tools.sync_link.ready()){
+                    var stats = tools.API.call("getTimelineRunStats", {}, new Serializer()) ;
+                    let events_per_second = Math.round(stats.runs*1000/ (time-last_time)) ;
+                    let efficiency = Math.round((stats.runs-stats.unruns)*1000/stats.runs)/10.0 ;
+
+                    tools.buttons["eventss_label"].text = "Events/s: " + events_per_second ;
+                    tools.buttons["efficiency_label"].text = "Efficiency:" + efficiency +"%" ;
+                }
+            }
+            last_time = time;
+        }
+        tools.buttons["ping_label"].text = "ping:" + Math.round(tools.sync_link.sync_ping);
+        
+        var context = tools.canvas.getContext("2d");
+        context.clearRect(0, 0, context.canvas.width, context.canvas.height);
+        // Draw any buttons currently on the interface.
+        for (let button_name in tools.buttons) {
+            if (tools.buttons.hasOwnProperty(button_name)) {
+                tools.buttons[button_name].draw(context);
+            }
+        }
+
+
         if(tools.current_mode!=null){
             tools.current_mode.drawFrame(0); 
         }
@@ -230,7 +267,10 @@ function initializeModes(){
 
 function setMainMenuButtons(){
     tools.buttons = {};
-    tools.buttons["fps_label"] = new InterfaceButton(tools.canvas.width-80, 10, 80, 40, "FPS:?", 20, "#FFFFFF", "#000000", "#000000", 3, null);
+    tools.buttons["fps_label"] = new InterfaceButton(tools.canvas.width-180, 10, 180, 40, "FPS:?", 20, "#FFFFFF", "#000000", "#000000", 3, null);
+    tools.buttons["ping_label"] = new InterfaceButton(tools.canvas.width-180, 60, 180, 40, "SyncPing:?", 20, "#FFFFFF", "#000000", "#000000", 3, null);
+    tools.buttons["eventss_label"] = new InterfaceButton(tools.canvas.width-180, 110, 180, 40, "Events:?", 20, "#FFFFFF", "#000000", "#000000", 3, null);
+    tools.buttons["efficiency_label"] = new InterfaceButton(tools.canvas.width-180, 160, 180, 40, "Efficiency:?", 20, "#FFFFFF", "#000000", "#000000", 3, null);
 }
 
 function onBodyLoad(){

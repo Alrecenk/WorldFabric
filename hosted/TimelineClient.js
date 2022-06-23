@@ -21,7 +21,8 @@ class TimelineClient{
             if(msg.data instanceof ArrayBuffer){
                 if(timeline_client.active){
                     let byte_array = new Int8Array(msg.data);
-                    timeline_client.synchronizeTimeline(byte_array) ;
+                    //timeline_client.synchronizeTimeline(byte_array) ;
+                    setTimeout(timeline_client.synchronizeTimeline, timeline_client.update_delay, byte_array);
                 }
             }else{
                 console.log("Timeline Server sent unrecognized formatted data:");
@@ -39,7 +40,7 @@ class TimelineClient{
     }
 
     sendUpdate(message){
-        setTimeout(timeline_client.send, this.update_delay, message);
+        setTimeout(timeline_client.send, timeline_client.update_delay, message);
     }
 
     
@@ -63,14 +64,14 @@ class TimelineClient{
         if(!last_sync){
             last_sync = new Date().getTime();
         }
-        this.sync_ping = (new Date().getTime() - last_sync) ;
+        timeline_client.sync_ping = (new Date().getTime() - last_sync) ;
         last_sync = new Date().getTime();
-        this.active = active;
+        timeline_client.active = active;
         let request_ptr = wasm_module.call("synchronizeTimeline", packet_byte_array); 
         let request_size = wasm_module.getReturnSize();
         let request = wasm_module.getByteArray(request_ptr, request_size);
         //this.socket.send(request.buffer);
-        this.sendUpdate(request.buffer);
+        timeline_client.sendUpdate(request.buffer);
     }
 
 

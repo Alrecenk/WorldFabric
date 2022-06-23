@@ -69,6 +69,7 @@ void TEvent::deleteObject(int id){
 }
 
 void TEvent::unrun(){
+    timeline->total_unruns++;
     has_run = false;
     timeline->collisions.removeRequests(this);
 
