@@ -540,26 +540,31 @@ void Timeline::applyUpdate(const Variant& update, bool server){
 
     if(update_map.find("objects") != update_map.end()){
         map<int,Variant> object_updates = update_map["objects"].getIntObject();
-        for(auto& [id,serial] : object_updates){
-            if(objects.find(id) == objects.end()){ // if not present
-                //printf("update creating new baseobject!\n");
-                //serial.printFormatted();
-                unique_ptr<TObject> new_obj = TObject::generateTypedTObject(serial); // infer type and build using generator
-                //Variant(new_obj->serialize()).printFormatted();
-                objects[id] = std::move(new_obj) ;// place into timeline
-                objects[id]->write_time = time;
-                objects[id]->timeline = this ;
-            }else{ // if already present but nonmatching value
-                
-                //printf("Update overwriting existing object! time : %f, current_time: %f, last_clear_time : %f\n", time, current_time, last_clear_time);
-                weak_ptr<TObject> existing_obj = getMutable(id, time); // write using functionality that triggers rollback
-                if(auto existing = existing_obj.lock()){
-                    map<string,Variant> serial_map = serial.getObject() ;
-                    existing->set(serial_map);
-                }else{
-                    //printf("Object exists in timeline, but not at the time it's being overwritten!? time : %f, current_time: %f, last_clear_time : %f\n", time, current_time, last_clear_time);
+        // if we're getting a lot of base objects then its better to restart than try to catch up
+        if(objects.size() > 0 && object_updates.size() >= object_updates_to_trigger_reset){
+            reset();
+        }else{
+            for(auto& [id,serial] : object_updates){
+                if(objects.find(id) == objects.end()){ // if not present
+                    //printf("update creating new baseobject!\n");
+                    //serial.printFormatted();
+                    unique_ptr<TObject> new_obj = TObject::generateTypedTObject(serial); // infer type and build using generator
+                    //Variant(new_obj->serialize()).printFormatted();
+                    objects[id] = std::move(new_obj) ;// place into timeline
+                    objects[id]->write_time = time;
+                    objects[id]->timeline = this ;
+                }else{ // if already present but nonmatching value
+                    
+                    //printf("Update overwriting existing object! time : %f, current_time: %f, last_clear_time : %f\n", time, current_time, last_clear_time);
+                    weak_ptr<TObject> existing_obj = getMutable(id, time); // write using functionality that triggers rollback
+                    if(auto existing = existing_obj.lock()){
+                        map<string,Variant> serial_map = serial.getObject() ;
+                        existing->set(serial_map);
+                    }else{
+                        //printf("Object exists in timeline, but not at the time it's being overwritten!? time : %f, current_time: %f, last_clear_time : %f\n", time, current_time, last_clear_time);
+                    }
+                    
                 }
-                
             }
         }
     }
@@ -684,4 +689,20 @@ int Timeline::getNextID(){
 long Timeline::timeMilliseconds() const{
     return std::chrono::duration_cast<std::chrono::milliseconds>(
             std::chrono::system_clock::now().time_since_epoch()).count();
+}
+
+void Timeline::reset(){
+    current_time = 0 ;
+
+    lock.lock();
+    printf("Resettin timeline!\n");
+    objects.clear();
+    events.clear();
+    recent_unruns.clear();
+    collisions = CollisionSystem();
+    collisions.timeline = this ;
+    total_runs = 0 ;
+    total_unruns = 0 ;
+    last_run_time = timeMilliseconds();
+    lock.unlock();
 }
