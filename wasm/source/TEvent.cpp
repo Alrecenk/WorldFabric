@@ -78,7 +78,7 @@ void TEvent::unrun(){
         if(auto rk = read[k].lock()){
             for(int j=0;j<rk->readers.size();j++){
                 if(auto a_reader = rk->readers[j].first.lock()){
-                    if(a_reader == weak_this.lock()){
+                    if(a_reader.get() == this){
                         a_reader.reset();
                     }
                 }

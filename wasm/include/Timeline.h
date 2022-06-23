@@ -37,9 +37,10 @@ class Timeline{
         int ping = 0;
         double last_clear_time = -99999 ;
 
-        double base_age = 0.3;
-        double history_kept = 0.5;
+        double base_age = 0.5;
+        double history_kept = 1.0;
         bool auto_clear_history = false;
+        int object_updates_to_trigger_reset = 4; // if a nonempty timeline receieves this many object updates in a sync packet, reset the whole timeline
 
         std::recursive_mutex lock ;
 
@@ -129,7 +130,10 @@ class Timeline{
         // returns the next valid ID that should be used for a created object
         int getNextID();
 
-        long timeMilliseconds() const;      
+        long timeMilliseconds() const;     
+
+        // clears everything in the timeline
+        void reset(); 
 
 };
 #endif // #ifndef _TIMELINE_H_
