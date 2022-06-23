@@ -131,7 +131,6 @@ class BallBounceMode extends ExecutionMode{
 
         //console.log(observables);
         let context = tools.canvas.getContext("2d");
-        context.clearRect(0, 0, context.canvas.width, context.canvas.height);
 
         for(let k=0;k<this.observables.length;k+=this.stride){
             let id = this.observables[k];

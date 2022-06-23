@@ -579,4 +579,13 @@ byte* setBallVelocity(byte* ptr){
     return emptyReturn();
 }
 
+byte* getTimelineRunStats(byte* ptr){
+    map<string, Variant> ret_map ;
+    ret_map["runs"] = Variant(timeline->total_runs) ;
+    ret_map["unruns"] = Variant(timeline->total_unruns) ;
+    timeline->total_runs = 0;
+    timeline->total_unruns = 0 ;
+    return pack(ret_map);
+}
+
 }// end extern C
