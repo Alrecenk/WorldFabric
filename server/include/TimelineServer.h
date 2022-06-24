@@ -24,10 +24,13 @@
 typedef websocketpp::server<websocketpp::config::asio> SocketServer;
 typedef SocketServer::message_ptr MessagePointer;
 
+
 class TimelineServer {
 
     public:
         static Timeline* timeline; // TODO figure out how to make not static?
+        static std::map<websocketpp::connection_hdl, long, std::owner_less<websocketpp::connection_hdl>> connections ; // map of open connections to the time of the last receieved packet
+
         //Starts the server on creation
         TimelineServer(int socket_port, Timeline* tl);
 
@@ -36,6 +39,10 @@ class TimelineServer {
 
         // Stops the server
         static void stop();
+
+        static void quickForwardEvents();
+
+        static long timeMilliseconds();
 
   private:
     // A pointer to table of data

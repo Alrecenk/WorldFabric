@@ -238,7 +238,15 @@ class BallBounceMode extends ExecutionMode{
 	keyDownListener(event){
 	    var key_code = event.keyCode || event.which;
         var character = String.fromCharCode(key_code); // This only works with letters. Use key-code directly for others.
-        console.log(character);
+        //console.log(character);
+        if(key_code = 104){// numpad 8
+            tools.sync_link.update_delay += 5;
+        }else if(key_code = 98){ // numpad 2
+            tools.sync_link.update_delay -= 5;
+            if(tools.sync_link.update_delay < 0){
+                tools.sync_link.update_delay = 0 ;
+            }
+        }
     }
 
 	keyUpListener(event){

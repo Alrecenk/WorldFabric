@@ -55,7 +55,9 @@ class Timeline{
 
         int total_runs=0;
         int total_unruns=0 ;
-        //std::vector<std::weak_ptr<TEvent>> pending_external_events ; // tracks externally created events for quicksend
+
+        std::unordered_map<int, double> received_events ; // hash and event time for events recently received over the network
+        std::map<int, Variant> pending_quick_sends ; // Externally created events to be sent ASAP
 
         // Set the functions to be used for generating typed timeline events and objects from serialized data
         Timeline(std::unique_ptr<TEvent> (*event_generator)(const Variant& serialized), 
@@ -134,6 +136,9 @@ class Timeline{
 
         // clears everything in the timeline
         void reset(); 
+
+        // Returns a network packet containing the quick sends and then deletes them
+        Variant popQuickSends();
 
 };
 #endif // #ifndef _TIMELINE_H_

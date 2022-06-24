@@ -588,4 +588,13 @@ byte* getTimelineRunStats(byte* ptr){
     return pack(ret_map);
 }
 
+byte* popPendingQuickSends(byte* ptr){
+    Variant qs = timeline->popQuickSends() ;
+    if(qs.defined()){
+        return pack(qs);
+    }else{
+        return emptyReturn();
+    }
+}
+
 }// end extern C

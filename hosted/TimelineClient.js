@@ -1,13 +1,14 @@
 var timeline_client ; //TODO singleton patterned global is not great
 var wasm_module;
 var last_sync ;
+var quick_send = false;
 class TimelineClient{
     //The address with protocol and port
     address = null;
     //The websocket
     socket = null ; 
     active = false;
-    update_delay = 15; // milliseconds to wait before actually sending a packet (used for simulating latency)
+    update_delay = 5; // milliseconds to wait before actually sending a packet (used for simulating latency)
     sync_ping = 0 ;
     
     // Opens a websocket on creation to connect to a TableServer (cpp) on the same server as the web-hosting
@@ -72,9 +73,20 @@ class TimelineClient{
         let request = wasm_module.getByteArray(request_ptr, request_size);
         //this.socket.send(request.buffer);
         timeline_client.sendUpdate(request.buffer);
+        timeline_client.quick_send = true ;
     }
 
-
+    sendQuickEvents(){
+        if(this.quick_send){
+            let request_ptr = wasm_module.call("popPendingQuickSends", new Int8Array(1)); //TODO support null params on serializerless wasm calls
+            let request_size = wasm_module.getReturnSize();
+            let request = wasm_module.getByteArray(request_ptr, request_size);
+            if(request_size > 10){
+                //this.socket.send(request.buffer);
+                timeline_client.sendUpdate(request.buffer);
+            }
+        }
+    }
 
 
 }

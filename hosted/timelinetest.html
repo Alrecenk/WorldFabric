@@ -135,6 +135,9 @@ function canvasApp() {
         if(tools.current_mode!=null){
             tools.current_mode.drawFrame(0); 
         }
+        if(tools.sync_link.ready()){
+            tools.sync_link.sendQuickEvents();
+        }
         requestAnimationFrame(onFrame);
     }
 
