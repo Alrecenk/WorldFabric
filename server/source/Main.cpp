@@ -69,6 +69,7 @@ int main(int argc, char** argv) {
     while (running) {
         std::this_thread::sleep_for(std::chrono::milliseconds(20));
         timeline->run();
+        TimelineServer::quickForwardEvents();
     }
     web_server.stop();
     timeline_server.stop();

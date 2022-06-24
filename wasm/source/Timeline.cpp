@@ -46,6 +46,10 @@ void Timeline::addEvent(std::unique_ptr<TEvent> event, double send_time){
             event->time = send_time + glm::length(vo2->position - eo2->position)/info_speed ;
         }
     }
+    Variant serial = Variant(event->serialize());
+    int hash = serial.hash();
+    pending_quick_sends[hash] = std::move(serial);
+    received_events[hash] = event->time;
     insertEvent(std::move(event));
     lock.unlock();
     //pending_external_events.push_back(event->weak_this);
@@ -367,6 +371,16 @@ void Timeline::clearHistoryBefore(double clear_time){
         // delete everything before that instanrt
         first_instant->prev.reset();
     }
+
+    vector<int> received_to_clear ;
+    for(auto& [id, time] : received_events){
+        if(time < clear_time){
+            received_to_clear.push_back(id);
+        }
+    }
+    for(int id : received_to_clear){
+         received_events.erase(id);
+    }
     
     last_clear_time = clear_time ;
     lock.unlock();
@@ -456,11 +470,9 @@ Variant Timeline::getUpdateFor(const Variant& descriptor, bool server){
     
     if(!server){
         double target_time = time+base_age ;
-        
-        /*
-        if(ping > 1 && ping < 200){
+        if(ping > 1 && ping < 300){
             target_time += ping/2000.0 ; // descriptor time comes from server so only aged by one way ping
-        }*/
+        }
         if(fabs(current_time - target_time) > base_age*0.1 && (current_time < target_time || target_time > current_time-last_clear_time)){ 
             //printf("Correcting clock in getupdateFor: update time:%f target:%f current:%f ping:%d\n", time, target_time, current_time, ping);
             run(target_time); // catch up
@@ -483,13 +495,13 @@ Variant Timeline::getUpdateFor(const Variant& descriptor, bool server){
     update_map["time"] = Variant(time);
 
     auto [base_events,base_objects] = getBaseState(time);
-    vector<Variant> event_updates;
+    map<int,Variant> event_updates;
     for(int k=0;k<base_events.size();k++){
         Variant serial = Variant(base_events[k]->serialize());
         //serial.printFormatted();
         int hash = serial.hash();
         if(other_event_set.find(hash) == other_event_set.end()){ // we have event other didn't have
-            event_updates.emplace_back(std::move(serial)); 
+            event_updates[hash] = std::move(serial); 
         }
     }
 
@@ -522,58 +534,70 @@ Variant Timeline::getUpdateFor(const Variant& descriptor, bool server){
 // returns the time of the update
 void Timeline::applyUpdate(const Variant& update, bool server){
     map<string,Variant> update_map = update.getObject();
-    double time = update_map["time"].getDouble();
-    
-    if(!server){
-        double target_time = time+base_age ;
-       
-        if(target_time - current_time > base_age*0.1){  // apply update can only push the clock forward
-            //printf("Correcting clock in applyUpdate: update time:%f target:%f current:%f ping:%d\n", time, target_time, current_time, ping);
-            run(target_time); // catch up
+    if(update_map.find("time") != update_map.end()){ // quick send udates don't affect clock
+        double time = update_map["time"].getDouble();
+        
+        if(!server){
+            double target_time = time+base_age ;
+        
+            if(target_time - current_time > base_age*0.1){  // apply update can only push the clock forward
+                //printf("Correcting clock in applyUpdate: update time:%f target:%f current:%f ping:%d\n", time, target_time, current_time, ping);
+                run(target_time); // catch up
+            }
         }
-    }
 
-    if(time <= last_clear_time || time > current_time){ // asked for an update outside our timeline
-        printf("Update received outside of time slice!\n");
-        return ; // return nothing, we don't know what's outside of our time slice
-    }
+        if(time <= last_clear_time || time > current_time){ // asked for an update outside our timeline
+            printf("Update received outside of time slice!\n");
+            return ; // return nothing, we don't know what's outside of our time slice
+        }
 
-    if(update_map.find("objects") != update_map.end()){
-        map<int,Variant> object_updates = update_map["objects"].getIntObject();
-        // if we're getting a lot of base objects then its better to restart than try to catch up
-        if(objects.size() > 0 && object_updates.size() >= object_updates_to_trigger_reset){
-            reset();
-        }else{
-            for(auto& [id,serial] : object_updates){
-                if(objects.find(id) == objects.end()){ // if not present
-                    //printf("update creating new baseobject!\n");
-                    //serial.printFormatted();
-                    unique_ptr<TObject> new_obj = TObject::generateTypedTObject(serial); // infer type and build using generator
-                    //Variant(new_obj->serialize()).printFormatted();
-                    objects[id] = std::move(new_obj) ;// place into timeline
-                    objects[id]->write_time = time;
-                    objects[id]->timeline = this ;
-                }else{ // if already present but nonmatching value
-                    
-                    //printf("Update overwriting existing object! time : %f, current_time: %f, last_clear_time : %f\n", time, current_time, last_clear_time);
-                    weak_ptr<TObject> existing_obj = getMutable(id, time); // write using functionality that triggers rollback
-                    if(auto existing = existing_obj.lock()){
-                        map<string,Variant> serial_map = serial.getObject() ;
-                        existing->set(serial_map);
-                    }else{
-                        //printf("Object exists in timeline, but not at the time it's being overwritten!? time : %f, current_time: %f, last_clear_time : %f\n", time, current_time, last_clear_time);
+        if(update_map.find("objects") != update_map.end()){
+            map<int,Variant> object_updates = update_map["objects"].getIntObject();
+            // if we're getting a lot of base objects then its better to restart than try to catch up
+            if(objects.size() > 0 && object_updates.size() >= object_updates_to_trigger_reset){
+                reset();
+            }else{
+                for(auto& [id,serial] : object_updates){
+                    if(objects.find(id) == objects.end()){ // if not present
+                        //printf("update creating new baseobject!\n");
+                        //serial.printFormatted();
+                        unique_ptr<TObject> new_obj = TObject::generateTypedTObject(serial); // infer type and build using generator
+                        //Variant(new_obj->serialize()).printFormatted();
+                        objects[id] = std::move(new_obj) ;// place into timeline
+                        objects[id]->write_time = time;
+                        objects[id]->timeline = this ;
+                    }else{ // if already present but nonmatching value
+                        
+                        //printf("Update overwriting existing object! time : %f, current_time: %f, last_clear_time : %f\n", time, current_time, last_clear_time);
+                        weak_ptr<TObject> existing_obj = getMutable(id, time); // write using functionality that triggers rollback
+                        if(auto existing = existing_obj.lock()){
+                            map<string,Variant> serial_map = serial.getObject() ;
+                            existing->set(serial_map);
+                        }else{
+                            //printf("Object exists in timeline, but not at the time it's being overwritten!? time : %f, current_time: %f, last_clear_time : %f\n", time, current_time, last_clear_time);
+                        }  
                     }
-                    
+                }
+            }
+        }
+    }/*else{
+        printf("Got quick packet:\n");
+        update_map["events"].printFormatted();
+    }*/
+
+    map<int,Variant> event_updates = update_map["events"].getIntObject();
+    for(auto& [hash, serial] : event_updates){
+        if(received_events.find(hash) == received_events.end()){
+            std::weak_ptr<TEvent> ew = insertEvent(std::move(TEvent::generateTypedTEvent(serial)));
+            if(auto e = ew.lock()){
+                received_events[hash] = e->time;
+                if(server){
+                    pending_quick_sends[hash] = std::move(serial);
                 }
             }
         }
     }
-
-    vector<Variant> event_updates = update_map["events"].getVariantArray();
-    for(int k=0;k<event_updates.size();k++){
-        //printf("updating event\n");
-        insertEvent(std::move(TEvent::generateTypedTEvent(event_updates[k])));
-    }
+    
 }
 
 // Given a packet with an update and optional descriptor
@@ -705,4 +729,19 @@ void Timeline::reset(){
     total_unruns = 0 ;
     last_run_time = timeMilliseconds();
     lock.unlock();
+}
+
+// Returns a network packet containing the quick sends and then deletes them
+Variant Timeline::popQuickSends(){
+    if(pending_quick_sends.size()==0){
+        return Variant();
+    }
+    std::map<std::string, Variant> packet;
+    std::map<std::string, Variant> update;
+    lock.lock();
+    update["events"] = Variant(pending_quick_sends);
+    packet["update"] = Variant(update);
+    pending_quick_sends.clear();
+    lock.unlock();
+    return Variant(packet); ;
 }

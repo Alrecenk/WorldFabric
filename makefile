@@ -45,6 +45,7 @@ EXPORTED_FUNCTIONS =[\
 	'_synchronizeTimeline',\
 	'_setBallVelocity',\
 	'_getTimelineRunStats',\
+	'_popPendingQuickSends',\
 	'_free']
 EXTRA_EXPORTED_RUNTIME_METHODS=['ccall']
 API_MAIN = ${API_DIR}source/api.cpp
