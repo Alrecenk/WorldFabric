@@ -53,7 +53,7 @@ class TObject{
 
         // Override this function to provide logic for interpolation after rollback or extrapolation for slowly updating objects
         // If not overridden getObserved returns the raw value of the object
-        virtual std::unique_ptr<TObject> getObserved(const std::weak_ptr<TObject> last_observed);
+        virtual std::unique_ptr<TObject> getObserved(long time_ms, const std::weak_ptr<TObject> last_observed, long last_time_ms);
 
         void print() const;
 

@@ -91,6 +91,7 @@ int millisBetween(std::chrono::high_resolution_clock::time_point start, std::chr
 Timeline* initializeBallTimeline(){
     timeline = make_unique<Timeline>(&BouncingBall::createEvent, &BouncingBall::createObject);
     timeline->auto_clear_history=true;
+    timeline->observable_interpolation = true;
     return timeline.get() ;
 }
 
@@ -509,6 +510,7 @@ byte* initialize2DBallTimeline(byte* ptr){
 
 byte* runTimeline(byte* ptr){
     timeline->auto_clear_history =true;
+    timeline->observable_interpolation = true;
     auto obj = Variant::deserializeObject(ptr);
     if(obj.find("time") == obj.end()){
         timeline->run();

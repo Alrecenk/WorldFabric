@@ -10,6 +10,8 @@ class TimelineClient{
     active = false;
     update_delay = 5; // milliseconds to wait before actually sending a packet (used for simulating latency)
     sync_ping = 0 ;
+    last_quick_send_time = 0;
+    min_quick_send_interval = 30; // how often we're allowed to send quick-send packets
     
     // Opens a websocket on creation to connect to a TableServer (cpp) on the same server as the web-hosting
     constructor(port, module){
@@ -62,22 +64,31 @@ class TimelineClient{
     }
 
     synchronizeTimeline(packet_byte_array, active=true){
-        if(!last_sync){
-            last_sync = new Date().getTime();
-        }
-        timeline_client.sync_ping = (new Date().getTime() - last_sync) ;
-        last_sync = new Date().getTime();
+        
+        
         timeline_client.active = active;
         let request_ptr = wasm_module.call("synchronizeTimeline", packet_byte_array); 
         let request_size = wasm_module.getReturnSize();
         let request = wasm_module.getByteArray(request_ptr, request_size);
-        //this.socket.send(request.buffer);
-        timeline_client.sendUpdate(request.buffer);
-        timeline_client.quick_send = true ;
+        if(request_size > 10){ // might have gotten a quick update which would not generate a response
+            if(!last_sync){
+                last_sync = new Date().getTime();
+            }
+            timeline_client.sync_ping = (new Date().getTime() - last_sync) ;
+            last_sync = new Date().getTime();
+
+            timeline_client.sendUpdate(request.buffer);
+            timeline_client.quick_send = true ;
+
+            
+            
+        }
     }
 
     sendQuickEvents(){
-        if(this.quick_send){
+        let time = new Date().getTime();
+        if(this.quick_send && time - this.last_quick_send_time > this.min_quick_send_interval){
+            this.last_quick_send_time = time ;
             let request_ptr = wasm_module.call("popPendingQuickSends", new Int8Array(1)); //TODO support null params on serializerless wasm calls
             let request_size = wasm_module.getReturnSize();
             let request = wasm_module.getByteArray(request_ptr, request_size);

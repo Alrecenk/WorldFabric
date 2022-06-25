@@ -43,6 +43,6 @@ std::unique_ptr<TObject> BallWall::deepCopy(){
 
 // Override this function to provide logic for interpolation after rollback or extrapolation for slowly updating objects
 // If not overridden getObserved returns the raw value of the object
-std::unique_ptr<TObject> BallWall::getObserved(const std::weak_ptr<TObject> last_observed){
+std::unique_ptr<TObject> BallWall::getObserved(long time_ms, const std::weak_ptr<TObject> last_observed, long last_time_ms){
     return deepCopy();
 }
