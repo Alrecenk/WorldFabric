@@ -323,7 +323,7 @@ void Timeline::deleteAfter(int id, double time){
         // unrun all events that read data we're gonna wipe
         for(int k=0;k<last_instant->readers.size();k++){
             if(auto rk = last_instant->readers[k].first.lock()){
-                if(rk->has_run){
+                if(!rk->disabled && rk->has_run){
                     rk->unrun();
                     last_instant->readers[k].first.reset() ; // remove the link to the reader since it might not read this when it reruns
                 }
@@ -338,7 +338,7 @@ void Timeline::deleteAfter(int id, double time){
 
     for(int k=0;k<last_instant->readers.size();k++){
         if(auto rk = last_instant->readers[k].first.lock()){
-            if(rk->has_run && rk->time > time){ // have to check time because the last instant may only have some reruns
+            if(rk->has_run && rk->time > time && !rk->disabled){ // have to check time because the last instant may only have some reruns
                 rk->unrun();
                 last_instant->readers[k].first.reset() ; // remove the link to the reader since it might not read this when it reruns
             }
@@ -470,9 +470,17 @@ Variant Timeline::getUpdateFor(const Variant& descriptor, bool server){
     
     if(!server){
         double target_time = time+base_age ;
-        if(ping > 1 && ping < 300){
-            target_time += ping/2000.0 ; // descriptor time comes from server so only aged by one way ping
+        if(ping > 10 && ping < 500*base_age){
+            double target_ping_clock_adjustment = ping/2000.0 ; // descriptor time comes from server so only aged by one way ping
+            if(fabs(target_ping_clock_adjustment-ping_clock_adjustment) < ping_change_per_sync){
+                ping_clock_adjustment = target_ping_clock_adjustment ;
+            }else if(ping_clock_adjustment > target_ping_clock_adjustment){
+                ping_clock_adjustment -= ping_change_per_sync;
+            }else{
+                ping_clock_adjustment += ping_change_per_sync;
+            }
         }
+        target_time += ping_clock_adjustment ;
         if(fabs(current_time - target_time) > base_age*0.1 && (current_time < target_time || target_time > current_time-last_clear_time)){ 
             //printf("Correcting clock in getupdateFor: update time:%f target:%f current:%f ping:%d\n", time, target_time, current_time, ping);
             run(target_time); // catch up
@@ -671,6 +679,7 @@ std::vector<int> Timeline::updateObservables(){
         has_vantage= true;
     }
 
+    long time_ms = timeMilliseconds();
     vector<int> observed_ids;
     for(auto& [id, object_history] : objects){
 
@@ -682,7 +691,12 @@ std::vector<int> Timeline::updateObservables(){
             read = getObjectInstant(id, current_time) ;
         }
         if(auto read2 = read.lock()){
-            last_observed[id] = std::move(read2->getObserved(last_observed[id]));
+            if(observable_interpolation){
+                last_observed[id] = std::move(read2->getObserved(time_ms, last_observed[id], last_observed_time[id]));
+            }else{
+                last_observed[id] = read2->deepCopy();
+            }
+            last_observed_time[id] = time_ms ;
             observed_ids.push_back(id);
         }
     }

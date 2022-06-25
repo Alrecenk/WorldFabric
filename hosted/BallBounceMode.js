@@ -109,7 +109,16 @@ class BallBounceMode extends ExecutionMode{
                         new_v[0]*= s ;
                         new_v[1]*= s ;
                     }
-                    tools.API.call("setBallVelocity",{id:this.drag_id,v:new Float32Array(new_v)}, new Serializer());
+                    if(!this.last_v){
+                        this.last_v = [-9999,-9999,-9999];
+                    }
+                    let change_mag = (new_v[0] - this.last_v[0])*(new_v[0] - this.last_v[0]) + (new_v[1] - this.last_v[1])*(new_v[1] - this.last_v[1]) ;
+                    if(change_mag > 1000){
+                        this.last_v = new_v;
+                        tools.API.call("setBallVelocity",{id:this.drag_id,v:new Float32Array(new_v)}, new Serializer());
+                    }else{
+                        console.log("notenug hcvnasge!");
+                    }
                 }
             }
         }
@@ -239,9 +248,9 @@ class BallBounceMode extends ExecutionMode{
 	    var key_code = event.keyCode || event.which;
         var character = String.fromCharCode(key_code); // This only works with letters. Use key-code directly for others.
         //console.log(character);
-        if(key_code = 104){// numpad 8
+        if(key_code == 104){// numpad 8
             tools.sync_link.update_delay += 5;
-        }else if(key_code = 98){ // numpad 2
+        }else if(key_code == 98){ // numpad 2
             tools.sync_link.update_delay -= 5;
             if(tools.sync_link.update_delay < 0){
                 tools.sync_link.update_delay = 0 ;

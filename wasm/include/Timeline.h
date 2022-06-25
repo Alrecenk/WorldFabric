@@ -35,11 +35,14 @@ class Timeline{
         long last_run_time = 0 ;
         long last_sync_time = 0;
         int ping = 0;
+        double ping_clock_adjustment = 0 ; // how much we're currently offsetting our clock from the server to adjust for ping (client only)
+        double ping_change_per_sync = 0.005; // how much we can change the ping adjustment per sync
         double last_clear_time = -99999 ;
 
-        double base_age = 0.5;
-        double history_kept = 1.0;
-        bool auto_clear_history = false;
+        double base_age = 0.5; // how long in the past to pull instants for synchronization
+        double history_kept = 1.0; // how much history to keep inseconds
+        bool auto_clear_history = false; // when true history will be cleared to timekept on event running when it reaches 2*time kept
+        bool observable_interpolation = false; // whether we're calling getObserved on objects or just returning their current value
         int object_updates_to_trigger_reset = 4; // if a nonempty timeline receieves this many object updates in a sync packet, reset the whole timeline
 
         std::recursive_mutex lock ;
@@ -50,6 +53,7 @@ class Timeline{
         // pointer to the most recent value of each object by id
         std::unordered_map<int, std::shared_ptr<TObject>> objects ;
         std::unordered_map<int, std::shared_ptr<TObject>> last_observed ;
+        std::unordered_map<int, long> last_observed_time ;
         CollisionSystem collisions;
         std::vector<std::weak_ptr<TEvent>> recent_unruns ; // tracker for rolbacks so we can reinstert into run sequence without recomuting it entirely
 
