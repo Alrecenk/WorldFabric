@@ -87,6 +87,9 @@ class TEvent{
         virtual std::unique_ptr<TEvent> deepCopy();
 
         void print() const;
+
+        // clears all pointers to this event on objects it read from
+        void clearReaderPointers();
         
 };
 #endif // #ifndef _TEVENT_H_

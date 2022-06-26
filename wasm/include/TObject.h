@@ -27,8 +27,9 @@ class TObject{
         std::shared_ptr<TObject> prev ;
         std::weak_ptr<TObject> next ;
         Timeline* timeline ;
-        std::vector<std::pair<std::weak_ptr<TEvent>, double>> readers ; // events that have read this object instant and when 
-        
+        //std::vector<std::pair<std::weak_ptr<TEvent>, double>> readers ; // events that have read this object instant and when 
+        std::map<std::weak_ptr<TEvent>, double, std::owner_less<std::weak_ptr<TEvent>>> readers;
+
         TObject();
 
         virtual ~TObject() = default ;
