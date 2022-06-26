@@ -329,7 +329,6 @@ void Timeline::deleteAfter(int id, double time){
             if(auto rk = reader.lock()){
                 if(!rk->disabled && rk->has_run){
                     rk->unrun();
-                    last_instant->readers.erase(reader);
                 }
             }
         }
@@ -350,7 +349,6 @@ void Timeline::deleteAfter(int id, double time){
         if(auto rk = reader.lock()){
             if(!rk->disabled && rk->has_run && rk->time > time){
                 rk->unrun();
-                last_instant->readers.erase(reader);
             }
         }
     }
