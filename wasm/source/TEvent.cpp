@@ -22,7 +22,7 @@ const std::weak_ptr<TObject> TEvent::get(int id){
     weak_ptr<TObject> g = timeline->getObjectInstant(vantage, id, time) ;
     if(auto g2 = g.lock()){
         double read_time = time - glm::length(g2->position-vantage)/timeline->info_speed ;
-        g2->readers.push_back(std::make_pair(weak_this, read_time));
+        g2->readers[weak_this] = read_time ;
         read.push_back(g);
     }
     return g ;
@@ -73,19 +73,9 @@ void TEvent::unrun(){
     has_run = false;
     timeline->collisions.removeRequests(this);
 
-    // Remove links for the data this event accessed on run ( so we don't get rerun if that data changes
-    for(int k=0;k<read.size();k++){
-        if(auto rk = read[k].lock()){
-            for(int j=0;j<rk->readers.size();j++){
-                if(auto a_reader = rk->readers[j].first.lock()){
-                    if(a_reader.get() == this){
-                        a_reader.reset();
-                    }
-                }
-            }
-        }
-    }
-    read.clear();
+    // Remove links for the data this event accessed on run (so we don't get rerun if that data changes)
+    clearReaderPointers();
+
     // Delete any data following from this write
     if(wrote_anchor){
         timeline->deleteAfter(anchor_id, time);
@@ -117,4 +107,14 @@ std::unique_ptr<TEvent> TEvent::deepCopy(){
 
 void TEvent::print() const{
     Variant(serialize()).printFormatted();
+}
+
+// clears all pointers to this event on objects it read from
+void TEvent::clearReaderPointers(){
+    for(int k=0;k<read.size();k++){
+        if(auto rk = read[k].lock()){
+            rk->readers.erase(weak_this);
+        }
+    }
+    read.clear();
 }

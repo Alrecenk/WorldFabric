@@ -319,28 +319,36 @@ void Timeline::deleteAfter(int id, double time){
     // find the last instant we're going to keep
     shared_ptr<TObject> last_instant = objects[id];
     while(last_instant->write_time >= time && last_instant->prev){
-       
         // unrun all events that read data we're gonna wipe
-        for(int k=0;k<last_instant->readers.size();k++){
-            if(auto rk = last_instant->readers[k].first.lock()){
+        vector<std::weak_ptr<TEvent>> initial_readers;
+        for(auto& [reader, time] : last_instant->readers){
+            initial_readers.push_back(reader);
+        }
+        // unrun changes the reader list, so we need can't iterate over it and unrun directly
+        for(auto& reader : initial_readers){
+            if(auto rk = reader.lock()){
                 if(!rk->disabled && rk->has_run){
                     rk->unrun();
-                    last_instant->readers[k].first.reset() ; // remove the link to the reader since it might not read this when it reruns
                 }
             }
         }
         last_instant = last_instant->prev ;
     }
 
+
     if(last_instant->write_time >= time){
         printf("WTF: deleting data before the earliest available instant!\n");
     }
-
-    for(int k=0;k<last_instant->readers.size();k++){
-        if(auto rk = last_instant->readers[k].first.lock()){
-            if(rk->has_run && rk->time > time && !rk->disabled){ // have to check time because the last instant may only have some reruns
+    // unrun all events that read data we're gonna wipe
+    vector<std::weak_ptr<TEvent>> initial_readers;
+    for(auto& [reader, time] : last_instant->readers){
+        initial_readers.push_back(reader);
+    }
+    // unrun changes the reader list, so we need can't iterate over it and unrun directly
+    for(auto& reader : initial_readers){
+        if(auto rk = reader.lock()){
+            if(!rk->disabled && rk->has_run && rk->time > time){
                 rk->unrun();
-                last_instant->readers[k].first.reset() ; // remove the link to the reader since it might not read this when it reruns
             }
         }
     }
@@ -358,6 +366,7 @@ void Timeline::clearHistoryBefore(double clear_time){
     for(int k=0;k<events.size();k++){
         if(events[k] && (events[k]->disabled || (events[k]->has_run && events[k]->time < clear_time))){
             collisions.removeRequests(events[k].get());
+            events[k]->clearReaderPointers();
             events[k].reset();
         }
     }
