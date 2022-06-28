@@ -135,6 +135,7 @@ bool UnitTests::checkSimpleTimeWarp(){
     t.info_speed = 10;
     t.history_kept = 1000;
     t.base_age = 100 ;
+    t.max_time_warp = 100;
 
     //printf("Initialized timeline with %f info speed.\n", t.info_speed);
 
@@ -194,7 +195,7 @@ bool UnitTests::checkSimpleTimeWarp(){
 bool UnitTests::checkCollisionRollback(){
     bool s = true ;
     Timeline t = Timeline(&BouncingBall::createEvent, &BouncingBall::createObject);
-    std::unique_ptr<BouncingBall> a = std::make_unique<BouncingBall>(vec3(0,0,0),vec3(1,0,0), 0.5f) ;
+    std::unique_ptr<BouncingBall> a = std::make_unique<BouncingBall>(vec3(0,0,0),vec3(1,0,0), 0.4f) ;
     std::unique_ptr<MoveBouncingBall> a_move = std::make_unique<MoveBouncingBall>(0.1) ;
     t.createObject(std::move(a), std::move(a_move), 1.0);
     //printf("A created!\n");
@@ -203,7 +204,7 @@ bool UnitTests::checkCollisionRollback(){
     vector<int> ob = t.updateObservables();
     a_id = ob[0]; 
     //printf("A_id : %d!\n", a_id);
-    std::unique_ptr<BouncingBall> b = std::make_unique<BouncingBall>(vec3(5,5,0),vec3(0,-1,0), 0.5f) ;
+    std::unique_ptr<BouncingBall> b = std::make_unique<BouncingBall>(vec3(5,5,0),vec3(0,-1,0), 0.4f) ;
     std::unique_ptr<MoveBouncingBall> b_move = std::make_unique<MoveBouncingBall>(0.1) ;
     t.createObject(std::move(b), std::move(b_move) , 1.001);
 

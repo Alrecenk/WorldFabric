@@ -17,20 +17,17 @@ using std::weak_ptr ;
 vector<int> CollisionSystem::getCollisions(TEvent* event){
     //printf("requesting collisions!\n");
     vector<int> collisions ;
-    //TObject* vo = timeline->objects[event->anchor_id].get(event->time) ;
     weak_ptr<TObject> vow = timeline->getObjectInstant(event->anchor_id, event->time);
 
     if(auto vo = vow.lock()){
         vec3 vantage = vo->position;
         for(auto& [id, history] : timeline->objects){
             if(id != event->anchor_id){
-                //TObject* o = history.get(vantage, event->time, timeline->info_speed);
                 weak_ptr<TObject> ow = timeline->getObjectInstant(vantage, id, event->time);
                 if(auto o = ow.lock()){
                     vec3 diff = (o->position-vantage) ;
                     if(glm::dot(diff,diff) < (o->radius + vo->radius) * (o->radius + vo->radius)){
                         collisions.push_back(id);
-                        //printf("%d found collision : %d!\n",event->anchor_id, id);
                     }
                 }
             }
@@ -59,12 +56,10 @@ void CollisionSystem::onDataChanged(TEvent* event){
     for(auto& [caller, collisions] : requests){
         // only rollback stuff that ran after this change
         if(caller->time > event->time && caller->anchor_id != event->anchor_id && !caller->disabled && caller->has_run){ 
-            //printf("caller time: %f event time: %f\n", caller->time, event->time);
-            //TObject* vo = timeline->objects[caller->anchor_id].get(caller->time) ; // we're still fro mthe persepctive of the caller not the new data
-            weak_ptr<TObject> vow = timeline->getObjectInstant(event->anchor_id, event->time);
+            weak_ptr<TObject> vow = timeline->getObjectInstant(caller->anchor_id, caller->time); // the original caller is the vantage point
             if(auto vo = vow.lock()){
                 vec3 vantage = vo->position ;
-                weak_ptr<TObject> ow = timeline->getObjectInstant(vantage, event->time, timeline->info_speed);
+                weak_ptr<TObject> ow = timeline->getObjectInstant(vantage, event->anchor_id, caller->time); // ge the event data from the caller's perspective
                 if(auto o = ow.lock()){
                     vec3 diff = (o->position-vantage) ;
                     bool now_collides = glm::dot(diff,diff) < (o->radius + vo->radius) * (o->radius + vo->radius) ;

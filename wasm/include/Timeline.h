@@ -41,6 +41,7 @@ class Timeline{
 
         double base_age = 0.5; // how long in the past to pull instants for synchronization
         double history_kept = 1.0; // how much history to keep inseconds
+        double max_time_warp = 0.25 ;
         bool auto_clear_history = false; // when true history will be cleared to timekept on event running when it reaches 2*time kept
         bool observable_interpolation = false; // whether we're calling getObserved on objects or just returning their current value
         int object_updates_to_trigger_reset = 4; // if a nonempty timeline receieves this many object updates in a sync packet, reset the whole timeline
@@ -81,9 +82,9 @@ class Timeline{
          // Creates an event that deletes an object at the earliest possible time
         void deleteObject(int id, double send_time);
 
-        TEvent* nextEventToRun(glm::vec3 vantage, double time, double info_speed);
+        TEvent* nextEventToRun(glm::vec3 vantage, double time);
 
-        std::priority_queue<std::pair<double, TEvent*>> getAllEvenstToRun(glm::vec3 vantage, double time, double info_speed);
+        std::priority_queue<std::pair<double, TEvent*>> getAllEvenstToRun(glm::vec3 vantage, double time);
 
         // Runs events in the timeline until the location at the vantage object reaches the given time
         void run(double new_time);

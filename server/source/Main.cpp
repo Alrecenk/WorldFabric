@@ -50,17 +50,15 @@ int main(int argc, char** argv) {
     cout << "Starting the webserver on port " << http_port << "..." << endl;
     WebServer web_server(http_address, http_port, http_root);
 
-
-
     // boot up the timeline server on a non-blocking thread
     int timeline_port = 9017;
     cout << "Starting the timeline server on port " << timeline_port << "..." << endl;
     int width = 750;
     int height = 750;
-    float min_radius = 10;
-    float max_radius = 15 ;
+    float min_radius = 16;
+    float max_radius = 20 ;
     float max_speed = 100 ;
-    Timeline* timeline = initialize2DBallTimeline(width, height, 200, min_radius, max_radius, max_speed) ;
+    Timeline* timeline = initialize2DBallTimeline(width, height, 80, min_radius, max_radius, max_speed) ;
     TimelineServer timeline_server(timeline_port, timeline);
 
     cout << "Starting main loop..." << endl;

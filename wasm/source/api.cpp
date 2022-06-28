@@ -92,6 +92,7 @@ Timeline* initializeBallTimeline(){
     timeline = make_unique<Timeline>(&BouncingBall::createEvent, &BouncingBall::createObject);
     timeline->auto_clear_history=true;
     timeline->observable_interpolation = true;
+    MoveBouncingBall::friction = 2 ;
     return timeline.get() ;
 }
 
@@ -114,7 +115,7 @@ Timeline* initialize2DBallTimeline(int width, int height, int amount, float min_
     printf("initializing timeline!\n");
     initializeBallTimeline();
     //printf("amount: %d\n", amount);
-    
+
     for(int k=0;k<amount;k++){
         addBall(width, height, min_radius, max_radius, max_speed);
         
@@ -509,8 +510,9 @@ byte* initialize2DBallTimeline(byte* ptr){
 }
 
 byte* runTimeline(byte* ptr){
-    timeline->auto_clear_history =true;
+    timeline->auto_clear_history=true;
     timeline->observable_interpolation = true;
+    MoveBouncingBall::friction = 2 ;
     auto obj = Variant::deserializeObject(ptr);
     if(obj.find("time") == obj.end()){
         timeline->run();
@@ -577,7 +579,7 @@ byte* setBallVelocity(byte* ptr){
     auto obj = Variant::deserializeObject(ptr);
     int id = obj["id"].getInt();
     vec3 velocity = obj["v"].getVec3();
-    timeline->addEvent(std::make_unique<ChangeBallVelocity>(id, velocity), timeline->current_time+0.02 + 0.01*randomFloat()) ;
+    timeline->addEvent(std::make_unique<ChangeBallVelocity>(id, velocity), timeline->current_time+0.021245682) ;
     return emptyReturn();
 }
 

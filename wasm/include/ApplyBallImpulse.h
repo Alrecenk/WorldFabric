@@ -1,5 +1,5 @@
-#ifndef _MOVE_BOUNCING_BALL_H_
-#define _MOVE_BOUNCING_BALL_H_ 1
+#ifndef _APPLY_BALL_IMPULSE_H_
+#define _APPLY_BALL_IMPULSE_H_ 1
 
 #include "TEvent.h"
 #include "TObject.h"
@@ -9,19 +9,16 @@
 #include <map>
 
 
-class MoveBouncingBall : public TEvent{
+class ApplyBallImpulse : public TEvent{
 
     public:
+        glm::vec3 impulse;
 
-        static float friction ; // amount of velocity lost per second
+        ApplyBallImpulse();
 
-        MoveBouncingBall();
+        ApplyBallImpulse(int moving_object, glm::vec3 v);
 
-        MoveBouncingBall(int moving_object, double time_step);
-
-        MoveBouncingBall(double time_step);
-
-        ~MoveBouncingBall() override;
+        ~ApplyBallImpulse() override;
 
         // Serialize this event's data, so it can be efficiently moved between timelines
         std::map<std::string,Variant> serialize() const override;
@@ -35,9 +32,6 @@ class MoveBouncingBall : public TEvent{
         // get(id), getMutable(), addEvent, createObject, deleteObject, and getCollisions
         void run() override;
 
-        double interval ;
-
-        static glm::vec3 getClosestPoint(std::pair<glm::vec3,glm::vec3> lines, glm::vec3 point);
         
 };
-#endif // #ifndef _MOVE_BOUNCING_BALL_H_
+#endif // #ifndef _APPLY_BALL_IMPULSE_H_

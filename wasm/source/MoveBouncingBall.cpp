@@ -1,6 +1,7 @@
 #include "MoveBouncingBall.h"
 #include "BouncingBall.h"
 #include "BallWall.h"
+#include "ApplyBallImpulse.h"
 
 using std::string ;
 using std::map ;
@@ -10,6 +11,8 @@ using std::weak_ptr;
 using std::shared_ptr;
 using std::unique_ptr;
 
+
+float MoveBouncingBall::friction = 0 ;
 
 MoveBouncingBall::MoveBouncingBall(){
     type = 2 ;
@@ -57,40 +60,50 @@ void MoveBouncingBall::run(){
         shared_ptr<BouncingBall> self = std::static_pointer_cast<BouncingBall>(og);
         
         self->position += self->velocity * (float)interval;
+        float speed = glm::length(self->velocity);
+        if(speed > 0){
+            float new_speed = fmax(0,speed-MoveBouncingBall::friction*interval);
+            self->velocity *= new_speed/speed;
+        }
 
         vector<int> collisions = getCollisions();
-        
-        if(collisions.size()>0){
-            //const BouncingBall* c = (const BouncingBall*)get(collisions[0]) ;
-            for(int j = 0 ;j < collisions.size();j++){
-                weak_ptr<TObject> cw = get(collisions[j]) ; // 
+        for(int j = 0 ;j < collisions.size();j++){
+            
+            weak_ptr<TObject> cw = get(collisions[j]) ; 
 
-                if(auto cg = cw.lock()){
-                    vec3 closest_point = vec3(10E30,10E30,10E30) ;
-                    if(cg->type == 1 ) { //ball
+            if(auto cg = cw.lock()){
+                vec3 closest_point = vec3(10E30,10E30,10E30) ;
+                if(cg->type == 1 ) { //ball
+                    if(collisions[j] < anchor_id){ // only handle each collision once
+
                         shared_ptr<BouncingBall> c = std::static_pointer_cast<BouncingBall>(cg);
-                        vec3 to_other = self->position - c->position ;
-                        if(glm::length(to_other) + c->radius > self->radius ){ // don't bounce in response to a contained ball
-                            closest_point = c->position +  (glm::normalize(to_other) * c->radius) ;
+                        vec3 to_other = c->position - self->position  ;
+                        float distance = glm::length(to_other) ;
+                        if(distance < self->radius + c->radius && glm::dot(self->velocity - c->velocity, to_other) > 0 ){
+                            vec3 impulse = to_other *(glm::dot((self->velocity * (self->radius*self->radius)) - (c->velocity * (c->radius*c->radius)), to_other) /glm::dot(to_other,to_other));
+                            addEvent(std::make_unique<ApplyBallImpulse>(collisions[j], impulse));
+                            self->velocity -= impulse/(self->radius*self->radius);
                         }
-                        
-                    }else if(cg->type == 2 ){ // wall
-                        vector<std::pair<vec3,vec3>> lines ;
-                        shared_ptr<BallWall> w = std::static_pointer_cast<BallWall>(cg);
-                        lines.push_back(std::pair<vec3,vec3>(vec3(w->min.x, w->min.y, self->position.z), vec3(w->min.x, w->max.y, self->position.z))) ;
-                        lines.push_back(std::pair<vec3,vec3>(vec3(w->max.x, w->max.y, self->position.z), vec3(w->min.x, w->max.y, self->position.z))) ;
-                        lines.push_back(std::pair<vec3,vec3>(vec3(w->min.x, w->min.y, self->position.z), vec3(w->max.x, w->min.y, self->position.z))) ;
-                        lines.push_back(std::pair<vec3,vec3>(vec3(w->max.x, w->max.y, self->position.z), vec3(w->max.x, w->min.y, self->position.z))) ;
-                        float best = 1E30;
-                        for(auto& line : lines){
-                            vec3 lp = getClosestPoint(line, self->position);
-                            float dist2 = glm::dot(lp - self->position, lp - self->position) ;
-                            if(dist2 < best){
-                                best = dist2;
-                                closest_point = lp ;
-                            }
-                        }   
                     }
+                    
+                }else if(cg->type == 2 ){ // wall
+
+                    vector<std::pair<vec3,vec3>> lines ;
+                    shared_ptr<BallWall> w = std::static_pointer_cast<BallWall>(cg);
+                    lines.push_back(std::pair<vec3,vec3>(vec3(w->min.x, w->min.y, self->position.z), vec3(w->min.x, w->max.y, self->position.z))) ;
+                    lines.push_back(std::pair<vec3,vec3>(vec3(w->max.x, w->max.y, self->position.z), vec3(w->min.x, w->max.y, self->position.z))) ;
+                    lines.push_back(std::pair<vec3,vec3>(vec3(w->min.x, w->min.y, self->position.z), vec3(w->max.x, w->min.y, self->position.z))) ;
+                    lines.push_back(std::pair<vec3,vec3>(vec3(w->max.x, w->max.y, self->position.z), vec3(w->max.x, w->min.y, self->position.z))) ;
+                    float best = 1E30;
+                    for(auto& line : lines){
+                        vec3 lp = getClosestPoint(line, self->position);
+                        float dist2 = glm::dot(lp - self->position, lp - self->position) ;
+                        if(dist2 < best){
+                            best = dist2;
+                            closest_point = lp ;
+                        }
+                    }   
+
                     vec3 to_hit = closest_point - self->position ;
                     double dist = glm::length(to_hit) ;
                     if(dist < self->radius){ // if actually hit
@@ -105,9 +118,6 @@ void MoveBouncingBall::run(){
                 
             }
         }
-        
-
-        
     }
 
     std::unique_ptr<MoveBouncingBall> next_tick = std::make_unique<MoveBouncingBall>(anchor_id, interval);

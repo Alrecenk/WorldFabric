@@ -65,7 +65,7 @@ void CreateObject::run(){
     weak_ptr<TObject> anchor = get(anchor_id) ;
     if(auto a = anchor.lock()){ // anchor may be null when a timeline is creating its vantage object
         //printf("Got an anchor!\n");
-        make_time += glm::length(new_object->position - a->position)/timeline->info_speed ;
+        make_time += fmin(timeline->max_time_warp, glm::length(new_object->position - a->position)/timeline->info_speed) ;
     }
     //printf("Object being created at time %f\n", make_time);
     //printf("making new object...\n");
