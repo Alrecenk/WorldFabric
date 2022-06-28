@@ -3,6 +3,7 @@
 #include "CreateObject.h"
 #include "MoveBouncingBall.h"
 #include "ChangeBallVelocity.h"
+#include "ApplyBallImpulse.h"
 #include "BallWall.h"
 
 using std::map;
@@ -103,6 +104,8 @@ std::unique_ptr<TEvent> BouncingBall::createEvent(const Variant& serialized){
         event = std::make_unique<MoveBouncingBall>();
     }else if(map["v"].type_ == Variant::FLOAT_ARRAY){
         event = std::make_unique<ChangeBallVelocity>();
+    }else if(map["i"].type_ == Variant::FLOAT_ARRAY){
+        event = std::make_unique<ApplyBallImpulse>();
     }else{
         printf("Event not parsed!\n");
         serialized.printFormatted();

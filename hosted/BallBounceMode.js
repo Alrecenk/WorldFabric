@@ -116,8 +116,6 @@ class BallBounceMode extends ExecutionMode{
                     if(change_mag > 1000){
                         this.last_v = new_v;
                         tools.API.call("setBallVelocity",{id:this.drag_id,v:new Float32Array(new_v)}, new Serializer());
-                    }else{
-                        console.log("notenug hcvnasge!");
                     }
                 }
             }

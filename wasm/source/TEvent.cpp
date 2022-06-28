@@ -21,7 +21,7 @@ const std::weak_ptr<TObject> TEvent::get(int id){
 
     weak_ptr<TObject> g = timeline->getObjectInstant(vantage, id, time) ;
     if(auto g2 = g.lock()){
-        double read_time = time - glm::length(g2->position-vantage)/timeline->info_speed ;
+        double read_time = time - fmin(timeline->max_time_warp,glm::length(g2->position-vantage)/timeline->info_speed) ;
         g2->readers[weak_this] = read_time ;
         read.push_back(g);
     }

@@ -43,7 +43,7 @@ void Timeline::addEvent(std::unique_ptr<TEvent> event, double send_time){
         if(auto eo2 = eo.lock()){
             // if position data available
             // delay event creation by time warp effect
-            event->time = send_time + glm::length(vo2->position - eo2->position)/info_speed ;
+            event->time = send_time + fmin(max_time_warp, glm::length(vo2->position - eo2->position)/info_speed) ;
         }
     }
     Variant serial = Variant(event->serialize());
@@ -56,8 +56,11 @@ void Timeline::addEvent(std::unique_ptr<TEvent> event, double send_time){
 }
 
 std::weak_ptr<TEvent> Timeline::insertEvent(std::unique_ptr<TEvent> event){
-    event->timeline = this ;
     
+    if(event->time <= last_clear_time){
+        return std::weak_ptr<TEvent>();
+    }
+    event->timeline = this ;
     // Put it in the slot of a delted item if posible
     for(int k=0;k<events.size();k++){
         int p = (k + event_add_pointer)%events.size();
@@ -89,7 +92,7 @@ void Timeline::deleteObject(int id, double send_time){
 }
 
 
-TEvent* Timeline::nextEventToRun(glm::vec3 vantage, double time, double info_speed){
+TEvent* Timeline::nextEventToRun(glm::vec3 vantage, double time){
     double best_time = time;
     TEvent* best_event = nullptr;
     for(std::shared_ptr<TEvent>& e : events){
@@ -98,7 +101,7 @@ TEvent* Timeline::nextEventToRun(glm::vec3 vantage, double time, double info_spe
             double time_to_run = e->time ;
             if(auto eo2 = eo.lock()){
                 double dist = glm::length(vantage- eo2->position);
-                time_to_run = e->time + dist/info_speed;
+                time_to_run = e->time + fmin(max_time_warp, dist/info_speed);
             }
             if(time_to_run <= best_time){
                 best_time = time_to_run;
@@ -109,7 +112,7 @@ TEvent* Timeline::nextEventToRun(glm::vec3 vantage, double time, double info_spe
     return best_event ;
 }
 
-std::priority_queue<std::pair<double, TEvent*>> Timeline::getAllEvenstToRun(glm::vec3 vantage, double time, double info_speed){
+std::priority_queue<std::pair<double, TEvent*>> Timeline::getAllEvenstToRun(glm::vec3 vantage, double time){
     std::priority_queue<std::pair<double, TEvent*>> event_queue ;
     for(std::shared_ptr<TEvent>& e : events){
         if(e.get() != nullptr && !e->disabled && !e->has_run){
@@ -117,7 +120,7 @@ std::priority_queue<std::pair<double, TEvent*>> Timeline::getAllEvenstToRun(glm:
             double time_to_run = e->time ;
             if(auto eo2 = eo.lock()){
                 double dist = glm::length(vantage - eo2->position);
-                time_to_run = e->time + dist/info_speed;
+                time_to_run = e->time + fmin(max_time_warp, dist/info_speed);
             }
             if(time_to_run <= time){
                 event_queue.push(std::pair<double,TEvent*>(-time_to_run, e.get())); // priority queue runs highest first
@@ -142,32 +145,7 @@ void Timeline::run(double new_time){
         has_vantage= true;
     }
 
-    /*
-    TEvent*  current_event = nextEventToRun(vantage, new_time, info_speed) ;
-    int run_events = 0 ;
-    while(current_event != nullptr){
-        current_event->run();
-        current_event->has_run = true;
-        if(current_event->wrote_anchor){
-            collisions.onDataChanged(current_event);
-            if(has_vantage && current_event->anchor_id == vantage_id ){ // if vantage object changed
-                weak_ptr<TObject> eo = getObjectInstant(current_event->anchor_id, new_time) ;
-                if(auto eo2 = eo.lock()){
-                    vantage = eo2->position; // vantage point may have changed
-                }
-            }
-        }
-
-        if(auto_clear_history && current_event->time - last_clear_time > history_kept*2){
-            current_time = fmax(current_time,current_event->time) ;
-            clearHistoryBefore(current_time-history_kept);
-        }
-
-        current_event = nextEventToRun(vantage, new_time, info_speed) ;
-
-    }
-    */
-    std::priority_queue<std::pair<double, TEvent*>> event_queue = getAllEvenstToRun(vantage, new_time, info_speed);
+    std::priority_queue<std::pair<double, TEvent*>> event_queue = getAllEvenstToRun(vantage, new_time);
     while(!event_queue.empty()){
         TEvent*  current_event = event_queue.top().second;
         event_queue.pop();
@@ -185,7 +163,7 @@ void Timeline::run(double new_time){
                 if(auto eo2 = eo.lock()){
                     if(eo2->position != vantage){// vantage point may have changed
                         vantage = eo2->position; 
-                        event_queue = getAllEvenstToRun(vantage, new_time, info_speed); // regenerate event queue with new vantage
+                        event_queue = getAllEvenstToRun(vantage, new_time); // regenerate event queue with new vantage
                         requeued = true ;
                     }
                 }
@@ -202,7 +180,7 @@ void Timeline::run(double new_time){
                         double time_to_run = e->time ;
                         if(auto eo2 = eo.lock()){
                             double dist = glm::length(vantage - eo2->position);
-                            time_to_run = e->time + dist/info_speed;
+                            time_to_run = e->time + fmin(max_time_warp, dist/info_speed);
                         }
                         if(time_to_run <= new_time){
                             event_queue.push(std::pair<double,TEvent*>(-time_to_run, e.get())); // priority queue runs highest first
@@ -220,7 +198,7 @@ void Timeline::run(double new_time){
                         double time_to_run = e->time ;
                         if(auto eo2 = eo.lock()){
                             double dist = glm::length(vantage - eo2->position);
-                            time_to_run = e->time + dist/info_speed;
+                            time_to_run = e->time + fmin(max_time_warp, dist/info_speed);
                         }
                         if(time_to_run <= new_time){
                             event_queue.push(std::pair<double,TEvent*>(-time_to_run, e.get())); // priority queue runs highest first
@@ -282,10 +260,10 @@ std::weak_ptr<TObject> Timeline::getObjectInstant(const glm::vec3& vantage, int 
     }
 
     shared_ptr<TObject> instant = objects[id];
-    double available_time = instant->write_time + glm::length(instant->position-vantage)/info_speed ;
+    double available_time = instant->write_time + fmin(max_time_warp, glm::length(instant->position-vantage)/info_speed) ;
     while(available_time > time && instant->prev){
         instant = instant->prev ;
-        available_time = instant->write_time + glm::length(instant->position-vantage)/info_speed ;
+        available_time = instant->write_time + fmin(max_time_warp, glm::length(instant->position-vantage)/info_speed) ;
     }
     //reached oldest object and it was too new to be read
     if(available_time > time){
@@ -336,8 +314,10 @@ void Timeline::deleteAfter(int id, double time){
     }
 
 
-    if(last_instant->write_time >= time){
-        printf("WTF: deleting data before the earliest available instant!\n");
+    if(last_instant->write_time > time){
+        printf("WTF: deleting data at time (%f) before the earliest available instant (%f)!\n", time, last_instant->write_time);
+        last_instant->print();
+
     }
     // unrun all events that read data we're gonna wipe
     vector<std::weak_ptr<TEvent>> initial_readers;
