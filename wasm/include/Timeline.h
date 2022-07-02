@@ -36,7 +36,7 @@ class Timeline{
         long last_sync_time = 0;
         int ping = 0;
         double ping_clock_adjustment = 0 ; // how much we're currently offsetting our clock from the server to adjust for ping (client only)
-        double ping_change_per_sync = 0.005; // how much we can change the ping adjustment per sync
+        double ping_change_per_sync = 0.001; // how much we can change the ping adjustment per sync
         double last_clear_time = -99999 ;
 
         double base_age = 0.25; // how long in the past to pull instants for synchronization
