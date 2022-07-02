@@ -64,8 +64,10 @@ int main(int argc, char** argv) {
     cout << "Starting main loop..." << endl;
     signal(SIGINT, quit); // Catch CTRL-C to exit gracefully
     
+    timeline->auto_clear_history=true;
+        timeline->observable_interpolation = false;
     while (running) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(20));
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
         timeline->run();
         TimelineServer::quickForwardEvents();
     }
