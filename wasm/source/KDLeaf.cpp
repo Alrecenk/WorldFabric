@@ -7,21 +7,32 @@
 using std::set;
 using glm::vec3;
 using std::vector;
+using std::map ;
 
 KDLeaf::KDLeaf() {
     parent = nullptr;
 }
 
-KDLeaf::KDLeaf(KDBranch* parent) {
-    parent = parent;
+KDLeaf::KDLeaf(KDBranch* p) {
+    parent = p;
 }
 
 KDNode* KDLeaf::split() {
     // Make box of 2 random objects, split at middle on axis of biggest difference
-    auto m1 = objects[rand() % objects.size()], m2 = objects[
-            rand() % objects.size()];
-    auto box1 = getBoundingBox(m1);
-    auto box2 = getBoundingBox(m2);
+
+    int index_1 = rand() % objects.size() ;
+    int index_2 = rand() % objects.size() ;
+    int i = 0 ;
+    std::pair<glm::vec3,glm::vec3> box1, box2;
+    for(auto& [id, sphere] : objects){
+        if(i == index_1){
+            box1 = getBoundingBox(sphere) ;
+        }
+        if(i == index_2){
+            box2 = getBoundingBox(sphere) ;
+        }
+        i++;
+    }
     vec3 box_min(
             fmin(box1.first.x, box2.first.x),
             fmin(box1.first.y, box2.first.y),
@@ -50,7 +61,7 @@ KDNode* KDLeaf::split() {
 }
 
 KDNode* KDLeaf::add(KDNode::BoundingSphere& m) {
-    objects.push_back(m);
+    objects[m.id] = m;
 
     if (objects.size() >= KDLeaf::amount_to_split) {
         return split();
@@ -60,17 +71,17 @@ KDNode* KDLeaf::add(KDNode::BoundingSphere& m) {
 }
 
 void KDLeaf::getCollisionCandidates(const KDNode::BoundingSphere& m, set<int>& candidates) {
-    for (auto& obj : objects) {
-        candidates.insert(obj.id);
+    for (auto& [id, sphere] : objects) {
+        candidates.insert(id);
     }
 }
 
 // Clears all bounding sphre references from the tree older than clear_time if it's not their newest reference
 KDNode* KDLeaf::clearHistory(double clear_time, std::unordered_map<int,double>& last_edit_time){
-    vector<KDNode::BoundingSphere> new_objects ;
-    for (auto& obj : objects) {
-        if(obj.time >= fmin(clear_time, last_edit_time[obj.id])){
-            new_objects.push_back(obj);
+    map<int, KDNode::BoundingSphere> new_objects ;
+    for (auto& [id, sphere] : objects) {
+        if(sphere.time >= fmin(clear_time, last_edit_time[id])){
+            new_objects[id] = sphere ;
         }
     }
     objects = new_objects ;

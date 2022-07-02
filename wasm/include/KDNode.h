@@ -3,6 +3,7 @@
 
 
 #include "glm/vec3.hpp"
+#include <stdio.h>
 #include <memory>
 #include <set>
 #include <vector>

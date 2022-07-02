@@ -8,12 +8,12 @@ using glm::vec3;
 using std::vector;
 using std::unique_ptr;
 
-KDBranch::KDBranch(int axis, float value, vector<KDNode::BoundingSphere> objects) {
-    axis = axis;
-    value = value;
+KDBranch::KDBranch(int axs, float val, std::map<int, KDNode::BoundingSphere>& objects) {
+    axis = axs;
+    value = val;
     less_child = unique_ptr<KDNode>(new KDLeaf(this));
     more_child = unique_ptr<KDNode>(new KDLeaf(this));
-    for (auto& obj : objects) {
+    for (auto& [id, obj] : objects) {
         add(obj);
     }
 }

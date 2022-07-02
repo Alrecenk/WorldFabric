@@ -5,13 +5,14 @@
 #include <memory>
 #include <set>
 #include <vector>
+#include <map>
 #include "KDNode.h"
 
 class KDLeaf : public KDNode {
   public:
 
-    static const int amount_to_split = 35;
-    std::vector<KDNode::BoundingSphere> objects;
+    static const int amount_to_split = 20;
+    std::map<int, KDNode::BoundingSphere> objects;
 
     // Constructor withand without parent
     explicit KDLeaf(KDBranch* parent);

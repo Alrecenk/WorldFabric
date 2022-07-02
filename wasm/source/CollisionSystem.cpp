@@ -117,10 +117,12 @@ void CollisionSystem::addObject(int id, glm::vec3 center, float radius, double t
 
 // Clean up entries in the collision structure that are older than clear_time and no longer present
 void CollisionSystem::clearHistory(double clear_time){
+    
     KDNode* new_root = root->clearHistory(clear_time, last_edit_time);
     if(new_root != root.get()){
         root =  unique_ptr<KDNode>(new_root);
     }
+    
 }
 
 std::set<int> CollisionSystem::getCandidates(glm::vec3 x, float radius){
