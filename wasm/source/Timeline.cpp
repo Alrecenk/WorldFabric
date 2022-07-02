@@ -342,7 +342,7 @@ void Timeline::clearHistoryBefore(double clear_time){
     lock.lock();
     clear_time = fmin(clear_time, current_time);// don't allow clearing beyond the current time
 
-    // clear out run events older than the time and any disabled events stil lingering
+    // clear out run events older than the time and any disabled events still lingering
     for(int k=0;k<events.size();k++){
         if(events[k] && (events[k]->disabled || (events[k]->has_run && events[k]->time < clear_time))){
             collisions.removeRequests(events[k].get());
@@ -351,6 +351,7 @@ void Timeline::clearHistoryBefore(double clear_time){
         }
     }
 
+    // clear out all but one object instant before clear time (so we have the object at clear time)
     for(auto& [id, most_recent] : objects){
         // find the first instant written before the clear time
         shared_ptr<TObject> first_instant = most_recent;
@@ -361,6 +362,7 @@ void Timeline::clearHistoryBefore(double clear_time){
         first_instant->prev.reset();
     }
 
+    // clear out the quick forwarding redundancychecking list
     vector<int> received_to_clear ;
     for(auto& [id, time] : received_events){
         if(time < clear_time){
@@ -370,6 +372,9 @@ void Timeline::clearHistoryBefore(double clear_time){
     for(int id : received_to_clear){
          received_events.erase(id);
     }
+
+    // clear out the collision data structure
+    collisions.clearHistory(clear_time);
     
     last_clear_time = clear_time ;
     lock.unlock();
@@ -574,6 +579,7 @@ void Timeline::applyUpdate(const Variant& update, bool server){
                             //printf("Object exists in timeline, but not at the time it's being overwritten!? time : %f, current_time: %f, last_clear_time : %f\n", time, current_time, last_clear_time);
                         }  
                     }
+                    collisions.addObject(id, objects[id]->position, objects[id]->radius, objects[id]->write_time);
                 }
             }
         }

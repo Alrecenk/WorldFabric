@@ -3,6 +3,7 @@
 #include "Timeline.h"
 #include "TObject.h"
 #include "TEvent.h"
+#include "KDLeaf.h"
 
 #include <memory>
 #include <algorithm>
@@ -10,7 +11,13 @@
 using glm::vec3 ;
 using std::vector;
 using std::weak_ptr ;
+using std::unique_ptr ;
+using std::set ;
 
+
+CollisionSystem::CollisionSystem(){
+    root = unique_ptr<KDNode>(new KDLeaf());
+}
 
 // Returns the collision indices for a given event
 // Logs the result to rollback if needed
@@ -21,7 +28,8 @@ vector<int> CollisionSystem::getCollisions(TEvent* event){
 
     if(auto vo = vow.lock()){
         vec3 vantage = vo->position;
-        for(auto& [id, history] : timeline->objects){
+        set<int> candidates = getCandidates(vantage, vo->radius);
+        for(int id : candidates){
             if(id != event->anchor_id){
                 weak_ptr<TObject> ow = timeline->getObjectInstant(vantage, id, event->time);
                 if(auto o = ow.lock()){
@@ -45,9 +53,15 @@ void CollisionSystem::removeRequests(TEvent* event){
         requests.erase(event);
 }
 
-// Must be called when an event writes its anchpor object
+// Must be called when an event writes its anchor object
 // to potentially rollback events with changed collision results
 void CollisionSystem::onDataChanged(TEvent* event){
+
+    weak_ptr<TObject> eo = timeline->getObjectInstant(event->anchor_id, event->time);
+    if(auto e = eo.lock()){
+       addObject(event->anchor_id, e->position, e->radius, event->time);
+    }
+
     if(event->time >= most_recent_request_time){ // if this event is not before any checks
         return ; // it can't cause collision roll back, we don't need to check
     }
@@ -84,4 +98,34 @@ void CollisionSystem::onDataChanged(TEvent* event){
             r->unrun();
         }
     }
+}
+
+
+//Adds an object to the collision structure for generating candidates
+void CollisionSystem::addObject(int id, glm::vec3 center, float radius, double time){
+    if(last_edit_time.find(id) == last_edit_time.end()){
+        last_edit_time[id] = time ;
+    }else{
+        last_edit_time[id] = fmax(last_edit_time[id], time) ;
+    }
+    KDNode::BoundingSphere bound = {id, center, radius, time} ;
+    KDNode* new_root = root->add(bound);
+    if(new_root != root.get()){
+        root =  unique_ptr<KDNode>(new_root);
+    }
+}
+
+// Clean up entries in the collision structure that are older than clear_time and no longer present
+void CollisionSystem::clearHistory(double clear_time){
+    
+    KDNode* new_root = root->clearHistory(clear_time, last_edit_time);
+    if(new_root != root.get()){
+        root =  unique_ptr<KDNode>(new_root);
+    }
+    
+}
+
+std::set<int> CollisionSystem::getCandidates(glm::vec3 x, float radius){
+    KDNode::BoundingSphere bound = {-1, x, radius, 0.0} ;
+    return root->getCollisionCandidates(bound);
 }
