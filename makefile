@@ -58,6 +58,9 @@ API_SRC    =${API_DIR}source/Variant.cpp \
 			${API_DIR}source/TObject.cpp \
 			${API_DIR}source/TEvent.cpp \
 			${API_DIR}source/CollisionSystem.cpp \
+			${API_DIR}source/KDNode.cpp \
+			${API_DIR}source/KDLeaf.cpp \
+			${API_DIR}source/KDBranch.cpp \
 			${API_DIR}source/CreateObject.cpp \
 			${API_DIR}source/BouncingBall.cpp \
 			${API_DIR}source/BallWall.cpp \
