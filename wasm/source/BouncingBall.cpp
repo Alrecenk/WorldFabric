@@ -51,11 +51,11 @@ std::unique_ptr<TObject> BouncingBall::deepCopy(){
 
 // Override this function to provide logic for interpolation after rollback or extrapolation for slowly updating objects
 // If not overridden getObserved returns the raw value of the object
-std::unique_ptr<TObject> BouncingBall::getObserved(long time_ms, const std::weak_ptr<TObject> last_observed, long last_time_ms){
-    vec3 observed_position = position;
+std::unique_ptr<TObject> BouncingBall::getObserved(double time, const std::weak_ptr<TObject> last_observed, double last_time){
+    vec3 observed_position = position + velocity * (float)(time-write_time);
 
     float max_speed = 1.3*glm::length(velocity) ;
-    float max_move = 1.0+max_speed * (time_ms-last_time_ms)*0.001;
+    float max_move = 1.0+max_speed * (time-last_time);
     
     if(auto last = last_observed.lock()){
         vec3 ov = position - last->position ;

@@ -105,7 +105,7 @@ void addBall(int width, int height, float min_radius, float max_radius, float ma
         vec3 velocity(sin(angle)*speed, cos(angle)*speed,0);
         
         std::unique_ptr<BouncingBall> o = std::make_unique<BouncingBall>(position, velocity, radius) ;
-        std::unique_ptr<MoveBouncingBall> o_move = std::make_unique<MoveBouncingBall>(1.0/60.0) ;
+        std::unique_ptr<MoveBouncingBall> o_move = std::make_unique<MoveBouncingBall>(1.0/30.0) ;
         float timeoffset = randomFloat() ;
         timeline->createObject(std::move(o), std::move(o_move) , timeline->current_time + timeoffset);
 
