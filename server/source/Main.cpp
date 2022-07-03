@@ -54,11 +54,11 @@ int main(int argc, char** argv) {
     int timeline_port = 9017;
     cout << "Starting the timeline server on port " << timeline_port << "..." << endl;
     int width = 750;
-    int height = 750;
+    int height = 850;
     float min_radius = 8;
-    float max_radius = 10 ;
+    float max_radius = 12 ;
     float max_speed = 100 ;
-    Timeline* timeline = initialize2DBallTimeline(width, height, 400, min_radius, max_radius, max_speed) ;
+    Timeline* timeline = initialize2DBallTimeline(width, height, 500, min_radius, max_radius, max_speed) ;
     TimelineServer timeline_server(timeline_port, timeline);
 
     cout << "Starting main loop..." << endl;

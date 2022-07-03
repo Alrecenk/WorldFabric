@@ -676,24 +676,28 @@ std::vector<int> Timeline::updateObservables(){
         has_vantage= true;
     }
 
-    long time_ms = timeMilliseconds();
     vector<int> observed_ids;
     for(auto& [id, object_history] : objects){
 
         weak_ptr<TObject> eo = getObjectInstant(id, current_time) ;
         weak_ptr<TObject> read ;
-        if(auto vo2 = vo.lock()){
-            read = getObjectInstant(vo2->position, id, current_time) ;
+        
+        if(has_vantage){
+            read = getObjectInstant(vantage, id, current_time) ;
         }else{
             read = getObjectInstant(id, current_time) ;
         }
         if(auto read2 = read.lock()){
+            double o_time = current_time ;
+            if(has_vantage){
+                o_time += fmin(max_time_warp, glm::length(read2->position-vantage)/info_speed);
+            }
             if(observable_interpolation){
-                last_observed[id] = std::move(read2->getObserved(time_ms, last_observed[id], last_observed_time[id]));
+                last_observed[id] = std::move(read2->getObserved(o_time, last_observed[id], last_observed_time[id]));
             }else{
                 last_observed[id] = read2->deepCopy();
             }
-            last_observed_time[id] = time_ms ;
+            last_observed_time[id] = o_time ;
             observed_ids.push_back(id);
         }
     }
