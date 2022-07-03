@@ -380,17 +380,11 @@ void Timeline::clearHistoryBefore(double clear_time){
     lock.unlock();
 }
 
-// Return the minimum state required to generate a matching timeline from the given time
-std::pair<std::vector<std::shared_ptr<TEvent>>, std::map<int, std::shared_ptr<TObject>>> Timeline::getBaseState(double time){
+std::vector<std::shared_ptr<TEvent>> Timeline::getBaseEvents(double time){
     lock.lock();
-    if(time < last_clear_time){
-        printf("Base state requested for time older than clear time!\n");
-    }else if(time > current_time){
-        printf("Base state requested for time newer than current time!\n");
-
-    }
     // get events after time that are not spawned by other events after time
     std::vector<std::shared_ptr<TEvent>> base_events ;
+    base_events.reserve(1000);
     for(int k=0;k<events.size();k++){
         if(events[k].get() != nullptr && !events[k]->disabled && events[k]->time > time){
             std::weak_ptr<TEvent> spawner_w = events[k]->spawner ;
@@ -403,9 +397,15 @@ std::pair<std::vector<std::shared_ptr<TEvent>>, std::map<int, std::shared_ptr<TO
             }
         }
     }
+    lock.unlock();
+    return base_events ;
+}
 
+std::unordered_map<int, std::shared_ptr<TObject>> Timeline::getBaseObjects(double time){
+    lock.lock();
     // return the value of the object at the time
-    std::map<int, std::shared_ptr<TObject>> base_objects ;
+    std::unordered_map<int, std::shared_ptr<TObject>> base_objects ;
+    base_objects.reserve(1000);
     for(auto& [id, history] : objects){
         weak_ptr<TObject> ow = getObjectInstant(id, time);
         if(auto o = ow.lock()){
@@ -413,7 +413,7 @@ std::pair<std::vector<std::shared_ptr<TEvent>>, std::map<int, std::shared_ptr<TO
         }
     }
     lock.unlock();
-    return std::make_pair(base_events, base_objects) ;
+    return base_objects ;
 }
 
 // Returns a serialized descriptor of the state of the this Timeline at the goiven time 
@@ -431,7 +431,7 @@ Variant Timeline::getDescriptor(double time,bool server){
     time = fmax(time, last_clear_time);
     descriptor_map["time"] = Variant(time);
     
-    auto [base_events,base_objects] = getBaseState(time);
+    auto base_events = getBaseEvents(time);
     int* base_event_hashes  = (int*)malloc(4 * base_events.size());
     for(int k=0;k<base_events.size();k++){
         base_event_hashes[k] = Variant(base_events[k]->serialize()).hash() ;
@@ -440,6 +440,7 @@ Variant Timeline::getDescriptor(double time,bool server){
     free(base_event_hashes);
 
     if(!server){
+        auto base_objects = getBaseObjects(time);
         int* base_object_hashes  = (int*)malloc(4 * 2 * base_objects.size());
         int k=0;
         for(auto& [id,object] : base_objects){
@@ -496,7 +497,7 @@ Variant Timeline::getUpdateFor(const Variant& descriptor, bool server){
     map<string,Variant> update_map ;
     update_map["time"] = Variant(time);
 
-    auto [base_events,base_objects] = getBaseState(time);
+    auto base_events = getBaseEvents(time);
     map<int,Variant> event_updates;
     for(int k=0;k<base_events.size();k++){
         Variant serial = Variant(base_events[k]->serialize());
@@ -509,6 +510,7 @@ Variant Timeline::getUpdateFor(const Variant& descriptor, bool server){
 
     update_map["events"] = Variant(event_updates);
     if(server){ // only server can update objects
+        auto base_objects = getBaseObjects(time);
         int* other_objects = descriptor_map["objects"].getIntArray();
         int num_other_objects = descriptor_map["objects"].getArrayLength()/2;
         unordered_map<int,int> other_object_map;
