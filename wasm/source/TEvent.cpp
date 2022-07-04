@@ -51,8 +51,9 @@ std::weak_ptr<TObject> TEvent::getMutable(){
 // If no time is set on the event it will be run at the earliest possible time
 void TEvent::addEvent(std::unique_ptr<TEvent> event){
     event->time = fmax(event->time, time+timeline->min_spawned_event_delay) ; //enforce minimum spawn delay on internal events
+    event->spawner = weak_this ;
+    event->spawner_time = time ;
     std::weak_ptr<TEvent> e = timeline->insertEvent(std::move(event));
-    e.lock()->spawner = weak_this;
     spawned_events.push_back(e);
 }
 

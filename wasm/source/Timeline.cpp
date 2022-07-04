@@ -386,15 +386,8 @@ std::vector<std::shared_ptr<TEvent>> Timeline::getBaseEvents(double time){
     std::vector<std::shared_ptr<TEvent>> base_events ;
     base_events.reserve(1000);
     for(int k=0;k<events.size();k++){
-        if(events[k].get() != nullptr && !events[k]->disabled && events[k]->time > time){
-            std::weak_ptr<TEvent> spawner_w = events[k]->spawner ;
-            if(auto spawner = spawner_w.lock()){
-                if(spawner->time <= time){
-                    base_events.push_back(events[k]);
-                }
-            }else{
-                base_events.push_back(events[k]);
-            }
+        if(events[k].get() != nullptr && !events[k]->disabled && events[k]->time > time && events[k]->spawner_time <= time){
+            base_events.push_back(events[k]);
         }
     }
     lock.unlock();
