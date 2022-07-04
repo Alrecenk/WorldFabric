@@ -49,8 +49,12 @@ class Timeline{
         std::recursive_mutex lock ;
 
 
-        std::vector<std::shared_ptr<TEvent>> events; // events in memory in no particular order
+        std::vector<std::shared_ptr<TEvent>> events; // all events in memory in no particular order
         int event_add_pointer = 0 ;
+
+        std::vector<std::shared_ptr<TEvent>> pending_events; // events pending run in no particular order
+        int pending_add_pointer = 0 ;
+
         // pointer to the most recent value of each object by id
         std::unordered_map<int, std::shared_ptr<TObject>> objects ;
         std::unordered_map<int, std::shared_ptr<TObject>> last_observed ;
@@ -75,6 +79,10 @@ class Timeline{
         // For internal use, use addEvent if you're calling from code outside the timeline
         // Adds an event to the timeline
         std::weak_ptr<TEvent> insertEvent(std::unique_ptr<TEvent> event);
+
+        // For internal use, use addEvent if you're calling from code outside the timeline
+        // Adds an event already in the timeline to the  pending events
+        void queueRun(std::shared_ptr<TEvent> event);
 
         // Creates an event that creates an object at the earliest possible time
         void createObject(std::unique_ptr<TObject> obj, std::unique_ptr<TEvent> on_created, double send_time);
