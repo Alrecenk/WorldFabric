@@ -25,6 +25,7 @@ class TEvent{
         bool has_run = false; //whether the event has run yet
         bool disabled = false; // whether the event should run
         std::weak_ptr<TEvent> spawner ; // event that spawned this event if it was spawned by another timeline event
+        double spawner_time = -1E30;
 
         bool wrote_anchor = false; // whether this event wrote to its anchor object last time it ran
         std::vector<std::weak_ptr<TEvent>> spawned_events ; //events spawned by this event when it was last run
