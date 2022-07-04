@@ -48,42 +48,6 @@ class BallBounceMode extends ExecutionMode{
 
     // Called at regular intervals by the main app when the mode is active (30 or 60fps probably but not guarsnteed)
     timer(){
-        /*
-        let timeline_time = (new Date().getTime() - this.start_time)*0.001;
-        console.log("time : " + timeline_time);
-        let observables = tools.API.call("runTimeline", {time:timeline_time}, new Serializer()).observables;
-        console.log(observables);
-        */
-       /*
-        let current_time = new Date().getTime(); // limit amount to step in 1 frame to 1 second
-        if(current_time - this.last_time > 1000){
-            current_time = this.last_time + 1000;
-        }
-        this.last_time = current_time ;
-        let timeline_time = (current_time - this.start_time)*0.001;
-
-        if(timeline_time < 0.5){
-            return ;
-        }
-        
-        if(!this.loaded){
-            console.log("initializing balls in JS!");
-            this.loaded = true ;
-
-            var params = {};
-            params.width = tools.canvas.width;
-            params.height = tools.canvas.height;
-            params.amount = 500;
-            params.min_radius = 10;
-            params.max_radius = 15;
-            params.max_speed = 200;
-
-            //tools.API.call("runTimeline", {time:timeline_time}, new Serializer()).observables;
-
-            tools.API.call("initialize2DBallTimeline", params, new Serializer()); // TODO why does the first call not call?
-            tools.API.call("initialize2DBallTimeline", params, new Serializer());
-        }
-        */
 
         if(this.dragging){
 
@@ -135,9 +99,34 @@ class BallBounceMode extends ExecutionMode{
         let render_data = tools.API.call("getBallObjects", {}, new Serializer()) ;
         this.observables = render_data.observables;
         this.stride = render_data.stride ;
+        
+
+
+        // Pre draw a circle image
+        var ir = 10;
+        var line_width = 4;
+        var circle_image = document.createElement('canvas');
+        var image_size = 2*(ir + line_width)
+        circle_image.width = image_size;
+        circle_image.height = image_size;
+        var ctx = circle_image.getContext('2d');  
+        //ctx.fillStyle = "#004F00";
+
+        
+
+        ctx.beginPath();
+        ctx.arc(ir+line_width, ir+line_width, ir, 0, 2 * Math.PI);
+        ctx.closePath();
+        ctx.lineWidth = line_width;
+        ctx.strokeStyle = "#004F00";
+        ctx.stroke();
+
+        //ctx.fill();
+
 
         //console.log(observables);
         let context = tools.canvas.getContext("2d");
+        context.imageSmoothingEnabled= false
 
         for(let k=0;k<this.observables.length;k+=this.stride){
             let id = this.observables[k];
@@ -146,8 +135,9 @@ class BallBounceMode extends ExecutionMode{
                 let x = this.observables[k+2]; 
                 let y = this.observables[k+3];
                 let r = this.observables[k+4];
-
-                this.drawCircle(x, y, r, null, "#004F00", 4) ;
+                //this.drawCircle(context, x, y, r, null, "#004F00", 4) ;
+                var sr = (ir+line_width)*r/ir ;
+                context.drawImage(circle_image, 0, 0, image_size, image_size, x - sr, y - sr, sr*2, sr*2);
             }else if(type == 2){ // wall
                 let min_x = this.observables[k+2];
                 let min_y = this.observables[k+3];
@@ -156,11 +146,6 @@ class BallBounceMode extends ExecutionMode{
                 InterfaceButton.drawRoundedRect(context, min_x, min_y, max_x-min_x, max_y-min_y, 2, null,  "#300030", 4);
 
             }
-            /*
-            let p = observables[k].p;
-            let radius = observables[k].r ;
-            this.drawCircle(p[0], p[1], radius, "#004F00", "#000000", 2) ;
-            */
         }
         
     }
@@ -265,8 +250,7 @@ class BallBounceMode extends ExecutionMode{
     }
 
 
-    drawCircle(x, y, radius, fill_color, stroke_color, stroke_size){
-        let context = tools.canvas.getContext("2d");
+    drawCircle(context, x, y, radius, fill_color, stroke_color, stroke_size){
 		context.beginPath();
 		context.arc(x, y, radius, 0, 2 * Math.PI, false);
 		context.closePath();
