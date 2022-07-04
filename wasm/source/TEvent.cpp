@@ -93,6 +93,7 @@ void TEvent::unrun(){
     }
     spawned_events.clear();
     timeline->recent_unruns.push_back(weak_this);
+    timeline->queueRun(weak_this.lock());
 }
 
 // Returns the IDs of all TObjects colliding with the bounding sphere of the anchor object

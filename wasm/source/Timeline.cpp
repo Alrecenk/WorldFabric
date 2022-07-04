@@ -61,20 +61,42 @@ std::weak_ptr<TEvent> Timeline::insertEvent(std::unique_ptr<TEvent> event){
         return std::weak_ptr<TEvent>();
     }
     event->timeline = this ;
-    // Put it in the slot of a delted item if posible
+    // Put it in the slot of a deleted item if posible
     for(int k=0;k<events.size();k++){
         int p = (k + event_add_pointer)%events.size();
         if(events[p].get() == nullptr || (events[p]->disabled && !events[p]->has_run)){
             events[p] = std::move(event) ;
             event_add_pointer = p+1; // next time start checking from the slot after the one we just filled
             events[p]->weak_this = events[p];
+            queueRun(events[p]);
             return events[p];
         }
     }
     // No free slots, push on the end
     events.push_back(std::move(event));
     events[events.size()-1]->weak_this = events[events.size()-1];
+    queueRun(events[events.size()-1]);
     return events[events.size()-1];
+}
+
+
+// For internal use, use addEvent if you're calling from code outside the timeline
+// Adds an event already in the timeline to the  pending events
+void Timeline::queueRun(std::shared_ptr<TEvent> event){
+    if(event->disabled || event->has_run){
+        return ;
+    }
+    // Put it in the slot of a deleted item if posible
+    for(int k=0;k<pending_events.size();k++){
+        int p = (k + pending_add_pointer)%pending_events.size();
+        if(pending_events[p].get() == nullptr || pending_events[p]->disabled || pending_events[p]->has_run){
+            pending_events[p] = event ;
+            pending_add_pointer = p+1; // next time start checking from the slot after the one we just filled
+            return ;
+        }
+    }
+    // No free slots, push on the end
+    pending_events.push_back(event);
 }
 
 // Creates an event that creates an object at the earliest possible time
@@ -114,7 +136,7 @@ TEvent* Timeline::nextEventToRun(glm::vec3 vantage, double time){
 
 std::priority_queue<std::pair<double, TEvent*>> Timeline::getAllEvenstToRun(glm::vec3 vantage, double time){
     std::priority_queue<std::pair<double, TEvent*>> event_queue ;
-    for(std::shared_ptr<TEvent>& e : events){
+    for(std::shared_ptr<TEvent>& e : pending_events){
         if(e.get() != nullptr && !e->disabled && !e->has_run){
             weak_ptr<TObject> eo = getObjectInstant(e->anchor_id, e->time) ;
             double time_to_run = e->time ;
@@ -125,6 +147,8 @@ std::priority_queue<std::pair<double, TEvent*>> Timeline::getAllEvenstToRun(glm:
             if(time_to_run <= time){
                 event_queue.push(std::pair<double,TEvent*>(-time_to_run, e.get())); // priority queue runs highest first
             }
+        }else{
+            e.reset();
         }
     }
     recent_unruns.clear(); // recent unruns tracks edits for this queue,so wipe it whenever we remake the queue from scratch
