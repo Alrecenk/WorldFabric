@@ -8,10 +8,13 @@ class TimelineClient{
     //The websocket
     socket = null ; 
     active = false;
-    update_delay = 5; // milliseconds to wait before actually sending a packet (used for simulating latency)
+    update_delay = 0; // milliseconds to wait before actually sending or receiving a packet (used for simulating latency)
+    ping = 0 ;
+    send_time = 0;
     sync_ping = 0 ;
+    target_sync_ping = 80 ;
     last_quick_send_time = 0;
-    min_quick_send_interval = 30; // how often we're allowed to send quick-send packets
+    min_quick_send_interval = 10; // how often we're allowed to send quick-send packets
     
     // Opens a websocket on creation to connect to a TableServer (cpp) on the same server as the web-hosting
     constructor(port, module){
@@ -76,8 +79,16 @@ class TimelineClient{
             }
             timeline_client.sync_ping = (new Date().getTime() - last_sync) ;
             last_sync = new Date().getTime();
-
-            timeline_client.sendUpdate(request.buffer);
+            timeline_client.ping = new Date().getTime() - (timeline_client.send_time) ;
+            timeline_client.send_time = new Date().getTime(); 
+            if(timeline_client.ping >= timeline_client.target_sync_ping){
+                timeline_client.sendUpdate(request.buffer);
+            }else{// delay sync response to try to sync at the target rate
+                let delay = timeline_client.target_sync_ping-timeline_client.ping ;
+                //console.log("delaying sync : " + delay);
+                timeline_client.send_time += delay; // when we tried to send the lats packet
+                setTimeout(timeline_client.sendUpdate, delay , request.buffer);
+            }
             timeline_client.quick_send = true ;
 
             
