@@ -120,7 +120,7 @@ function canvasApp() {
             }
             last_time = time;
         }
-        tools.buttons["ping_label"].text = "ping:" + Math.round(tools.sync_link.sync_ping);
+        tools.buttons["ping_label"].text = "ping:" + Math.round(tools.sync_link.ping);
         
         var context = tools.canvas.getContext("2d");
         context.clearRect(0, 0, context.canvas.width, context.canvas.height);
