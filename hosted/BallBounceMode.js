@@ -61,7 +61,7 @@ class BallBounceMode extends ExecutionMode{
 
                     let dist2 = (x-this.mouse_x)*(x-this.mouse_x) + (y-this.mouse_y)*(y-this.mouse_y) ;
                     let new_v = [0,0,0] ;
-                    if(dist2 < r*r*.25){ // if mouse is on held object
+                    if(dist2 < r*r){ // if mouse is on held object
                         // set velocity to mouse velocity
                         new_v[0] = (this.mouse_x - this.last_mouse_x) / (this.mouse_time  - this.last_mouse_time);
                         new_v[1] = (this.mouse_y - this.last_mouse_y) / (this.mouse_time  - this.last_mouse_time);
@@ -103,26 +103,19 @@ class BallBounceMode extends ExecutionMode{
 
 
         // Pre draw a circle image
-        var ir = 10;
-        var line_width = 4;
+        var ir = 20;
+        var line_width = 8;
         var circle_image = document.createElement('canvas');
-        var image_size = 2*(ir + line_width)
+        var image_size = 2*(ir + line_width+2)
         circle_image.width = image_size;
         circle_image.height = image_size;
         var ctx = circle_image.getContext('2d');  
-        //ctx.fillStyle = "#004F00";
-
-        
-
         ctx.beginPath();
         ctx.arc(ir+line_width, ir+line_width, ir, 0, 2 * Math.PI);
         ctx.closePath();
         ctx.lineWidth = line_width;
         ctx.strokeStyle = "#004F00";
         ctx.stroke();
-
-        //ctx.fill();
-
 
         //console.log(observables);
         let context = tools.canvas.getContext("2d");
@@ -136,7 +129,7 @@ class BallBounceMode extends ExecutionMode{
                 let y = this.observables[k+3];
                 let r = this.observables[k+4];
                 //this.drawCircle(context, x, y, r, null, "#004F00", 4) ;
-                var sr = (ir+line_width)*r/ir ;
+                var sr = (ir+line_width +2)*r/ir ;
                 context.drawImage(circle_image, 0, 0, image_size, image_size, x - sr, y - sr, sr*2, sr*2);
             }else if(type == 2){ // wall
                 let min_x = this.observables[k+2];
@@ -203,19 +196,7 @@ class BallBounceMode extends ExecutionMode{
 			return ;
         }
         if(this.dragging){
-            /*
-            let id = this.drag_id;
-            let new_v = [0,0,0] ;
-            // set velocity to mouse velocity
-            new_v[0] = (this.mouse_x - this.last_mouse_x) / (1+(this.mouse_time  - this.last_mouse_time));
-            new_v[1] = (this.mouse_y - this.last_mouse_y) / (1+(this.mouse_time  - this.last_mouse_time));
-            let s = 300.0/Math.sqrt(new_v[0]*new_v[0] + new_v[1]*new_v[1]);
-            if( s < 1.0){
-                new_v[0]*= s ;
-                new_v[1]*= s ;
-            }
-            tools.API.call("setBallVelocity",{id:id,v:new Float32Array(new_v)}, new Serializer());
-            */
+
         }
         this.mouse_down = false ;
         this.dragging = false;

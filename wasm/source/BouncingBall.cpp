@@ -55,10 +55,10 @@ std::unique_ptr<TObject> BouncingBall::getObserved(double time, const std::weak_
     vec3 observed_position = position + velocity * (float)(time-write_time);
 
     float max_speed = 1.3*glm::length(velocity) ;
-    float max_move = 1.0+max_speed * (time-last_time);
+    float max_move = 10.0+max_speed * (time-last_time);
     
     if(auto last = last_observed.lock()){
-        vec3 ov = position - last->position ;
+        vec3 ov = observed_position - last->position ;
         float os = glm::length(ov) ;
         if(os < 100){ // only interpolate if not spawning or teleporting
             if(os > max_move){

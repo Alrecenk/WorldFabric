@@ -754,6 +754,7 @@ void Timeline::reset(){
     printf("Resettin timeline!\n");
     objects.clear();
     events.clear();
+    pending_events.clear();
     recent_unruns.clear();
     collisions = CollisionSystem();
     collisions.timeline = this ;
