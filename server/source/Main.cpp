@@ -7,6 +7,7 @@
 #include <signal.h>
 #include <vector>
 #include <map>
+#include <unordered_map>
 #include <thread>
 #include <chrono>
 
@@ -15,13 +16,8 @@ using glm::mat4;
 using std::vector;
 using std::cout;
 using std::endl;
+using std::unordered_map ;
 
-
-
-// Add component data to the static table for instances
-void addModels(map<string, Variant>& table) {
-    
-}
 
 void runUnitTests(){
     bool g = UnitTests::runAll();
@@ -50,15 +46,22 @@ int main(int argc, char** argv) {
     cout << "Starting the webserver on port " << http_port << "..." << endl;
     WebServer web_server(http_address, http_port, http_root);
 
+    unordered_map<string, Variant> table;
+
+    // boot up the tableserver on a non-blocking thread
+    int table_port = 9004;
+    printf("Starting the table server on port %d...\n", table_port);
+    TableServer table_server(table_port, &table);
+
     // boot up the timeline server on a non-blocking thread
     int timeline_port = 9017;
     cout << "Starting the timeline server on port " << timeline_port << "..." << endl;
-    int width = 750;
-    int height = 850;
-    float min_radius = 5;
-    float max_radius = 8 ;
+    int width = 600;
+    int height = 600;
+    float min_radius = 10;
+    float max_radius = 15 ;
     float max_speed = 50 ;
-    Timeline* timeline = initialize2DBallTimeline(width, height, 1000, min_radius, max_radius, max_speed) ;
+    Timeline* timeline = initialize2DBallTimeline(width, height, 50, min_radius, max_radius, max_speed) ;
     TimelineServer timeline_server(timeline_port, timeline);
 
     cout << "Starting main loop..." << endl;

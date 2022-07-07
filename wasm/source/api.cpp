@@ -11,7 +11,7 @@
 #include <ctime>
 #include <memory>
 #include "glm/vec3.hpp"
-#include "TableReader.h"
+#include "TableInterface.h"
 #include "UnitTests.h"
 #include "Timeline.h"
 #include "TObject.h"
@@ -290,26 +290,33 @@ byte* nextAnimation(byte* ptr){
     return emptyReturn();
 }
 
-
 // Returns the pending table requests that require a network request to fetch
 // Items which are already in the cache are given to objects when this is called
 //Note: this returns a pointer to VARIANT_ARRAY data but not the type, so it cannot be deserialized by default methods that assume an OBJECT type
 byte* getTableNetworkRequest(byte* nothing) {
-    TableReader::serveCachedRequests();
-    vector<string> requests = TableReader::getRequestedKeys();
+    TableInterface::serveCachedRequests();
+    vector<string> requests = TableInterface::getRequestedKeys();
     vector<Variant> network_request;
     network_request.reserve(requests.size());
     for (const auto &key : requests) {
         // emplace back constructs Variants from strings
         network_request.emplace_back(key);
+        //printf("Client requesting: %s\n", key.c_str());
     }
-    return pack(Variant(network_request));
+
+    for(auto& w : TableInterface::pending_writes){
+        network_request.emplace_back(w); // TODO might need move semantics to avoid copy
+    }
+    TableInterface::pending_writes.clear();
+
+    Variant request_packet = Variant(network_request) ;
+    return pack(request_packet);
 }
 
 //Caches and Distributes data from a network table data response
 byte* distributeTableNetworkData(byte* data_ptr) {
     map<string, Variant> data = Variant::deserializeObject(data_ptr);
-    TableReader::receiveTableData(data);
+    TableInterface::receiveTableData(data);
     return emptyReturn();
 }
 

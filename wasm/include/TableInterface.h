@@ -1,28 +1,43 @@
-#ifndef _TABLEREADER_H_
-#define _TABLEREADER_H_ 1
+#ifndef _TABLE_INTERFACE_H_
+#define _TABLE_INTERFACE_H_ 1
 
 #include "Variant.h"
 
 #include <map>
+#include <unordered_map>
 #include <set>
 #include <vector>
 #include <memory>
 
-class TableReader {
+class TableInterface {
   public:
-    // virtual destructor makes sure the right destructor is called on child classes
-    virtual ~TableReader();
+    static const std::string KEY ;
+    static const std::string VALUE ;
 
-    // Call this function to attempt to imemdiately fetch table data that has been fetched before from the cache
+    //All pending writes in order of added as Variants with string key and Variant value
+    static std::vector<Variant> pending_writes ;
+
+    // virtual destructor makes sure the right destructor is called on child classes
+    virtual ~TableInterface();
+
+    // Call this function to attempt to immediately fetch table data that has been fetched before from the cache
     // Returns a NULL variant if the data is not in the cache, and then you'll need to use the async method
     static const Variant& getCachedTableData(std::string key);
 
+    // Remove an item from the cache, allowing an updated version to be requested from the server
+    static void uncache(std::string key);
+
     // Call this function to asynchronously request data from the remote table
     // recieveTableData will be called when the data is returned
+    // This may return immediately with cached data if it's available
     void requestTableData(std::string key);
 
     // Override this function to define what happens when table data requests come back
     virtual void receiveTableData(std::string key, const Variant& data) = 0;
+
+    // Call to write data to the remote table
+    // Note: ovrwrites any existing data. Every class and client are writing to the same table, tread carefully
+    static void writeTableData(const std::string& key, const Variant& value);
 
     // Returns a list of all pending requested keys in no particular order
     // Used by the table socket client to batch and send requests to the server
@@ -41,21 +56,15 @@ class TableReader {
     static void clearCache();
 
   private:
-    int pending_ = 0; // Number of pending requests this object is waiting on
+    int pending = 0; // Number of pending requests this object is waiting on
     // Maps from string key to a list of Readers that requested that key
-    static std::map<std::string, std::vector<TableReader*>> pending_requests_; // TODO investigate if this would be faster as an unordered map (it gets iterated)
+    static std::map<std::string, std::vector<TableInterface*>> pending_requests; // TODO investigate if this would be faster as an unordered map (it gets iterated)
     //Maps a key to cached data
-    static std::map<std::string, Variant> cache_;
-  // Maps a key item already fetched to its dependencies required before it can be served
-    static std::map<std::string, std::set<std::string>> dep_on_;
-    // Maps items not yet fetched to items that depend on them before being served
-    static std::map<std::string, std::set<std::string>> dep_to_;
-    // An item currently being initialized (keys requested during initialization of an item become dependencies)
-    static std::string loading_key_ ; 
+    static std::unordered_map<std::string, Variant> cache;
     // allows return by reference to return a valid Variant null value on failure
     static Variant null_variant;
     //Serves an item to its requesters, may also trigger the sending of items that were waiting on the given item
     static void serveItem(std::string key);
 };
 
-#endif // #ifndef _TABLEREADER_H_
+#endif // #ifndef _TABLE_INTERFACE_H_
