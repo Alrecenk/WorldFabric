@@ -52,7 +52,7 @@ API_MAIN = ${API_DIR}source/api.cpp
 API_SRC    =${API_DIR}source/Variant.cpp \
 			${API_DIR}source/OptimizationProblem.cpp \
         	${API_DIR}source/GLTF.cpp \
-			${API_DIR}source/TableReader.cpp \
+			${API_DIR}source/TableInterface.cpp \
 			${API_DIR}source/UnitTests.cpp \
 			${API_DIR}source/Timeline.cpp \
 			${API_DIR}source/TObject.cpp \

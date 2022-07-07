@@ -1,6 +1,8 @@
 #include "TableServer.h"
+#include "TableInterface.h"
 #include <websocketpp/config/asio_no_tls.hpp>
 #include <websocketpp/server.hpp>
+
 
 #include <utility>
 
@@ -13,15 +15,18 @@ using websocketpp::lib::bind;
 
 using std::string;
 using std::vector;
+using std::unordered_map;
 using std::map;
 using std::this_thread::sleep_for;
 
 // Initialize static members
-std::map<string, Variant>* TableServer::table_;
+std::unordered_map<string, Variant>* TableServer::table_;
+std::unordered_set<string> TableServer::null_requests ;
+std::unordered_set<string> TableServer::external_writes ;
 SocketServer TableServer::server_;
 
 TableServer::TableServer(
-        const int socket_port, std::map<string, Variant>* table_ptr) {
+        const int socket_port, std::unordered_map<string, Variant>* table_ptr) {
     TableServer::table_ = table_ptr;
     this->thread_ = std::thread(TableServer::start, socket_port);
 }
@@ -45,7 +50,7 @@ void TableServer::start(const int socket_port) {
 }
 
 // Function called when the socket gets a message
-// Messages for TableServer consist of a VARIANT_ARRAY type Variant containing string keys
+// Messages for TableServer consist of a VARIANT_ARRAY type Variant containing string keys for reads or objects for writes
 // an OBJECT type Variant (map) is returned with the keys and values for each requested item
 void TableServer::onMessage(
         SocketServer* s, websocketpp::connection_hdl hdl, MessagePointer msg) {
@@ -55,13 +60,24 @@ void TableServer::onMessage(
             Variant::VARIANT_ARRAY, (unsigned char*) packet_bytes);
     vector<Variant> packet = packet_variant.getVariantArray();
     map<string, Variant> result;
-    for (auto& key : packet) {
-        string key_string = key.getString();
-        result[key_string] = TableServer::getEntry(key_string);
+    for (auto& request : packet) {
+        if(request.type_ == Variant::STRING){ // Read requests are a single string
+            string key_string = request.getString();
+            result[key_string] = TableServer::getEntry(key_string);
+            if(!result[key_string].defined()){
+                null_requests.insert(key_string);
+            }
+        }else if(request.type_ == Variant::OBJECT){ //write requests are an object with keyand value
+            //printf("Got write:\n");
+            //request.printFormatted();
+            string key_string = request[TableInterface::KEY].getString();
+            (*table_)[key_string] = request[TableInterface::VALUE].clone(); // TODO move operation is probably possible since this is from getVariantArray local
+            external_writes.insert(key_string);
+        }
     }
     Variant response(result);
     int response_size = response.getSize();
-    //TODO this delay should be on the frontend, not the backend
+    //printf("Response size: %d\n", response_size);
     // TODO less hardcoded way to limit frequency of table packets
     sleep_for(std::chrono::milliseconds(50));
     // Send the data back to the client
