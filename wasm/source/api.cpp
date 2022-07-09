@@ -189,6 +189,21 @@ byte* setModel(byte* ptr){
     return pack(ret_map);
 }
 
+byte* requestModel(byte* ptr){
+    string select = MAIN_MODEL;
+    GLTF& model = meshes[select];
+
+    auto start_time = now();
+    auto obj = Variant::deserializeObject(ptr);
+    string key = obj["key"].getString() ;
+
+    GLTF& hand_model = meshes[HAND];
+    hand_model.setTetraModel(vec3(0,0,0), 0.015);
+
+    model.requestTableData(key);
+    return emptyReturn();
+}
+
 
 
 byte* getUpdatedBuffers(byte* ptr){

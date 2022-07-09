@@ -383,6 +383,7 @@ void GLTF::setModel(const byte* data, int data_length){
 
             string header = string((char *) (data + 20), JSON_length);
             //printf("JSON: \n %s\n", header.c_str());
+            
             json = Variant::parseJSON(header);
             //json.printFormatted();
             int bin_chunk_start = 20 + JSON_length ;
@@ -436,6 +437,34 @@ void GLTF::setModel(const byte* data, int data_length){
     }
     setModel(new_vertices, new_triangles);
 
+}
+
+void GLTF::receiveTableData(std::string key, const Variant& data){
+    if(data.defined()){
+        printf("Got key: %s size: %d\n", key.c_str(), data.getArrayLength());
+        
+        setModel(data.getByteArray(), data.getArrayLength());
+
+
+        
+        float size = 0 ;
+        vec3 center(0,0,0);
+        for(int k=0;k<3;k++){
+            center[k] = (max[k]+ min[k])*0.5f ;
+            size = fmax(size , abs(max[k]-center[k]));
+            size = fmax(size , abs(min[k]-center[k]));
+            
+        }
+
+        transform  = glm::scale(mat4(1), {(1.0f/size),(1.0f/size),(1.0f/size)});
+        transform  = glm::translate(transform, center*-1.0f);
+        
+        computeNodeMatrices();
+        applyTransforms();
+        
+    }else{
+        printf("Got server response, but could not retrieve requested model(%s)!\n", key.c_str());
+    }
 }
 
 GLTF::Accessor GLTF::access(int accessor_id, Variant& json, const Variant& bin){

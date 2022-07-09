@@ -10,6 +10,8 @@
 #include <unordered_map>
 #include <thread>
 #include <chrono>
+#include <fstream>
+#include <iterator>
 
 using glm::vec3;
 using glm::mat4;
@@ -17,11 +19,25 @@ using std::vector;
 using std::cout;
 using std::endl;
 using std::unordered_map ;
-
+using std::map ;
 
 void runUnitTests(){
     bool g = UnitTests::runAll();
 }
+
+
+void loadModels(unordered_map<string, Variant>& table){
+    map<string,string> models ;
+    models["default_avatar"] = "./models/default_avatar.vrm";
+    models["sample"] = "./models/Rin.glb";
+    for(auto& [key, path] : models){
+        std::ifstream input( path.c_str(), std::ios::binary );
+        std::vector<unsigned char> buffer(std::istreambuf_iterator<char>(input), {});
+        table[key] = Variant(&(buffer[0]), buffer.size());
+        printf("Loaded model %s (%d bytes = %d)\n",key.c_str(), (int) buffer.size(), table[key].getArrayLength());
+    }
+}
+    
 
 bool running = true;
 
@@ -47,6 +63,8 @@ int main(int argc, char** argv) {
     WebServer web_server(http_address, http_port, http_root);
 
     unordered_map<string, Variant> table;
+    table["test"] = Variant("cactus") ;
+    loadModels(table);
 
     // boot up the tableserver on a non-blocking thread
     int table_port = 9004;

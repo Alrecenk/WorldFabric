@@ -3,16 +3,20 @@
 
 #include "Variant.h"
 #include "OptimizationProblem.h"
-#include <set>
+#include "TableInterface.h"
+
 #include "glm/glm.hpp"
 #include "glm/gtx/transform.hpp"
 #include "glm/gtc/quaternion.hpp"
 #include "glm/ext.hpp"
 
+#include <set>
+
+
 typedef Variant::Type Type;
 typedef unsigned int uint;
 
-class GLTF : public OptimizationProblem{
+class GLTF : public OptimizationProblem, public TableInterface {
 
     public:
 
@@ -147,6 +151,8 @@ class GLTF : public OptimizationProblem{
 
         // Compacts the given vertices and sets the model to them
         void setModel(const std::vector<Vertex>& vertices, const std::vector<Triangle>& triangles);
+
+        void receiveTableData(std::string key, const Variant& data) override;
 
         // Sets the model to a single tetrahedron (can be used as a placeholder or for debugging without a model)
         void setTetraModel(glm::vec3 center, float size);
