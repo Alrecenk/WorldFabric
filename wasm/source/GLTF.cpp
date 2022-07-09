@@ -382,10 +382,10 @@ void GLTF::setModel(const byte* data, int data_length){
         if(first_chunk_type == 0x4E4F534A){
 
             string header = string((char *) (data + 20), JSON_length);
-            printf("JSON: \n %s\n", header.c_str());
+            //printf("JSON: \n %s\n", header.c_str());
             
             json = Variant::parseJSON(header);
-            json.printFormatted();
+            //json.printFormatted();
             int bin_chunk_start = 20 + JSON_length ;
             
             if(bin_chunk_start %4 != 0){

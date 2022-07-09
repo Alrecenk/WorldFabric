@@ -944,7 +944,7 @@ std::pair<Variant,int> Variant::parseJSONValue(const std::string& json, int valu
             got_value = true;
         }else if(json[c] == '['){
             // Find the matching ]
-            int array_end = c + 1;
+            int array_end = c ;
             int open = 1 ;
             while(open != 0){
                 array_end++;

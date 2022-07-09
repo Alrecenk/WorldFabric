@@ -28,7 +28,7 @@ void runUnitTests(){
 
 void loadModels(unordered_map<string, Variant>& table){
     map<string,string> models ;
-    models["default_avatar"] = "./models/World Fabric Bunny Girl.vrm";
+    models["default_avatar"] = "./models/default_avatar.vrm";
     models["sample"] = "./models/Rin.glb";
     for(auto& [key, path] : models){
         std::ifstream input( path.c_str(), std::ios::binary );

@@ -196,6 +196,10 @@ byte* requestModel(byte* ptr){
     auto start_time = now();
     auto obj = Variant::deserializeObject(ptr);
     string key = obj["key"].getString() ;
+
+    GLTF& hand_model = meshes[HAND];
+    hand_model.setTetraModel(vec3(0,0,0), 0.015);
+
     model.requestTableData(key);
     return emptyReturn();
 }
