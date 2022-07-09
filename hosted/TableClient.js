@@ -23,6 +23,7 @@ class TableClient{
             let time = new Date().getTime() ;
             table_client.ping = time - table_client.last_response ;
             table_client.last_response = time ;
+            console.log(msg);
             if(msg.data instanceof ArrayBuffer){
                 let byte_array = new Int8Array(msg.data);
                 table_module.call("distributeTableNetworkData", byte_array); 

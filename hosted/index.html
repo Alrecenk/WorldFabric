@@ -34,6 +34,7 @@ body {
 <script type="text/javascript" src="ScanMode.js"></script>
 <script type="text/javascript" src="PoseMode.js"></script>
 <script type="text/javascript" src="AvatarMode.js"></script>
+<script type="text/javascript" src="TableClient.js"></script>
 
 <script id="shader-fs" type="x-shader/x-fragment">#version 300 es
     // A simple fragment shader with a single point light
@@ -180,13 +181,19 @@ function canvasApp() {
 	}
 
     function timeListener(){
+
+
+
         if(tools.current_mode!=null){
             if(tools.renderer.has_new_xr_input){
                 tools.current_mode.vrInputSourcesUpdated(tools.renderer.xr_input);
                 tools.renderer.has_new_xr_input = false;
             }
-            tools.current_mode.timer();
-            
+            tools.current_mode.timer();  
+        }
+
+        if(tools.table_link != null && tools.table_link.ready() && !tools.table_link.active){
+            tools.table_link.sendPendingRequests(true); // This works to start even if there aren't any pending requests yet
         }
     }
 
@@ -343,6 +350,7 @@ function onBodyLoad(){
     // Wait for the WASM module to finish loading before booting up the socket and app
     window.initializeCPPAPI().then(function(Module){
         tools.API = Module ;
+        tools.table_link = new TableClient(9004, tools.API);
         tools.new_file = false;
         tools.brush_size = 1 ;
         app = canvasApp(); // Start the app
@@ -371,6 +379,10 @@ function loadGLBFile() {
 	}
 }
 
+function requestModel(){
+    tools.API.call("requestModel", {key:"default_avatar"}, new Serializer()) ;
+}
+
 </script>
 </head>
 <body onload="onBodyLoad();">
@@ -380,6 +392,7 @@ function loadGLBFile() {
 	</div>
     <p align="center">
         <input id="loader" type="file" onchange='loadGLBFile()' autocomplete="off">
+        <button onclick="requestModel()">Download Model</button>
         </p>
 </body>
 </html>
