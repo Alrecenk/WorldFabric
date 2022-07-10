@@ -426,6 +426,24 @@ void GLTF::setModel(const byte* data, int data_length){
                         addAnimation(animation, json, bin);
                     }
                 }
+
+                if(json["extensions"]["VRM"]["humanoid"]["humanBones"].defined()){
+                    vector<Variant> human_bones = json["extensions"]["VRM"]["humanoid"]["humanBones"].getVariantArray();
+                    for(Variant& bone: human_bones){
+                        human_bone[bone["bone"].getString()] = bone["node"].getInt() ;
+                        //printf("%s : %d \n", bone["bone"].getString().c_str(), bone["node"].getInt() );
+                    }
+                }
+                if(json["extensions"]["VRM"]["firstPerson"].defined()){
+                    first_person_bone = json["extensions"]["VRM"]["firstPerson"]["firstPersonBone"].getInt();
+                    json["extensions"]["VRM"]["firstPerson"]["firstPersonBoneOffset"].printFormatted();
+                    first_person_offset.x = json["extensions"]["VRM"]["firstPerson"]["firstPersonBoneOffset"]["x"].getNumberAsFloat();
+                    first_person_offset.y = json["extensions"]["VRM"]["firstPerson"]["firstPersonBoneOffset"]["y"].getNumberAsFloat();
+                    first_person_offset.z = json["extensions"]["VRM"]["firstPerson"]["firstPersonBoneOffset"]["z"].getNumberAsFloat();
+                    //printf("First person : %d at (%f,%f,%f)\n", first_person_bone, first_person_offset.x, first_person_offset.y,first_person_offset.z);
+                }
+
+
             }else{
                 printf("Bin chunk not found after json !(got %d)\n", second_chunk_type);
             }
