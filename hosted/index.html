@@ -33,8 +33,9 @@ body {
 <script type="text/javascript" src="Serializer.js"></script>
 <script type="text/javascript" src="ScanMode.js"></script>
 <script type="text/javascript" src="PoseMode.js"></script>
-<script type="text/javascript" src="AvatarMode.js"></script>
+<script type="text/javascript" src="PossessMode.js"></script>
 <script type="text/javascript" src="TableClient.js"></script>
+<script type="text/javascript" src="AvatarMode.js"></script>
 
 <script id="shader-fs" type="x-shader/x-fragment">#version 300 es
     // A simple fragment shader with a single point light
@@ -326,6 +327,7 @@ function initializeModes(){
     tools.modes = {} ;
     tools.modes.scan_mode = new ScanMode(tools);
     tools.modes.pose_mode = new PoseMode(tools);
+    tools.modes.possess_mode = new PossessMode(tools);
     tools.modes.avatar_mode = new AvatarMode(tools);
     switchExecutionMode(tools.modes.scan_mode) ;
 }
@@ -338,7 +340,8 @@ function setMainMenuButtons(){
     
     tools.buttons["scan_mode"] = new InterfaceButton(5, 100, 200, 40, "View Mode", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, () => {switchExecutionMode(tools.modes.scan_mode) ;});
     tools.buttons["pose_mode"] = new InterfaceButton(5, 145, 200, 40, "Pose Mode", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, () => {switchExecutionMode(tools.modes.pose_mode) ;});
-    tools.buttons["avatar_mode"] = new InterfaceButton(5, 190, 200, 40, "Avatar Mode", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, () => {switchExecutionMode(tools.modes.avatar_mode) ;});
+    tools.buttons["possess_mode"] = new InterfaceButton(5, 190, 200, 40, "Possess Mode", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, () => {switchExecutionMode(tools.modes.possess_mode) ;});
+    tools.buttons["vrm_mode"] = new InterfaceButton(5, 235, 200, 40, "VRM Mode", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, () => {switchExecutionMode(tools.modes.avatar_mode) ;});
 
 }
 

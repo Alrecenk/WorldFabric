@@ -121,7 +121,12 @@ class GLTF : public OptimizationProblem, public TableInterface {
         std::vector<int> root_nodes ;
         glm::mat4 transform;
         std::vector<Animation> animations;
-        
+
+        //VRM extension for avatar binding
+        std::map<std::string,int> human_bone ;
+        int first_person_bone ;
+        glm::vec3 first_person_offset;
+
         std::map<std::string, Pin> pins ; // for inverse kinematics
         std::map<std::string, RotationPin> rotation_pins ; // for inverse kinematics
         double barrier_strength = 0.1;
