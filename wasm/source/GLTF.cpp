@@ -1719,3 +1719,7 @@ glm::mat4 GLTF::getNodeTransform(std::string name){
     }
     return mat4(0);
 }
+
+glm::vec3 GLTF::getFirstPersonPosition(){
+    return nodes[first_person_bone].transform * ( nodes[first_person_bone].bone_to_mesh * vec4(first_person_offset,1)); 
+}

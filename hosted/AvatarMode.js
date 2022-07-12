@@ -204,6 +204,24 @@ class AvatarMode extends ExecutionMode{
 
         }
 
+        // Move entire model to line up with head
+        let current_camera_head_pose = tools.renderer.head_pose.transform.matrix ;
+        console.log("camera head:" + JSON.stringify(current_camera_head_pose));
+        let model_head_position = tools.API.call("getFirstPersonPosition", {}, new Serializer()).position; 
+        model_head_position = vec4.fromValues(model_head_position[0], model_head_position[1], model_head_position[2], 1);
+        console.log("model head:" + JSON.stringify(model_head_position));
+        vec4.transformMat4(model_head_position, model_head_position, this.model_pose);
+        console.log("transformed model head:" + JSON.stringify(model_head_position));
+        let ch = vec4.create();
+        // translate model pose so origin in camera pose lines up with head position
+        vec4.transformMat4(ch, vec4.fromValues(0,0,0,1), current_camera_head_pose);
+        
+        let delta_head = [ch[0]-model_head_position[0], ch[1]-model_head_position[1], ch[2]-model_head_position[2]] ;
+        console.log("change:" + JSON.stringify(delta_head));
+        mat4.translate(this.model_pose, this.model_pose, delta_head);
+
+
+
         let which_hand = 0 ;
         let GRIP = 1 ;
         let TRIGGER = 0 ;
@@ -213,6 +231,11 @@ class AvatarMode extends ExecutionMode{
         let params = {};
         let model_inv = mat4.create();
         mat4.invert(model_inv,this.model_pose);
+
+        
+
+
+
 
         for (let input_source of xr_input) {
             if(input_source.grip_pose){
@@ -380,7 +403,7 @@ class AvatarMode extends ExecutionMode{
 
                 params.target = MP;
                 tools.API.call("setRotationPinTarget", params, new Serializer()); 
-                tools.API.call("setPinTarget", params, new Serializer()); 
+                //tools.API.call("setPinTarget", params, new Serializer()); 
             }
             
         }

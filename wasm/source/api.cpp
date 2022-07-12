@@ -623,4 +623,11 @@ byte* popPendingQuickSends(byte* ptr){
     }
 }
 
+// Returns the position of the viewpoint of a VRM model in model space
+byte* getFirstPersonPosition(byte* ptr){
+    map<string, Variant> ret_map ;
+    ret_map["position"] = Variant (meshes[MAIN_MODEL].getFirstPersonPosition());
+    return pack(ret_map);
+}
+
 }// end extern C

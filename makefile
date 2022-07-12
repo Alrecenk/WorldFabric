@@ -46,7 +46,8 @@ EXPORTED_FUNCTIONS =[\
 	'_setBallVelocity',\
 	'_getTimelineRunStats',\
 	'_popPendingQuickSends',\
-	'_requestModel', \
+	'_requestModel',\
+	'_getFirstPersonPosition',\
 	'_free']
 EXTRA_EXPORTED_RUNTIME_METHODS=['ccall']
 API_MAIN = ${API_DIR}source/api.cpp
