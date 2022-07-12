@@ -206,21 +206,26 @@ class AvatarMode extends ExecutionMode{
 
         // Move entire model to line up with head
         let current_camera_head_pose = tools.renderer.head_pose.transform.matrix ;
-        console.log("camera head:" + JSON.stringify(current_camera_head_pose));
         let model_head_position = tools.API.call("getFirstPersonPosition", {}, new Serializer()).position; 
         model_head_position = vec4.fromValues(model_head_position[0], model_head_position[1], model_head_position[2], 1);
-        console.log("model head:" + JSON.stringify(model_head_position));
         vec4.transformMat4(model_head_position, model_head_position, this.model_pose);
-        console.log("transformed model head:" + JSON.stringify(model_head_position));
         let ch = vec4.create();
         // translate model pose so origin in camera pose lines up with head position
         vec4.transformMat4(ch, vec4.fromValues(0,0,0,1), current_camera_head_pose);
-        
         let delta_head = [ch[0]-model_head_position[0], ch[1]-model_head_position[1], ch[2]-model_head_position[2]] ;
-        console.log("change:" + JSON.stringify(delta_head));
         mat4.translate(this.model_pose, this.model_pose, delta_head);
 
-
+        // get z from camera
+        vec4.transformMat4(ch, vec4.fromValues(0,0,1,0), current_camera_head_pose);
+        let mh = vec4.create();
+        // get Z from model
+        vec4.transformMat4(mh, vec4.fromValues(0,0,1,0), this.model_pose);
+        //normalized dot product to find angle between z axes (ignoring y)
+        let angle = Math.acos((ch[0]*mh[0]+ch[2]*mh[2])/ Math.sqrt((ch[0]*ch[0]+ch[2]*ch[2]) * (mh[0]*mh[0]+mh[2]*mh[2]))) ;
+        if(ch[0]*mh[2] - ch[2]*mh[0] < 0){ // relevant component of cross to find direction to rotate
+            angle*=-1;
+        }
+        mat4.rotate(this.model_pose, this.model_pose, angle, [0,1,0]);
 
         let which_hand = 0 ;
         let GRIP = 1 ;
