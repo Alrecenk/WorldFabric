@@ -48,6 +48,7 @@ EXPORTED_FUNCTIONS =[\
 	'_popPendingQuickSends',\
 	'_requestModel',\
 	'_getFirstPersonPosition',\
+	'_createVRMPins',\
 	'_free']
 EXTRA_EXPORTED_RUNTIME_METHODS=['ccall']
 API_MAIN = ${API_DIR}source/api.cpp

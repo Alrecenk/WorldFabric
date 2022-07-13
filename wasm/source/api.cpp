@@ -131,6 +131,17 @@ Timeline* initialize2DBallTimeline(int width, int height, int amount, float min_
     return timeline.get();
 }
 
+Variant getVariantMatrix(glm::quat q){
+    mat4 m = glm::mat4_cast(q);
+    Variant matrix ;
+    matrix.makeFillableFloatArray(16);
+    float* vm = matrix.getFloatArray();
+    for(int k=0;k<16;k++){
+        vm[k] = *(((float*)&m)+k) ;
+    }
+    return matrix ;
+}
+
 
 extern "C" { // Prevents C++ from mangling the exported name apparently
 
@@ -471,7 +482,7 @@ byte* createRotationPin(byte* ptr) {
     vm[2] = initial.y;
     vm[3] = initial.z;
 
-    mat4 m = glm::mat4_cast(initial);// TODO check tranpose
+    mat4 m = glm::mat4_cast(initial);
     ret_map["matrix"].makeFillableFloatArray(16);
     vm = ret_map["matrix"].getFloatArray();
     for(int k=0;k<16;k++){
@@ -491,7 +502,7 @@ byte* setRotationPinTarget(byte* ptr) {
     for(int k=0;k<16;k++){
         *(((float*)&m)+k) = vm[k] ;
     }
-    glm::quat target = glm::quat_cast(m) ; // TODO check tranpose
+    glm::quat target = glm::quat_cast(m) ;
     GLTF& model = meshes[MAIN_MODEL];
     model.setRotationPinTarget(name, target);
     return emptyReturn();
@@ -627,6 +638,25 @@ byte* popPendingQuickSends(byte* ptr){
 byte* getFirstPersonPosition(byte* ptr){
     map<string, Variant> ret_map ;
     ret_map["position"] = Variant (meshes[MAIN_MODEL].getFirstPersonPosition());
+    return pack(ret_map);
+}
+
+byte* createVRMPins(byte* ptr){
+    GLTF& avatar = meshes[MAIN_MODEL] ;
+    map<string, Variant> ret_map ;
+
+    avatar.createPin("head", avatar.first_person_bone, avatar.first_person_offset, 1.0f);
+    ret_map["head"] = getVariantMatrix(avatar.createRotationPin("head", avatar.first_person_bone, 1.0f));
+
+
+    avatar.createPin("left_hand", avatar.human_bone["leftHand"], vec3(0,0,0), 1.0f);
+    ret_map["left_hand"] = getVariantMatrix(avatar.createRotationPin("left_hand", avatar.human_bone["leftHand"], 1.0f));
+
+    avatar.createPin("right_hand", avatar.human_bone["rightHand"], vec3(0,0,0), 1.0f);
+    ret_map["right_hand"] = getVariantMatrix(avatar.createRotationPin("right_hand", avatar.human_bone["rightHand"], 1.0f));
+    
+    
+    (Variant( ret_map)).printFormatted();
     return pack(ret_map);
 }
 
