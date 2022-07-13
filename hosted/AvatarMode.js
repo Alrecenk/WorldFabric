@@ -177,47 +177,20 @@ class AvatarMode extends ExecutionMode{
     
     vrInputSourcesUpdated(xr_input){
 
-        if(this.head_pins == null){
-            /*
-            let head_transform = tools.API.call("getNodeTransform", {name:"Head"}, new Serializer()).transform ;
-            let scale = 1.0/head_transform[0];//tools.renderer.mvMatrix[13]/head_transform[13]; // scale all model so model head is at player head 
-            let MP = mat4.create();
-            
-            mat4.identity(MP);
-            mat4.scale(MP, MP,[scale,scale,scale]);
-            mat4.multiply(this.model_pose, head_transform, MP);
-            mat4.multiply(this.model_pose, this.model_pose, tools.renderer.head_pose.transform.matrix);
-
-            console.log("head:");
-            console.log(head_transform);
-            console.log("mv:");
-            console.log(tools.renderer.mvMatrix);
-            console.log("scale:" + scale);
-            console.log(this.model_pose);
-            
-            
-            console.log("head pose:");
-            console.log(tools.renderer.head_pose);
-
-            */
-            this.head_pins = [];
-
-        }
-
-        console.log("model pose start:" + JSON.stringify(this.model_pose));
+        //console.log("model pose start:" + JSON.stringify(this.model_pose));
 
         // Move entire model to line up with head
         let current_camera_head_pose = tools.renderer.head_pose.transform.matrix ;
-        console.log("camera:" + JSON.stringify(current_camera_head_pose ));
+        //console.log("camera:" + JSON.stringify(current_camera_head_pose ));
         let model_head_position = tools.API.call("getFirstPersonPosition", {}, new Serializer()).position; 
         model_head_position = vec4.fromValues(model_head_position[0], model_head_position[1], model_head_position[2], 1);
-        console.log("model_head_position:" + JSON.stringify(model_head_position));
+        //console.log("model_head_position:" + JSON.stringify(model_head_position));
         vec4.transformMat4(model_head_position, model_head_position, this.model_pose);
         let ch = vec4.create();
         // translate model pose so origin in camera pose lines up with head position
         vec4.transformMat4(ch, vec4.fromValues(0,0,0,1), current_camera_head_pose);
         let delta_head = [ch[0]-model_head_position[0], ch[1]-model_head_position[1], ch[2]-model_head_position[2]] ;
-        console.log("delta_head:" + JSON.stringify(delta_head));
+        //console.log("delta_head:" + JSON.stringify(delta_head));
         
         //mat4.translate(this.model_pose, this.model_pose, delta_head);
         let t = mat4.create();
@@ -225,38 +198,49 @@ class AvatarMode extends ExecutionMode{
         mat4.translate(t, t, delta_head);
         mat4.multiply(this.model_pose, t, this.model_pose);
 
-        console.log("model pose mid:" + JSON.stringify(this.model_pose));
+        //console.log("model pose mid:" + JSON.stringify(this.model_pose));
         
         // get z from camera
         vec4.transformMat4(ch, vec4.fromValues(0,0,1,0), current_camera_head_pose);
-        console.log("ch:" + JSON.stringify(ch));
+        //console.log("ch:" + JSON.stringify(ch));
 
         let mh = vec4.create();
         // get Z from model
         vec4.transformMat4(mh, vec4.fromValues(0,0,1,0), this.model_pose);
-        console.log("mh:" + JSON.stringify(mh));
+        //console.log("mh:" + JSON.stringify(mh));
         //normalized dot product to find angle between z axes (ignoring y)
         let angle = Math.acos((ch[0]*mh[0]+ch[2]*mh[2])/ Math.sqrt((ch[0]*ch[0]+ch[2]*ch[2]) * (mh[0]*mh[0]+mh[2]*mh[2]))) ;
         angle = Math.min(angle,0.1);
         if(ch[0]*mh[2] - ch[2]*mh[0] < 0){ // relevant component of cross to find direction to rotate
             angle*=-1;
         }
-        console.log("angle:" + angle);
+        //console.log("angle:" + angle);
         //let mt = [this.model_pose[12], this.model_pose[13], this.model_pose[14]];
-       mat4.rotate(this.model_pose, this.model_pose, angle, [0,1,0]);
-       /*
-        let r = mat4.create();
-        mat4.identity(r);
-        mat4.rotate(r, r, angle, [0,1,0]);
-        mat4.multiply(this.model_pose, this.model_pose, r);
-        */
-       //this.model_pose[12] = mt[0];
-       //this.model_pose[13] = mt[1]; // undo drift caused by rounding in rotation
-       //this.model_pose[14] = mt[2];
-        /*
+        mat4.rotate(this.model_pose, this.model_pose, angle, [0,1,0]);
+        //console.log("model pose end:" + JSON.stringify(this.model_pose));
         
-        */
-        console.log("model pose end:" + JSON.stringify(this.model_pose));
+        if(this.head_pins == null){
+            
+            
+            this.head_pins = [];
+            
+            let initial_matrices = tools.API.call("createVRMPins", {}, new Serializer()); 
+            this.head_pins.push({name:"head", initial_matrix : initial_matrices["head"], initial_pose: initial_matrices["head"]});
+            this.hand_pins[0] = [];
+            let left_grip = new Float32Array([  0,-1,0,0,
+                                                1,0,0,0,
+                                                0,0,1,0,
+                                                0,0,0,1]);
+            this.hand_pins[0].push({name:"left_hand", initial_matrix : initial_matrices["left_hand"], initial_grip:left_grip });
+            this.hand_pins[1] = [];
+            let right_grip = new Float32Array([ 0,1,0,0,
+                                                -1,0,0,0,
+                                                0,0,1,0,
+                                                0,0,0,1]);
+            this.hand_pins[1].push({name:"right_hand", initial_matrix : initial_matrices["right_hand"], initial_grip: right_grip});
+            console.log(this.hand_pins);
+            
+        }
 
 
         let which_hand = 0 ;
@@ -334,18 +318,21 @@ class AvatarMode extends ExecutionMode{
                 if(this.hand_pins[which_hand] || creating){
                     for(let g = 0; g < gpos.length;g++){
 
-                        params.name = "vr_hand_"+which_hand+"_pose_" + g;
+                        
                     
                         vec4.transformMat4(gpos[g], gpos[g], MP);// move global position into model space
                         //console.log(gpos[0] +", " + gpos[1] +", " + gpos[2]);
                         params.p = new Float32Array([gpos[g][0], gpos[g][1], gpos[g][2]]);
                         if(creating){
+                            params.name = "vr_hand_"+which_hand+"_pose_" + g;
                             params.initial_matrix = tools.API.call("createRotationPin", params, new Serializer()).matrix;
                             tools.API.call("createPin", params, new Serializer());
                             params.initial_grip = mat4.create();
                             params.initial_grip.set(input_source.grip_pose);
                             this.hand_pins[which_hand].push(params); // create pin from current point    
+                            console.log("hand " + which_hand + " : " + JSON.stringify(params));
                         }else{
+                            params.name = this.hand_pins[which_hand][g].name ;
                             //console.log(this.hand_pins[which_hand][g]);
                             let initial = this.hand_pins[which_hand][g].initial_matrix ;
                             let initial_grip = this.hand_pins[which_hand][g].initial_grip ;
@@ -384,22 +371,15 @@ class AvatarMode extends ExecutionMode{
         mat4.multiply(MP,model_inv, tools.renderer.head_pose.transform.matrix);
         let creating = this.head_pins.length == 0 && pose_hand >=0; // the first time you press a trigger, pin the head
         
-        /*let head_pos = [
-            vec4.fromValues(0.02, 0, 0, 1.0),
-            vec4.fromValues(-0.02, 0, 0, 1.0),
-            vec4.fromValues(0, 0.02, 0, 1.0),
-            vec4.fromValues(0, -0.02, 0, 1.0),
-            vec4.fromValues(0, 0, 0.02,1.0),
-            vec4.fromValues(0, 0,-0.02, 1.0)
-        ];*/
         let head_pos = [vec4.fromValues(0, 0, 0, 1.0)];
         for(let g = 0; g < head_pos.length;g++){
-            params.name = "vr_head_pose_" + g;
+            
             vec4.transformMat4(head_pos[g], head_pos[g], MP);// move global position into model space
             params.p = new Float32Array([head_pos[g][0], head_pos[g][1], head_pos[g][2]]);
             
             
             if(creating){
+                params.name = "vr_head_pose_" + g;
                 console.log(JSON.stringify(params));
                 params.initial_matrix = tools.API.call("createRotationPin", params, new Serializer()).matrix;
                 tools.API.call("createPin", params, new Serializer()); 
@@ -409,7 +389,7 @@ class AvatarMode extends ExecutionMode{
                 this.head_pins.push(params); // create pin from current point
                 this.head_posing = true;
             }else if(this.head_pins.length>0){
-                
+                params.name = this.head_pins[g].name ;
                 let initial = this.head_pins[g].initial_matrix ;
                 let initial_pose = this.head_pins[g].initial_pose ;
                 let current_pose = tools.renderer.head_pose.transform.matrix ;
