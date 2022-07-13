@@ -16,24 +16,28 @@ class TableClient{
     constructor(port, module){
         table_module = module ;
         table_client = this;
-        this.address = "ws://" + location.hostname + ":" + port;
-        this.socket = new WebSocket(this.address);
-        this.socket.binaryType = 'arraybuffer';
-        this.socket.onmessage = function(msg) {
-            let time = new Date().getTime() ;
-            table_client.ping = time - table_client.last_response ;
-            table_client.last_response = time ;
-            if(msg.data instanceof ArrayBuffer){
-                let byte_array = new Int8Array(msg.data);
-                table_module.call("distributeTableNetworkData", byte_array); 
-                if(table_client.active){
-                    setTimeout(table_client.sendPendingRequests, table_client.active_delay, table_client.active);
+        try {
+            this.address = "ws://" + location.hostname + ":" + port;
+            this.socket = new WebSocket(this.address);
+            this.socket.binaryType = 'arraybuffer';
+            this.socket.onmessage = function(msg) {
+                let time = new Date().getTime() ;
+                table_client.ping = time - table_client.last_response ;
+                table_client.last_response = time ;
+                if(msg.data instanceof ArrayBuffer){
+                    let byte_array = new Int8Array(msg.data);
+                    table_module.call("distributeTableNetworkData", byte_array); 
+                    if(table_client.active){
+                        setTimeout(table_client.sendPendingRequests, table_client.active_delay, table_client.active);
+                    }
+                }else{
+                    console.log("Server sent unrecognized formatted data:");
+                    console.log(msg.data);
                 }
-            }else{
-                console.log("Server sent unrecognized formatted data:");
-                console.log(msg.data);
-            }
-        };
+            };
+        }catch(error){
+            console.error(error);
+        }
     }
 
     ready(){

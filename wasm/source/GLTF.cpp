@@ -436,7 +436,7 @@ void GLTF::setModel(const byte* data, int data_length){
                 }
                 if(json["extensions"]["VRM"]["firstPerson"].defined()){
                     first_person_bone = json["extensions"]["VRM"]["firstPerson"]["firstPersonBone"].getInt();
-                    json["extensions"]["VRM"]["firstPerson"]["firstPersonBoneOffset"].printFormatted();
+                    //json["extensions"]["VRM"]["firstPerson"]["firstPersonBoneOffset"].printFormatted();
                     first_person_offset.x = json["extensions"]["VRM"]["firstPerson"]["firstPersonBoneOffset"]["x"].getNumberAsFloat();
                     first_person_offset.y = json["extensions"]["VRM"]["firstPerson"]["firstPersonBoneOffset"]["y"].getNumberAsFloat();
                     first_person_offset.z = json["extensions"]["VRM"]["firstPerson"]["firstPersonBoneOffset"]["z"].getNumberAsFloat();
