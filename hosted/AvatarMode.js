@@ -218,29 +218,43 @@ class AvatarMode extends ExecutionMode{
         //let mt = [this.model_pose[12], this.model_pose[13], this.model_pose[14]];
         mat4.rotate(this.model_pose, this.model_pose, angle, [0,1,0]);
         //console.log("model pose end:" + JSON.stringify(this.model_pose));
-        
+
         if(this.head_pins == null){
             
+            //console.log("xr_input:" + JSON.stringify(xr_input));
             
             this.head_pins = [];
+
+
+            let left = -1, right = -1;
+            for(let k=0;k<xr_input.length;k++){
+                if(xr_input[k].handedness == "left"){
+                    left = k ;
+                }
+                if(xr_input[k].handedness == "right"){
+                    right = k ;
+                }
+            }
+
             
             let initial_matrices = tools.API.call("createVRMPins", {}, new Serializer()); 
             this.head_pins.push({name:"head", initial_matrix : initial_matrices["head"], initial_pose: initial_matrices["head"]});
-            this.hand_pins[0] = [];
+            this.hand_pins[left] = [];
             let left_grip = new Float32Array([  0,-1,0,0,
                                                 1,0,0,0,
                                                 0,0,1,0,
                                                 0,0,0,1]);
-            this.hand_pins[0].push({name:"left_hand", initial_matrix : initial_matrices["left_hand"], initial_grip:left_grip });
-            this.hand_pins[1] = [];
+            this.hand_pins[left].push({name:"left_hand", initial_matrix : initial_matrices["left_hand"], initial_grip:left_grip });
+            this.hand_pins[right] = [];
             let right_grip = new Float32Array([ 0,1,0,0,
                                                 -1,0,0,0,
                                                 0,0,1,0,
                                                 0,0,0,1]);
-            this.hand_pins[1].push({name:"right_hand", initial_matrix : initial_matrices["right_hand"], initial_grip: right_grip});
+            this.hand_pins[right].push({name:"right_hand", initial_matrix : initial_matrices["right_hand"], initial_grip: right_grip});
             console.log(this.hand_pins);
             
         }
+
 
 
         let which_hand = 0 ;
@@ -252,6 +266,7 @@ class AvatarMode extends ExecutionMode{
         let params = {};
         let model_inv = mat4.create();
         mat4.invert(model_inv,this.model_pose);
+
 
 
         for (let input_source of xr_input) {

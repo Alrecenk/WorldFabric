@@ -153,7 +153,7 @@ class Renderer{
             r.framerate = (r.frame*1000/ (time-r.last_time));
             r.last_time = time;
             r.frame = 0 ;
-            if(tools.buttons["fps_label"]){ // TODO not really the responsibility of the general rendering
+            if(tools && tools.buttons && tools.buttons["fps_label"]){ // TODO not really the responsibility of the general rendering
                 tools.buttons["fps_label"].text = "FPS:" + Math.round(r.framerate);
             }
         }
@@ -641,6 +641,7 @@ class Renderer{
 
     captureXRInput(input_sources, frame){
         tools.renderer.xr_input = [];
+        tools.renderer.has_new_xr_input = false;
         for (let inputSource of input_sources) {
             let this_input = {};
             let ray_pose = frame.getPose(inputSource.targetRaySpace, tools.renderer.xr_ref_space);
@@ -660,10 +661,14 @@ class Renderer{
                 
                 
                 this_input.grip_pose = frame.getPose(inputSource.gripSpace, tools.renderer.xr_ref_space).transform.matrix;
+                this_input.handedness = inputSource.handedness ;
                 tools.renderer.xr_input.push(this_input);
+                tools.renderer.has_new_xr_input = true;
             }
-        }
 
-        tools.renderer.has_new_xr_input = true;
+        }
+ 
     }
+
+    
 }

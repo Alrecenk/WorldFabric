@@ -20,21 +20,25 @@ class TimelineClient{
     constructor(port, module){
         wasm_module = module ;
         timeline_client = this;
-        this.address = "ws://" + location.hostname + ":" + port;
-        this.socket = new WebSocket(this.address);
-        this.socket.binaryType = 'arraybuffer';
-        this.socket.onmessage = function(msg) {
-            if(msg.data instanceof ArrayBuffer){
-                if(timeline_client.active){
-                    let byte_array = new Int8Array(msg.data);
-                    //timeline_client.synchronizeTimeline(byte_array) ;
-                    setTimeout(timeline_client.synchronizeTimeline, timeline_client.update_delay, byte_array);
+        try{
+            this.address = "ws://" + location.hostname + ":" + port;
+            this.socket = new WebSocket(this.address);
+            this.socket.binaryType = 'arraybuffer';
+            this.socket.onmessage = function(msg) {
+                if(msg.data instanceof ArrayBuffer){
+                    if(timeline_client.active){
+                        let byte_array = new Int8Array(msg.data);
+                        //timeline_client.synchronizeTimeline(byte_array) ;
+                        setTimeout(timeline_client.synchronizeTimeline, timeline_client.update_delay, byte_array);
+                    }
+                }else{
+                    console.log("Timeline Server sent unrecognized formatted data:");
+                    console.log(msg.data);
                 }
-            }else{
-                console.log("Timeline Server sent unrecognized formatted data:");
-                console.log(msg.data);
-            }
-        };
+            };
+        }catch(error){
+            console.error(error);
+        }
     }
 
     ready(){
