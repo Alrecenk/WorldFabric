@@ -357,9 +357,8 @@ class AvatarMode extends ExecutionMode{
                             mat4.invert(inv, initial_grip);
                             mat4.multiply(MP,current_grip, inv);
 
-                            // make both relative to model pose by wrapping it on both sides
+                            // makerelative to model pose
                             mat4.multiply(MP,model_inv,MP);
-                            mat4.multiply(MP,MP,this.model_pose);
 
                             mat4.multiply(MP,MP,initial);
 
@@ -425,9 +424,8 @@ class AvatarMode extends ExecutionMode{
                 mat4.invert(inv, initial_pose);
                 mat4.multiply(MP,current_pose, inv);
 
-                // make both relative to model pose by wrapping it on both sides
+                // makerelative to model pose
                 mat4.multiply(MP,model_inv,MP);
-                mat4.multiply(MP,MP,this.model_pose);
 
                 mat4.multiply(MP,MP,initial);
 
