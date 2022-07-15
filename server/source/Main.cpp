@@ -21,6 +21,7 @@ using std::endl;
 using std::unordered_map ;
 using std::map ;
 
+
 void runUnitTests(){
     bool g = UnitTests::runAll();
 }
@@ -195,10 +196,10 @@ int httpsmain(int argc, const char **argv) {
 
 
 int main(int argc, const char** argv) {
-    httpsmain(argc, argv);
-    /*
+    //httpsmain(argc, argv);
+    
 
-    byte* packet_ptr = (byte*)malloc(50000000); // 50 megabytes
+    unsigned char* packet_ptr = (unsigned char*)malloc(50000000); // 50 megabytes
     setPacketPointer(packet_ptr);
 
     runUnitTests();
@@ -243,6 +244,6 @@ int main(int argc, const char** argv) {
     }
     web_server.stop();
     timeline_server.stop();
-    */
+    
 
 }
