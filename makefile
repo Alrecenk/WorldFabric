@@ -9,12 +9,13 @@ CPP_DEFS=
 #CPP_DEFS   =-D=HAVE_CONFIG_H
 CPP_OPTS   = -O3 -Wno-pessimizing-move
 #-Wall
-LIBS       = -levent -levent_core
+LIBS       = -levent -levent_core -lssl -lcrypto
 
 
 SRC		   = ${SERVER_DIR}source/WebServer.cpp \
 			${SERVER_DIR}source/TableServer.cpp \
 			${SERVER_DIR}source/TimelineServer.cpp
+
 SRC_INC	   = -I${SERVER_DIR}include
 
 API_DIR    =./wasm/
