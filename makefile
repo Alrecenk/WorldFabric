@@ -13,6 +13,7 @@ LIBS       = -levent -levent_core -lssl -lcrypto
 
 
 SRC		   = ${SERVER_DIR}source/WebServer.cpp \
+			${SERVER_DIR}source/SecureWebServer.cpp \
 			${SERVER_DIR}source/TableServer.cpp \
 			${SERVER_DIR}source/TimelineServer.cpp
 
