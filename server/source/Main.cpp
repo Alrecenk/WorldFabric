@@ -55,7 +55,7 @@ int main(int argc, const char** argv) {
     
     // boot up a static webserver on a nonblocking thread to serve the frontend
     // command for generating key files in linux:
-    // openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -sha256 -days 365
+    // openssl req -nodes -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -sha256 -days 365
     SecureWebServer web_server(8080, "./hosted/", "./cert/cert.pem","./cert/key.pem");
     /*
     char http_address[] = "0.0.0.0";
@@ -70,15 +70,15 @@ int main(int argc, const char** argv) {
     loadModels(table);
 
     // Read the password from a file so we don't have to type it (and it's not included in the source repository)
-    std::ifstream password_file("./cert/password.txt");
+    /*std::ifstream password_file("./cert/password.txt");
     std::string password;
-    std::getline(password_file, password);
+    std::getline(password_file, password); */
   
     // boot up the tableserver on a non-blocking thread
     int table_port = 9004;
     printf("Starting the table server on port %d...\n", table_port);
     TableServer table_server(table_port, &table,
-        "./cert/cert.pem", "./cert/key.pem", "./cert/dh.pem", password);
+        "./cert/cert.pem", "./cert/key.pem", "./cert/dh.pem", "");
 
     // boot up the timeline server on a non-blocking thread
     int timeline_port = 9017;
@@ -89,7 +89,8 @@ int main(int argc, const char** argv) {
     float max_radius = 15 ;
     float max_speed = 50 ;
     Timeline* timeline = initialize2DBallTimeline(width, height, 50, min_radius, max_radius, max_speed) ;
-    TimelineServer timeline_server(timeline_port, timeline);
+    TimelineServer timeline_server(timeline_port, timeline,
+        "./cert/cert.pem", "./cert/key.pem", "./cert/dh.pem", "");
 
     cout << "Starting main loop..." << endl;
     signal(SIGINT, quit); // Catch CTRL-C to exit gracefully
