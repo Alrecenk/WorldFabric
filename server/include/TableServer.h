@@ -23,15 +23,17 @@ typedef websocketpp::server<websocketpp::config::asio_tls> SecureSocketServer;
 typedef SecureSocketServer::message_ptr MessagePointer;
 typedef websocketpp::lib::shared_ptr<websocketpp::lib::asio::ssl::context> ContextPointer;
 
-// See https://wiki.mozilla.org/Security/Server_Side_TLS for more details about
-// the TLS modes. The code below demonstrates how to implement both the modern
-enum tls_mode {
-    MOZILLA_INTERMEDIATE = 1,
-    MOZILLA_MODERN = 2
-};
+
 
 class TableServer {
   private:
+
+    // See https://wiki.mozilla.org/Security/Server_Side_TLS for more details about
+    // the TLS modes. The code below demonstrates how to implement both the modern
+    enum tls_mode {
+        MOZILLA_INTERMEDIATE = 1,
+        MOZILLA_MODERN = 2
+    };
     // A pointer to table of data
     static std::unordered_map<std::string, Variant>* table; // TODO figure out how to make not static?
     std::thread thread; // Thread that makes this server nonblocking
