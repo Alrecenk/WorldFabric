@@ -17,7 +17,7 @@ class TableClient{
         table_module = module ;
         table_client = this;
         try {
-            this.address = "ws://" + location.hostname + ":" + port;
+            this.address = "wss://" + location.hostname + ":" + port;
             this.socket = new WebSocket(this.address);
             this.socket.binaryType = 'arraybuffer';
             this.socket.onmessage = function(msg) {
