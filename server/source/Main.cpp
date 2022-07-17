@@ -54,7 +54,7 @@ int main(int argc, const char** argv) {
     runUnitTests();
     
     // boot up a static webserver on a nonblocking thread to serve the frontend
-    // command for generating key files in linux
+    // command for generating key files in linux:
     // openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -sha256 -days 365
     SecureWebServer web_server(8080, "./hosted/", "./cert/cert.pem","./cert/key.pem");
     /*
@@ -69,10 +69,16 @@ int main(int argc, const char** argv) {
     table["test"] = Variant("cactus") ;
     loadModels(table);
 
+    // Read the password from a file so we don't have to type it (and it's not included in the source repository)
+    std::ifstream password_file("./cert/password.txt");
+    std::string password;
+    std::getline(password_file, password);
+  
     // boot up the tableserver on a non-blocking thread
     int table_port = 9004;
     printf("Starting the table server on port %d...\n", table_port);
-    TableServer table_server(table_port, &table);
+    TableServer table_server(table_port, &table,
+        "./cert/cert.pem", "./cert/key.pem", "./cert/dh.pem", password);
 
     // boot up the timeline server on a non-blocking thread
     int timeline_port = 9017;
