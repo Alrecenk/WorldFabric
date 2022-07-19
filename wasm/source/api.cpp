@@ -219,16 +219,6 @@ byte* requestModel(byte* ptr){
 
 byte* getUpdatedBuffers(byte* ptr){
 
-    if(selected_animation >= 0){
-        auto& animation = meshes[MAIN_MODEL].animations[selected_animation];
-        float time = millisBetween(animation_start_time, now()) / 1000.0f;
-            if(time > animation.duration){
-                time = 0 ;
-                animation_start_time = now();
-            }
-        meshes[MAIN_MODEL].animate(animation,time);
-    }
-
     map<string,Variant> buffers;
     for(auto & [name, mesh] : meshes){
         //st = now();
@@ -657,6 +647,32 @@ byte* createVRMPins(byte* ptr){
     
     
     (Variant( ret_map)).printFormatted();
+    return pack(ret_map);
+}
+
+// returns the current bone data for the given mesh
+byte* getBones(byte* ptr){
+
+    auto obj = Variant::deserializeObject(ptr);
+    string mesh_name = obj["mesh"].getString();
+
+    //if(obj["animation"].defined){
+        //int selected_animation = obj["animation"].getInt();
+
+        if(selected_animation >= 0){
+            auto& animation = meshes[mesh_name].animations[selected_animation];
+            float time = millisBetween(animation_start_time, now()) / 1000.0f; // TODO accept time as parameter
+                if(time > animation.duration){
+                    time = 0 ;
+                    animation_start_time = now();
+                }
+            meshes[mesh_name].animate(animation,time);
+        }
+
+    //}
+
+    map<string, Variant> ret_map ;
+    ret_map["bones"] = meshes[mesh_name].getBoneData() ;
     return pack(ret_map);
 }
 

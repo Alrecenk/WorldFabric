@@ -64,7 +64,8 @@ class PoseMode extends ExecutionMode{
             }
         }
         // Draw the models
-        tools.renderer.drawMesh("MAIN", this.model_pose);
+        let bones = tools.API.call("getBones", {mesh:"MAIN"}, new Serializer()).bones ;
+        tools.renderer.drawMesh("MAIN", this.model_pose, bones);
         tools.renderer.drawMesh("HAND", this.hand_pose[0]);
         tools.renderer.drawMesh("HAND", this.hand_pose[1]);
 

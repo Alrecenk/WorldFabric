@@ -72,21 +72,14 @@ class WorldChatMode extends ExecutionMode{
 
         // Draw the model
         tools.renderer.setMeshDoubleSided("MAIN", false);
-        tools.renderer.drawMesh("MAIN", this.model_pose);
+        let bones = tools.API.call("getBones", {mesh:"MAIN"}, new Serializer()).bones ;
+        tools.renderer.drawMesh("MAIN", this.model_pose, bones);
 
         //Draw the mirror
         tools.renderer.setMeshDoubleSided("MAIN", true);
 
         mat4.multiply(M,mirror, this.model_pose);
-        tools.renderer.drawMesh("MAIN", M);
-
-/*
-        let mirror = mat4.create();
-        mat4.scale(mirror, this.model_pose, vec3.fromValues(1,1,-1));
-        mat4.translate(mirror, mirror,[0,0,2]);
-
-        tools.renderer.drawMesh("MAIN", mirror);
-*/
+        tools.renderer.drawMesh("MAIN", M, bones);
     }
 
 
