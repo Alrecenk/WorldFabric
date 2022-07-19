@@ -23,8 +23,6 @@ class WorldChatMode extends ExecutionMode{
 
     model_pose = null;
 
-    hand_pose = [mat4.create(),mat4.create()] ;
-
     pin = null;
 
     mirror_dist = 2;
@@ -38,11 +36,7 @@ class WorldChatMode extends ExecutionMode{
     constructor(tools){
         super(tools) ;
         this.model_pose = mat4.create();
-        mat4.identity(this.model_pose);
-
-        mat4.translate(this.hand_pose[0], this.model_pose,[2.5,1.5,0]);
-        mat4.translate(this.hand_pose[1], this.model_pose,[-2.5,1.5,0]);
-        
+        mat4.identity(this.model_pose);        
     }
 
     // Called when the mode is becoming active (previous mode will have already exited)
@@ -75,17 +69,6 @@ class WorldChatMode extends ExecutionMode{
         let M = mat4.create();
         mat4.scale(mirror, mirror, vec3.fromValues(1,1,-1));
         mat4.translate(mirror, mirror,[0,0,2]);
-
-        // Draw the hands
-        for(let h = 0 ; h < 2; h++){
-            if(!this.hand_pins[h]){
-                tools.renderer.drawMesh("HAND", this.hand_pose[h]);
-
-                mat4.multiply(M,mirror, this.hand_pose[h]);
-                tools.renderer.drawMesh("HAND", M);
-
-            }
-        }
 
         // Draw the model
         tools.renderer.setMeshDoubleSided("MAIN", false);
@@ -220,12 +203,7 @@ class WorldChatMode extends ExecutionMode{
         //console.log("model pose end:" + JSON.stringify(this.model_pose));
 
         if(this.head_pins == null){
-            
-            //console.log("xr_input:" + JSON.stringify(xr_input));
-            
-            this.head_pins = [];
-
-
+            // determine which input is which hand
             let left = -1, right = -1;
             for(let k=0;k<xr_input.length;k++){
                 if(xr_input[k].handedness == "left"){
@@ -236,211 +214,95 @@ class WorldChatMode extends ExecutionMode{
                 }
             }
 
-            
             let initial_matrices = tools.API.call("createVRMPins", {}, new Serializer()); 
-            this.head_pins.push({name:"head", initial_matrix : initial_matrices["head"], initial_pose: initial_matrices["head"]});
-            this.hand_pins[left] = [];
+            this.head_pins = {name:"head", initial_matrix : initial_matrices["head"], initial_pose: initial_matrices["head"]};
+            
             let left_grip = new Float32Array([  0,-1,0,0,
                                                 1,0,0,0,
                                                 0,0,1,0,
                                                 0,0,0,1]);
-            this.hand_pins[left].push({name:"left_hand", initial_matrix : initial_matrices["left_hand"], initial_grip:left_grip });
-            this.hand_pins[right] = [];
+            this.hand_pins[left] = {name:"left_hand", initial_matrix : initial_matrices["left_hand"], initial_grip:left_grip };
+            
             let right_grip = new Float32Array([ 0,1,0,0,
                                                 -1,0,0,0,
                                                 0,0,1,0,
                                                 0,0,0,1]);
-            this.hand_pins[right].push({name:"right_hand", initial_matrix : initial_matrices["right_hand"], initial_grip: right_grip});
-            console.log(this.hand_pins);
-            
+            this.hand_pins[right] = {name:"right_hand", initial_matrix : initial_matrices["right_hand"], initial_grip: right_grip};            
         }
 
-
-
         let which_hand = 0 ;
-        let GRIP = 1 ;
-        let TRIGGER = 0 ;
-        let pose_hand = -1 ;
-        let grab_hand = -1 ;
 
         let params = {};
         let model_inv = mat4.create();
         mat4.invert(model_inv,this.model_pose);
 
-
-
         for (let input_source of xr_input) {
-            if(input_source.grip_pose){
-                if(input_source.buttons[GRIP].pressed  && grab_hand < 0){
-                    grab_hand = which_hand;
-                }
-                if(input_source.buttons[TRIGGER].pressed && pose_hand < 0 && !this.hand_pins[which_hand]){
-                    pose_hand = which_hand ;
-                }
-
-                for(let axis of input_source.axes){
-                    this.axis_total += axis ;
-                }
-
-                //let grip_pose = frame.getPose(inputSource.gripSpace, tools.renderer.xr_ref_space).transform.matrix;
-                this.hand_pose[which_hand] = input_source.grip_pose;
-
-                if(grab_hand == which_hand){
-                    
-                    if(!this.grab_pose){ // start of grab, fetch starting poses
-                        this.grab_pose = mat4.create();
-                        this.grab_pose.set(input_source.grip_pose);
-                        this.grab_model_pose = mat4.create();
-                        this.grab_model_pose.set(this.model_pose) ;
-                        this.grab_axis_total = this.axis_total ;
-                    }
-
-                    let MP = mat4.create();
-                    let inv = mat4.create();
-                    mat4.invert(inv, this.grab_pose); // TODO cache at grab time
-                    mat4.multiply(MP,inv, MP);
-                    mat4.multiply(MP,input_source.grip_pose, MP);
-                    let scale = Math.pow(1.05, (this.axis_total - this.grab_axis_total)*0.3);
-                    mat4.scale(MP, MP,[scale,scale,scale]);
-                    mat4.multiply(this.model_pose, MP, this.grab_model_pose);
-                    mat4.invert(model_inv,this.model_pose);
-
-                }
-
-                
-                let params = {};
-                
-                let MP = mat4.create();
-                mat4.multiply(MP,model_inv, input_source.grip_pose);
-
-
-                //console.log(grip_pose);
-                /*let gpos = [
-                    vec4.fromValues(0.0025, 0.0025, -0.0025, 1.0),
-                    vec4.fromValues(-0.0025, 0.0025, -.0025, 1.0),
-                    vec4.fromValues(0, -0.0025, -0.0025, 1.0),
-                    vec4.fromValues(0, 0, 0.0025, 1.0)
-                ];*/
-                let gpos = [vec4.fromValues(0, 0, 0, 1.0)];
-
-                
-                let creating = false;
-                // first grab with a hand that isn't the head grab
-                if(!this.hand_pins[which_hand] && pose_hand == which_hand && this.head_pins.length > 0 && !this.head_posing){
-                    this.hand_pins[which_hand] = [];
-                    creating = true ;
-                }
-                if(this.hand_pins[which_hand] || creating){
-                    for(let g = 0; g < gpos.length;g++){
-
-                        
-                    
-                        vec4.transformMat4(gpos[g], gpos[g], MP);// move global position into model space
-                        //console.log(gpos[0] +", " + gpos[1] +", " + gpos[2]);
-                        params.p = new Float32Array([gpos[g][0], gpos[g][1], gpos[g][2]]);
-                        if(creating){
-                            params.name = "vr_hand_"+which_hand+"_pose_" + g;
-                            params.initial_matrix = tools.API.call("createRotationPin", params, new Serializer()).matrix;
-                            tools.API.call("createPin", params, new Serializer());
-                            params.initial_grip = mat4.create();
-                            params.initial_grip.set(input_source.grip_pose);
-                            this.hand_pins[which_hand].push(params); // create pin from current point    
-                            console.log("hand " + which_hand + " : " + JSON.stringify(params));
-                        }else{
-                            params.name = this.hand_pins[which_hand][g].name ;
-                            //console.log(this.hand_pins[which_hand][g]);
-                            let initial = this.hand_pins[which_hand][g].initial_matrix ;
-                            let initial_grip = this.hand_pins[which_hand][g].initial_grip ;
-                            let current_grip = input_source.grip_pose ;
-
-                            let MP = mat4.create();
-                            let inv = mat4.create();
-                            // get change in grip
-                            mat4.invert(inv, initial_grip);
-                            mat4.multiply(MP,current_grip, inv);
-
-                            // makerelative to model pose
-                            mat4.multiply(MP,model_inv,MP);
-
-                            mat4.multiply(MP,MP,initial);
-
-
-                            params.target = MP;
-                            tools.API.call("setRotationPinTarget", params, new Serializer()); 
-
-                            tools.API.call("setPinTarget", params, new Serializer()); 
-
-                            
-                        }
-                    }
-                }
-
-                
+            if(!(input_source.grip_pose)){
+                continue ;
             }
+                
+            let params = {};
+            
+            let MP = mat4.create();
+            mat4.multiply(MP,model_inv, input_source.grip_pose);
 
+            let gpos = vec4.fromValues(0, 0, 0, 1.0);
+
+            if(this.hand_pins[which_hand]/* || creating*/){
+                vec4.transformMat4(gpos, gpos, MP);// move global position into model space
+                //console.log(gpos[0] +", " + gpos[1] +", " + gpos[2]);
+                params.p = new Float32Array([gpos[0], gpos[1], gpos[2]]);
+                params.name = this.hand_pins[which_hand].name ;
+                //console.log(this.hand_pins[which_hand]);
+                let initial = this.hand_pins[which_hand].initial_matrix ;
+                let initial_grip = this.hand_pins[which_hand].initial_grip ;
+                let current_grip = input_source.grip_pose ;
+
+                let MP2 = mat4.create();
+                let inv = mat4.create();
+                // get change in grip
+                mat4.invert(inv, initial_grip);
+                mat4.multiply(MP2,current_grip, inv);
+
+                // makerelative to model pose
+                mat4.multiply(MP2,model_inv,MP2);
+                mat4.multiply(MP2,MP2,initial);
+
+                params.target = MP2;
+                tools.API.call("setRotationPinTarget", params, new Serializer()); 
+                tools.API.call("setPinTarget", params, new Serializer()); 
+            }
             which_hand++;
         }
 
         
         let MP = mat4.create();
         mat4.multiply(MP,model_inv, tools.renderer.head_pose.transform.matrix);
-        let creating = this.head_pins.length == 0 && pose_hand >=0; // the first time you press a trigger, pin the head
+
+        let head_pos = vec4.fromValues(0, 0, 0, 1.0);
+        vec4.transformMat4(head_pos, head_pos, MP);// move global position into model space
+        params.p = new Float32Array([head_pos[0], head_pos[1], head_pos[2]]);
+
+        params.name = this.head_pins.name ;
+        let initial = this.head_pins.initial_matrix ;
+        let initial_pose = this.head_pins.initial_pose ;
+        let current_pose = tools.renderer.head_pose.transform.matrix ;
+        let MP2 = mat4.create();
+        let inv = mat4.create();
         
-        let head_pos = [vec4.fromValues(0, 0, 0, 1.0)];
-        for(let g = 0; g < head_pos.length;g++){
-            
-            vec4.transformMat4(head_pos[g], head_pos[g], MP);// move global position into model space
-            params.p = new Float32Array([head_pos[g][0], head_pos[g][1], head_pos[g][2]]);
-            
-            
-            if(creating){
-                params.name = "vr_head_pose_" + g;
-                console.log(JSON.stringify(params));
-                params.initial_matrix = tools.API.call("createRotationPin", params, new Serializer()).matrix;
-                tools.API.call("createPin", params, new Serializer()); 
+        // get change in grip
+        mat4.invert(inv, initial_pose);
+        mat4.multiply(MP2,current_pose, inv);
 
-                params.initial_pose = mat4.create();
-                params.initial_pose.set(tools.renderer.head_pose.transform.matrix);
-                this.head_pins.push(params); // create pin from current point
-                this.head_posing = true;
-            }else if(this.head_pins.length>0){
-                params.name = this.head_pins[g].name ;
-                let initial = this.head_pins[g].initial_matrix ;
-                let initial_pose = this.head_pins[g].initial_pose ;
-                let current_pose = tools.renderer.head_pose.transform.matrix ;
-                //console.log("i, ip, cp, params");
-                //console.log(initial);
-                //console.log(initial_pose);
-                //console.log(current_pose);
-                let MP = mat4.create();
-                let inv = mat4.create();
-                
-                // get change in grip
-                mat4.invert(inv, initial_pose);
-                mat4.multiply(MP,current_pose, inv);
+        // makerelative to model pose
+        mat4.multiply(MP2,model_inv,MP2);
 
-                // makerelative to model pose
-                mat4.multiply(MP,model_inv,MP);
+        mat4.multiply(MP2,MP2,initial);
 
-                mat4.multiply(MP,MP,initial);
+        params.target = MP2;
+        tools.API.call("setRotationPinTarget", params, new Serializer()); 
+        //tools.API.call("setPinTarget", params, new Serializer());  // not required when body tracks head
 
-                params.target = MP;
-                tools.API.call("setRotationPinTarget", params, new Serializer()); 
-                //tools.API.call("setPinTarget", params, new Serializer()); 
-            }
-            
-        }
-
-
-        if(grab_hand < 0){// stopped grabbing, clear saved poses
-            this.grab_pose = null;
-            this.grab_model_pose = null;
-        }
-        
-        if(pose_hand < 0 && this.head_posing){
-            this.head_posing = false;
-        }
-        
         tools.API.call("applyPins", {}, new Serializer()); 
     }
 }

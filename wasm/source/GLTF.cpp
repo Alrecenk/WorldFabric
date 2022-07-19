@@ -338,13 +338,12 @@ Variant GLTF::getChangedBuffer(int selected_material){
 
     if(this->bones_changed){
         int num_bones = nodes.size() ;
-        int shader_num_bones = 1024; // TODO avoid duplicate constant definition with bones texture
+        int shader_num_bones = 256; // TODO avoid duplicate constant definition with bones texture
         Variant& bone_buffer = buffers["bones"];
         bone_buffer.type_ = Variant::FLOAT_ARRAY;
         bone_buffer.ptr = (byte*)malloc(4 + shader_num_bones * 16 * sizeof(float));
         *((int*)bone_buffer.ptr) = shader_num_bones * 16 ;// number of floats in array
         float* bone_buffer_array =  (float*)(bone_buffer.ptr+4) ; // pointer to start of float array
-
         for(int node_id=0; node_id<nodes.size(); node_id++){    
             Node& node = nodes[node_id];  
             memcpy(bone_buffer_array + (node_id*16), &(node.transform), 64);
