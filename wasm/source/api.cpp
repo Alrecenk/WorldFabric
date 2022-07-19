@@ -21,6 +21,7 @@
 #include "MoveBouncingBall.h"
 #include "ChangeBallVelocity.h"
 #include "BallWall.h"
+#include "MeshInstance.h"
 
 
 using std::vector;
