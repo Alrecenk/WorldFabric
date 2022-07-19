@@ -73,7 +73,8 @@ API_SRC    =${API_DIR}source/Variant.cpp \
 			${API_DIR}source/MoveBouncingBall.cpp \
 			${API_DIR}source/ChangeBallVelocity.cpp \
 			${API_DIR}source/ApplyBallImpulse.cpp \
-			${API_DIR}source/MeshInstance.cpp
+			${API_DIR}source/MeshInstance.cpp \
+			${API_DIR}source/SetMeshInstance.cpp
 
 			
 default: all

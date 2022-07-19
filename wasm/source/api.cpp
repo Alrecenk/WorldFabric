@@ -22,6 +22,7 @@
 #include "ChangeBallVelocity.h"
 #include "BallWall.h"
 #include "MeshInstance.h"
+#include "SetMeshInstance.h"
 
 
 using std::vector;
