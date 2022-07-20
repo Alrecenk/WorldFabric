@@ -4,7 +4,7 @@
 #include <map>
 #include <vector>
 #include <string>
-#include "glm/vec3.hpp"
+#include <glm/glm.hpp>
 
 typedef unsigned char byte;
 
@@ -68,6 +68,8 @@ class Variant {
     Variant(const float* data, int array_length);
 
     Variant(const glm::vec3& data); // maps to float*
+
+    Variant(const glm::mat4& data); // maps to float*
 
     Variant(const double* data, int array_length);
 
@@ -179,6 +181,8 @@ class Variant {
     float* getFloatArray() const;
 
     glm::vec3 getVec3() const;
+
+    glm::mat4 getMat4() const;
 
     double* getDoubleArray() const;
 

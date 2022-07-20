@@ -21,6 +21,8 @@
 #include "MoveBouncingBall.h"
 #include "ChangeBallVelocity.h"
 #include "BallWall.h"
+#include "MeshInstance.h"
+#include "SetMeshInstance.h"
 
 
 using std::vector;
@@ -131,6 +133,14 @@ Timeline* initialize2DBallTimeline(int width, int height, int amount, float min_
     return timeline.get();
 }
 
+
+Timeline* initializeChatTimeline(){
+    timeline = make_unique<Timeline>(&MeshInstance::createEvent, &MeshInstance::createObject);
+    timeline->auto_clear_history=true;
+    timeline->observable_interpolation = true;
+    return timeline.get() ;
+}
+
 Variant getVariantMatrix(glm::quat q){
     mat4 m = glm::mat4_cast(q);
     Variant matrix ;
@@ -218,16 +228,6 @@ byte* requestModel(byte* ptr){
 
 
 byte* getUpdatedBuffers(byte* ptr){
-
-    if(selected_animation >= 0){
-        auto& animation = meshes[MAIN_MODEL].animations[selected_animation];
-        float time = millisBetween(animation_start_time, now()) / 1000.0f;
-            if(time > animation.duration){
-                time = 0 ;
-                animation_start_time = now();
-            }
-        meshes[MAIN_MODEL].animate(animation,time);
-    }
 
     map<string,Variant> buffers;
     for(auto & [name, mesh] : meshes){
@@ -526,22 +526,6 @@ byte* runTimelineUnitTests(byte* ptr) {
     return emptyReturn();
 }
 
-byte* initialize2DBallTimeline(byte* ptr){
-    printf("initializing timeline!\n");
-    initializeBallTimeline();
-    
-    auto obj = Variant::deserializeObject(ptr);
-    int width = obj["width"].getInt();
-    int height = obj["height"].getInt();
-    int amount = obj["amount"].getInt();
-    float min_radius = obj["min_radius"].getNumberAsFloat();
-    float max_radius = obj["max_radius"].getNumberAsFloat();
-    float max_speed = obj["max_speed"].getNumberAsFloat();
-    initialize2DBallTimeline(width, height, amount, min_radius, max_radius, max_speed) ;
-    
-    return emptyReturn();
-}
-
 byte* runTimeline(byte* ptr){
     timeline->auto_clear_history=true;
     timeline->observable_interpolation = true;
@@ -592,9 +576,57 @@ byte* getBallObjects(byte* ptr){
     return pack(ret_map);
 }
 
+
+byte* getMeshInstances(byte* ptr){
+    vector<int> ob = timeline->updateObservables();
+
+    map<string, Variant> ret_map ;
+    //vector<Variant> output ;
+    for(int k=0;k<ob.size();k++){
+        weak_ptr<TObject> ow = timeline->getLastObserved(ob[k]) ;
+        if(auto o = ow.lock()){
+            shared_ptr<MeshInstance> instance = std::static_pointer_cast<MeshInstance>(o);
+            if(instance->write_time > timeline->current_time - 5){
+                map<string, Variant> inst_map ;
+                inst_map["mesh"] = Variant(instance->mesh_name) ;
+                inst_map["owner"] = Variant(instance->owner) ;
+                inst_map["pose"] = Variant(instance->pose);
+                inst_map["bones"] = meshes[MAIN_MODEL].getBoneData(instance->bone_data) ;
+                ret_map[std::to_string(ob[k])] = Variant(inst_map);
+                //ret_map[std::to_string(k)].printFormatted();
+            }
+        }
+    }
+    return pack(ret_map);
+}
+
+byte* createMeshInstance(byte* ptr){
+    //printf("Creating mesh instance!");
+    auto obj = Variant::deserializeObject(ptr);
+    string owner = obj["owner"].getString();
+    glm::mat4 tm(1);
+    Variant bones = meshes[MAIN_MODEL].getCompressedBoneData();
+    std::unique_ptr<MeshInstance> o = std::make_unique<MeshInstance>(glm::vec3(0,0,0), 2, owner, "default_avatar", tm, bones) ;
+    timeline->createObject(std::move(o), std::unique_ptr<TEvent>(nullptr) , timeline->current_time + 0.02);
+    return emptyReturn();
+}
+
+byte* setMeshInstance(byte* ptr){
+    //printf("Updating mesh instance!");
+    auto obj = Variant::deserializeObject(ptr);
+    //Variant(obj).printFormatted();
+    int id = obj["id"].getInt();
+    glm::mat4 pose = obj["pose"].getMat4();
+    Variant bones = meshes[MAIN_MODEL].getCompressedBoneData();
+
+    timeline->addEvent(std::make_unique<SetMeshInstance>(id, glm::vec3(0,0,0), 2, "default_avatar", pose, bones),  timeline->current_time+0.1) ;
+    return emptyReturn();
+}
+
 byte* getInitialTimelineRequest(byte* ptr){
     
-    initializeBallTimeline();
+    //initializeBallTimeline();
+    initializeChatTimeline();
     map<string, Variant> sync_data ;
     sync_data["descriptor"] = timeline->getDescriptor(0.0, false);
     //printf("initial packet:\n");
@@ -656,7 +688,33 @@ byte* createVRMPins(byte* ptr){
     ret_map["right_hand"] = getVariantMatrix(avatar.createRotationPin("right_hand", avatar.human_bone["rightHand"], 1.0f));
     
     
-    (Variant( ret_map)).printFormatted();
+    //(Variant( ret_map)).printFormatted();
+    return pack(ret_map);
+}
+
+// returns the current bone data for the given mesh
+byte* getBones(byte* ptr){
+
+    auto obj = Variant::deserializeObject(ptr);
+    string mesh_name = obj["mesh"].getString();
+
+    //if(obj["animation"].defined){
+        //int selected_animation = obj["animation"].getInt();
+
+        if(selected_animation >= 0){
+            auto& animation = meshes[mesh_name].animations[selected_animation];
+            float time = millisBetween(animation_start_time, now()) / 1000.0f; // TODO accept time as parameter
+                if(time > animation.duration){
+                    time = 0 ;
+                    animation_start_time = now();
+                }
+            meshes[mesh_name].animate(animation,time);
+        }
+
+    //}
+
+    map<string, Variant> ret_map ;
+    ret_map["bones"] = meshes[mesh_name].getBoneData() ;
     return pack(ret_map);
 }
 

@@ -151,6 +151,12 @@ class GLTF : public OptimizationProblem, public TableInterface {
         
         Variant getChangedBuffer(int material);
 
+        Variant getBoneData();
+
+        Variant getCompressedBoneData();
+
+        Variant getBoneData(const Variant& compressed);
+
         // Sets this Model to a chunk of raw GLB data
         void setModel(const byte* data, int data_length);
 

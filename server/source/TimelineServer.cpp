@@ -83,9 +83,10 @@ void TimelineServer::onMessage(
         Variant response = Variant(response_map);
         int response_size = response.getSize();
         // Send the data back to the client
+        websocketpp::lib::error_code ec; // TODO catch error?
         s->send(
                 std::move(hdl), response.ptr, response_size,
-                websocketpp::frame::opcode::binary);
+                websocketpp::frame::opcode::binary,ec);
     }
 }
 
@@ -158,9 +159,10 @@ void TimelineServer::quickForwardEvents(){
         // Send to all connected clients
         for(auto& [connection, time] : TimelineServer::connections){
             if(time > current_time-1000){
+                websocketpp::lib::error_code ec; // TODO catch error
                 TimelineServer::server.send(
                     connection, qs.ptr, packet_size,
-                    websocketpp::frame::opcode::binary);
+                    websocketpp::frame::opcode::binary, ec);
             }
         }
     }

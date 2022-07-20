@@ -56,7 +56,8 @@ class ScanMode extends ExecutionMode{
             }
         }
         // Draw the models
-        tools.renderer.drawMesh("MAIN", this.model_pose);
+        let bones = tools.API.call("getBones", {mesh:"MAIN"}, new Serializer()).bones ;
+        tools.renderer.drawMesh("MAIN", this.model_pose, bones);
         /*for(let dz = -1; dz <=1; dz++){
             for(let dy = -1; dy <=1; dy++){
                 for(let dx = -1; dx <=1; dx++){

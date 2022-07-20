@@ -89,13 +89,13 @@ class AvatarMode extends ExecutionMode{
 
         // Draw the model
         tools.renderer.setMeshDoubleSided("MAIN", false);
-        tools.renderer.drawMesh("MAIN", this.model_pose);
+        let bones = tools.API.call("getBones", {mesh:"MAIN"}, new Serializer()).bones ;
+        tools.renderer.drawMesh("MAIN", this.model_pose, bones);
 
         //Draw the mirror
         tools.renderer.setMeshDoubleSided("MAIN", true);
-
         mat4.multiply(M,mirror, this.model_pose);
-        tools.renderer.drawMesh("MAIN", M);
+        tools.renderer.drawMesh("MAIN", M, bones);
 
 /*
         let mirror = mat4.create();

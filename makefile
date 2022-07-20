@@ -40,7 +40,6 @@ EXPORTED_FUNCTIONS =[\
 	'_createRotationPin',\
 	'_setRotationPinTarget',\
 	'_runTimelineUnitTests',\
-	'_initialize2DBallTimeline',\
 	'_runTimeline',\
 	'_getBallObjects',\
 	'_getInitialTimelineRequest',\
@@ -51,6 +50,10 @@ EXPORTED_FUNCTIONS =[\
 	'_requestModel',\
 	'_getFirstPersonPosition',\
 	'_createVRMPins',\
+	'_getBones',\
+	'_getMeshInstances',\
+	'_createMeshInstance',\
+	'_setMeshInstance',\
 	'_free']
 EXTRA_EXPORTED_RUNTIME_METHODS=['ccall']
 API_MAIN = ${API_DIR}source/api.cpp
@@ -71,7 +74,9 @@ API_SRC    =${API_DIR}source/Variant.cpp \
 			${API_DIR}source/BallWall.cpp \
 			${API_DIR}source/MoveBouncingBall.cpp \
 			${API_DIR}source/ChangeBallVelocity.cpp \
-			${API_DIR}source/ApplyBallImpulse.cpp
+			${API_DIR}source/ApplyBallImpulse.cpp \
+			${API_DIR}source/MeshInstance.cpp \
+			${API_DIR}source/SetMeshInstance.cpp
 
 			
 default: all

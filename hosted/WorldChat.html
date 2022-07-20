@@ -1,0 +1,374 @@
+<html>
+<head>
+<title>WorldChat</title>
+<meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1">
+<style>
+.container {
+    position: relative;
+    overflow: hidden;
+}
+#ui {
+    background-color: transparent;  /* set 2D canvas to overlap webgl canvas and be transparent*/
+    position: absolute;
+    left: 0px;
+    top: 0px;
+    z-index: 10;
+    overflow: hidden;
+}
+
+body {
+  position: relative;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+</style>
+
+<script type="text/javascript" src="gl-matrix-min.js"></script>
+<script type="text/javascript" src="Renderer.js"></script>
+<script type="text/javascript" src="InterfaceButton.js"></script>
+<script type="text/javascript" src="ExecutionMode.js"></script>
+<script type="text/javascript" src="generated/api.js"></script>
+<script type="text/javascript" src="Serializer.js"></script>
+<script type="text/javascript" src="TableClient.js"></script>
+<script type="text/javascript" src="TimelineClient.js"></script>
+<script type="text/javascript" src="WorldChatMode.js"></script>
+
+
+<script id="shader-fs" type="x-shader/x-fragment">#version 300 es
+    // A simple fragment shader with a single point light
+    precision mediump float;
+
+    in vec4 v_color;
+	in vec3 v_position;
+	in vec3 v_normal;
+    in vec2 v_texcoord;
+	
+	uniform vec3 u_light_point;
+    uniform sampler2D u_texture;
+    uniform int u_has_texture ;
+    uniform float u_alpha_cutoff ;
+	
+	out vec4 frag_color;
+
+	float lightFrom(vec3 light_point){
+		vec3 light_ray = v_position - light_point;
+		float direct = max(0., -dot(light_ray, v_normal)/length(light_ray));
+		return direct ;
+	}
+	
+    void main(void) {
+		float direct = lightFrom(u_light_point) ;
+		float indirect = 1.;
+		float l = 0.5*indirect + 0.5 * direct ; // Add some ambient light
+        frag_color = vec4(l *v_color.r ,l * v_color.g,l*v_color.b , v_color.a) ;
+        if(u_has_texture > 0){
+            vec4 t_color = texture(u_texture, v_texcoord);
+            frag_color.r *= t_color.r ;
+            frag_color.g *= t_color.g ;
+            frag_color.b *= t_color.b ;
+            frag_color.a *= t_color.a ;
+        }
+
+        if(frag_color.a < u_alpha_cutoff){
+            discard ;
+        }		
+    }
+</script>
+
+<script id="shader-vs" type="x-shader/x-vertex">#version 300 es
+    // A Very simple passthrough vertex shader
+	in vec3 aVertexPosition;
+    in vec4 aVertexColor;
+	in vec3 aNormal;
+    in vec2 aTexcoord;
+    in vec4 aJoints;
+    in vec4 aWeights;
+
+    uniform mat4 uMVMatrix;
+    uniform mat4 uPMatrix;
+    uniform sampler2D bones_texture;
+
+    out vec4 v_color;
+	out vec3 v_position;
+	out vec3 v_normal;
+    out vec2 v_texcoord;
+
+    vec4 getBoneElem(int index){
+        int y = index/32;
+		int x = index - (y*32) ;
+		return texelFetch(bones_texture, ivec2(x, y), 0);
+	}
+
+    mat4 getBone(float index){
+        int i = int(round(index));
+        mat4 bone ;
+        bone[0] = getBoneElem(4*i);
+        bone[1] = getBoneElem(4*i+1);
+        bone[2] = getBoneElem(4*i+2);
+        bone[3] = getBoneElem(4*i+3);
+        return bone ;
+    }
+
+    void main(void) {
+        vec4 x = vec4(aVertexPosition, 1) ;
+
+        v_position = vec3(getBone(aJoints[0]) * x * aWeights[0] + 
+                        getBone(aJoints[1]) * x * aWeights[1] + 
+                        getBone(aJoints[2]) * x * aWeights[2] + 
+                        getBone(aJoints[3]) * x * aWeights[3] );
+
+        vec4 n = vec4(aNormal,0);
+
+        v_normal = vec3(getBone(aJoints[0]) * n * aWeights[0] + 
+                        getBone(aJoints[1]) * n * aWeights[1] + 
+                        getBone(aJoints[2]) * n * aWeights[2] + 
+                        getBone(aJoints[3]) * n * aWeights[3] );
+
+        v_normal = normalize(v_normal);               
+        v_color = aVertexColor;
+        if(length(v_position) < 0.01f){
+            v_position = aVertexPosition;
+            v_color = vec4(1.0,0.0,0.0, 1.0);            
+        }
+
+		//v_position = aVertexPosition; 
+		//v_normal = aNormal;
+        v_texcoord = aTexcoord;
+        gl_Position = uPMatrix * uMVMatrix * vec4(v_position, 1.0);
+    }
+</script>
+
+<script type="text/javascript">
+"use strict";
+const url_params = new URLSearchParams(window.location.search) ;
+var app; // The main app running on the CAD canvas
+var imports = url_params.get("import") ? url_params.get("import").split(',') : [];
+
+var tools  ; // a map containing several things above so execution modes can access them
+
+function canvasApp() {
+    //The canvas this app is running on.
+	var theCanvas = document.getElementById("ui");
+	// 2D context you can use to draw on.
+    var context = theCanvas.getContext("2d");
+
+    var mouse_x, mouse_y, mouse_down_x, mouse_down_y ;
+
+
+	function init() {
+        // Add event listeners to the canvas or window as appropriate
+		theCanvas.addEventListener("mousedown", mouseDownListener, false);
+		window.addEventListener("mousemove", mouseMoveListener, false);
+		window.addEventListener("mouseup", mouseUpListener, false);
+		window.addEventListener('keydown',keyDownListener,false);
+		window.addEventListener('keyup',keyUpListener,false);
+		window.addEventListener('mousewheel', mouseWheelListener);//For Chrome
+        window.addEventListener('DOMMouseScroll', mouseWheelListener);// For Firefox
+
+        //touchHandler simulates mouse events on single touch
+		document.addEventListener("touchstart", touchHandler, true);
+		document.addEventListener("touchmove", touchHandler, true);
+		document.addEventListener("touchend", touchHandler, true);
+		document.addEventListener("touchcancel", touchHandler, true);
+
+
+        //document.addEventListener('pointermove', pointerMove, true) ;
+            
+	
+        window.setInterval(timeListener, 1000.0/120.0);
+	}
+
+    function timeListener(){
+
+        if(tools.sync_link != null && tools.sync_link.ready() && !tools.sync_link.active){
+            tools.sync_link.sendInitialRequest();
+        }
+
+        if(tools.table_link != null && tools.table_link.ready() && !tools.table_link.active){
+            tools.table_link.sendPendingRequests(true); // This works to start even if there aren't any pending requests yet
+        }
+
+        if(tools.current_mode!=null){
+            if(tools.renderer.has_new_xr_input){
+                tools.current_mode.vrInputSourcesUpdated(tools.renderer.xr_input);
+                tools.renderer.has_new_xr_input = false;
+            }
+            tools.current_mode.timer();  
+        }
+
+        if(tools.sync_link.ready()){
+            tools.sync_link.sendQuickEvents();
+        }
+    }
+
+	function keyDownListener(evt) {
+        if(tools.current_mode!=null){
+            tools.current_mode.keyDownListener(evt);
+        }
+	}
+
+	function keyUpListener(evt) {
+        if(tools.current_mode!=null){
+            tools.current_mode.keyUpListener(evt);
+        }
+    }
+
+    // Map touchevents
+	function touchHandler(event){
+		//event.preventDefault();
+		var touches = event.touches;
+		var pointers = [];
+		for(let k=0;k<touches.length;k++){
+            //TODO get position relative to canvas if canvas isn't whole screen?
+            /*
+            this.mouse_down_x = (event.clientX - bRect.left)*(tools.canvas.width/bRect.width);
+            this.mouse_down_y = (event.clientY - bRect.top)*(tools.canvas.height/bRect.height);
+            */
+			pointers.push({x: touches[k].clientX, y: touches[k].clientY, button:10}); // using 10 for touch events
+		}
+		switch(event.type)
+		{
+			case "touchstart": pointerDown(pointers); break;
+			case "touchmove":  pointerMove(pointers); break;
+			case "touchend":  pointerUp(pointers);   break;
+			default:           return;
+		}
+	}
+
+	function mouseDownListener(event) {
+		pointerDown([{x:event.clientX, y:event.clientY, button:event.button}]);
+    }
+
+	function mouseMoveListener(event){
+		pointerMove([{x:event.clientX, y:event.clientY, button:event.button}]);
+	}
+	function mouseUpListener(event){
+		pointerUp([]); // On mouse up there are no pointers down
+	}
+
+ 
+
+	function pointerDown(pointers) {
+
+        if(tools.renderer.xr_session != null){ // Kill XR session if interacting with canvas
+            tools.renderer.xr_session.end().then(tools.renderer.onXRSessionEnded);
+        }
+
+		mouse_down_x = pointers[0].x;
+        mouse_down_y = pointers[0].y;
+
+        // Buttons are executed in mouse up, this just prevents calling underlying mode when clicking a button.
+        let pressed_button = false;
+        for (let button_name in tools.buttons) {
+            if (tools.buttons.hasOwnProperty(button_name)) {
+                var b = tools.buttons[button_name];
+                if( b.inside(mouse_down_x, mouse_down_y)){
+                    pressed_button = true;
+                }
+            }
+        }
+
+        if(tools.current_mode!=null && !pressed_button){
+            tools.current_mode.pointerDown(pointers);
+        }
+	}
+
+	function pointerUp(pointers) {
+        // Execute buttons if it was clicked (mouse down and up on it)
+        let pressed_button = false;
+        for (let button_name in tools.buttons) {
+            if (tools.buttons.hasOwnProperty(button_name)) {
+                var b = tools.buttons[button_name];
+                if(b.inside(mouse_x, mouse_y) && b.inside(mouse_down_x, mouse_down_y)){
+                    b.execute();
+                    pressed_button = true;
+                }
+            }
+        }
+
+        if(tools.current_mode!=null && !pressed_button){
+            tools.current_mode.pointerUp(pointers);
+        }
+	}
+
+	function pointerMove(pointers) {
+        if(pointers.x){ // not an array, must be a real pointer event
+            pointers.preventDefault()
+            pointers = [{x:pointers.x,y:pointers.y}];
+        }
+        mouse_x = pointers[0].x;
+		mouse_y = pointers[0].y;
+        if(tools.current_mode!=null){
+            tools.current_mode.pointerMove(pointers);
+        }
+    }
+
+	function mouseWheelListener(evt){
+        if(tools.current_mode!=null){
+            tools.current_mode.mouseWheelListener(evt);
+        }
+	}
+
+
+
+    init(); //TODO this a janky way to boot up an app, maybe change it?
+}
+
+// Switch main execution mode (expects mode to be an ExecutionMode)
+function switchExecutionMode(next_mode){
+    if(tools.current_mode != null){
+        tools.current_mode.exit(next_mode);
+    }
+    var last_mode = tools.current_mode ;
+    tools.current_mode = next_mode ;
+    next_mode.enter(last_mode);
+
+}
+
+
+function initializeModes(){
+    tools.modes = {} ;
+    tools.modes.chat_mode = new WorldChatMode(tools);
+    switchExecutionMode(tools.modes.chat_mode) ;
+}
+
+function setMainMenuButtons(){
+    tools.buttons = {};
+    tools.buttons["enter_vr"] = new InterfaceButton(10, 10, 400, 80, "Enter VR", 24, "#D0D0F0", "#606060", "#FFFFFF", 3, () => {tools.renderer.startXRSession();});
+
+}
+
+function onBodyLoad(){
+    tools = {};
+    tools.renderer = new Renderer("webgl", "ui", "shader-fs", "shader-vs", 100);
+    tools.canvas = document.getElementById("ui"); ;
+
+    // Wait for the WASM module to finish loading before booting up the socket and app
+    window.initializeCPPAPI().then(function(Module){
+        tools.API = Module ;
+        tools.API.call("getReturnSize", {}, new Serializer()) ; // The first call usually silently fails, so do something harmless 
+        tools.table_link = new TableClient(9004, tools.API);
+        tools.sync_link = new TimelineClient(9017, tools.API);
+        tools.new_file = false;
+        tools.brush_size = 1 ;
+        app = canvasApp(); // Start the app
+        initializeModes();
+        setMainMenuButtons();
+        
+        
+        tools.API.call("requestModel", {key:"default_avatar"}, new Serializer()) ;
+    });
+}
+
+
+</script>
+</head>
+<body onload="onBodyLoad();">
+	<div class="container">
+	<canvas id="ui" style="border: none;" width="1024" height="720" oncontextmenu="return false;"></canvas>
+	<canvas id="webgl" style="border: none;" width="1024" height="720" oncontextmenu="return false;"></canvas>
+	</div>
+</body>
+</html>
