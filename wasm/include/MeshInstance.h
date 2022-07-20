@@ -7,12 +7,13 @@ class MeshInstance : public TObject{
 
     public:
         std::string mesh_name ;
+        std::string owner ;
         glm::mat4 pose;
         Variant bone_data;
 
         MeshInstance();
 
-        MeshInstance(glm::vec3 p, float r, const std::string& name, const glm::mat4& m, const Variant& bones);
+        MeshInstance(glm::vec3 p, float r, const std::string& own, const std::string& name, const glm::mat4& m, const Variant& bones);
 
         ~MeshInstance() override;
 

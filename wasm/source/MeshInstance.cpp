@@ -12,9 +12,10 @@ MeshInstance::MeshInstance(){
     type = 1 ;
 }
 
-MeshInstance::MeshInstance(glm::vec3 p, float r,const std::string& name, const glm::mat4& m, const Variant& bones){
+MeshInstance::MeshInstance(glm::vec3 p, float r,const std::string& own,const std::string& name, const glm::mat4& m, const Variant& bones){
     position = p ;
     radius = r ;
+    owner = own;
     mesh_name = name;
     pose = m ;
     bone_data = bones.clone();
@@ -30,6 +31,7 @@ std::map<std::string,Variant> MeshInstance::serialize() const{
     serial["p"] = Variant(position);
     serial["r"] = Variant(radius);
     serial["name"] = Variant(mesh_name);
+    serial["own"] = Variant(owner);
     serial["pose"] = Variant(pose);
     serial["bones"] = bone_data.clone();
     return serial;
@@ -40,6 +42,7 @@ void MeshInstance::set(std::map<std::string,Variant>& serial){
     position = serial["p"].getVec3();
     radius = serial["r"].getFloat();
     mesh_name = serial["name"].getString();
+    owner = serial["own"].getString();
     pose = serial["pose"].getMat4();
     bone_data = serial["bones"].clone();
 }
@@ -47,7 +50,7 @@ void MeshInstance::set(std::map<std::string,Variant>& serial){
 // Override this to provide an efficient deep copy of this object
 // If not overridden serialize and set will be used to copy your object (which will be inefficent)
 std::unique_ptr<TObject> MeshInstance::deepCopy(){
-    return std::make_unique<MeshInstance>(position, radius, mesh_name, pose, bone_data);
+    return std::make_unique<MeshInstance>(position, radius, owner, mesh_name, pose, bone_data);
 }
 
 // Override this function to provide logic for interpolation after rollback or extrapolation for slowly updating objects
@@ -57,6 +60,9 @@ std::unique_ptr<TObject> MeshInstance::getObserved(double time, const std::weak_
 }
 
 std::unique_ptr<TObject> MeshInstance::createObject(const Variant& serialized){
+    /*printf("Creating object:\n");
+    serialized.printFormatted();*/
+
     if(serialized.type_ != Variant::OBJECT){
         printf("timeline attemped to create an object with a nonobject variant!\n");
     }
@@ -67,11 +73,22 @@ std::unique_ptr<TObject> MeshInstance::createObject(const Variant& serialized){
 }
 
 std::unique_ptr<TEvent> MeshInstance::createEvent(const Variant& serialized){
+    /*printf("Creating event:\n");
+    serialized.printFormatted();
+    */
+
     if(serialized.type_ == Variant::NULL_VARIANT){ // events can hold poiners to other events which may be null
         return std::unique_ptr<TEvent>(nullptr);
     }
     auto map = serialized.getObject() ;
-    std::unique_ptr<TEvent> event = std::make_unique<SetMeshInstance>();
+    std::unique_ptr<TEvent> event ;
+    if(map["o"].type_ == Variant::OBJECT){
+        //printf("Create object created!\n");
+        event = std::make_unique<CreateObject>();
+    }else{
+        //printf("SetMeshInstance created!\n");
+        event = std::make_unique<SetMeshInstance>();
+    }
     event->set(map);
     return std::move(event);
 }

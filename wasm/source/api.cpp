@@ -133,6 +133,14 @@ Timeline* initialize2DBallTimeline(int width, int height, int amount, float min_
     return timeline.get();
 }
 
+
+Timeline* initializeChatTimeline(){
+    timeline = make_unique<Timeline>(&MeshInstance::createEvent, &MeshInstance::createObject);
+    timeline->auto_clear_history=true;
+    timeline->observable_interpolation = true;
+    return timeline.get() ;
+}
+
 Variant getVariantMatrix(glm::quat q){
     mat4 m = glm::mat4_cast(q);
     Variant matrix ;
@@ -518,22 +526,6 @@ byte* runTimelineUnitTests(byte* ptr) {
     return emptyReturn();
 }
 
-byte* initialize2DBallTimeline(byte* ptr){
-    printf("initializing timeline!\n");
-    initializeBallTimeline();
-    
-    auto obj = Variant::deserializeObject(ptr);
-    int width = obj["width"].getInt();
-    int height = obj["height"].getInt();
-    int amount = obj["amount"].getInt();
-    float min_radius = obj["min_radius"].getNumberAsFloat();
-    float max_radius = obj["max_radius"].getNumberAsFloat();
-    float max_speed = obj["max_speed"].getNumberAsFloat();
-    initialize2DBallTimeline(width, height, amount, min_radius, max_radius, max_speed) ;
-    
-    return emptyReturn();
-}
-
 byte* runTimeline(byte* ptr){
     timeline->auto_clear_history=true;
     timeline->observable_interpolation = true;
@@ -584,9 +576,56 @@ byte* getBallObjects(byte* ptr){
     return pack(ret_map);
 }
 
+
+byte* getMeshInstances(byte* ptr){
+    vector<int> ob = timeline->updateObservables();
+
+    map<string, Variant> ret_map ;
+    //vector<Variant> output ;
+    for(int k=0;k<ob.size();k++){
+        weak_ptr<TObject> ow = timeline->getLastObserved(ob[k]) ;
+        if(auto o = ow.lock()){
+            shared_ptr<MeshInstance> instance = std::static_pointer_cast<MeshInstance>(o);
+            map<string, Variant> inst_map ;
+
+            inst_map["mesh"] = Variant(instance->mesh_name) ;
+            inst_map["owner"] = Variant(instance->owner) ;
+            inst_map["pose"] = Variant(instance->pose);
+            inst_map["bones"] = instance->bone_data.clone() ;
+            ret_map[std::to_string(ob[k])] = Variant(inst_map);
+            //ret_map[std::to_string(k)].printFormatted();
+        }
+    }
+    return pack(ret_map);
+}
+
+byte* createMeshInstance(byte* ptr){
+    //printf("Creating mesh instance!");
+    auto obj = Variant::deserializeObject(ptr);
+    string owner = obj["owner"].getString();
+    glm::mat4 tm(1);
+    Variant bones = meshes[MAIN_MODEL].getBoneData();
+    std::unique_ptr<MeshInstance> o = std::make_unique<MeshInstance>(glm::vec3(0,0,0), 2, owner, "default_avatar", tm, bones) ;
+    timeline->createObject(std::move(o), std::unique_ptr<TEvent>(nullptr) , timeline->current_time + 0.01);
+    return emptyReturn();
+}
+
+byte* setMeshInstance(byte* ptr){
+    //printf("Updating mesh instance!");
+    auto obj = Variant::deserializeObject(ptr);
+    //Variant(obj).printFormatted();
+    int id = obj["id"].getInt();
+    glm::mat4 pose = obj["pose"].getMat4();
+    Variant bones = meshes[MAIN_MODEL].getBoneData();
+
+    timeline->addEvent(std::make_unique<SetMeshInstance>(id, glm::vec3(0,0,0), 2, "default_avatar", pose, bones),  timeline->current_time+0.01) ;
+    return emptyReturn();
+}
+
 byte* getInitialTimelineRequest(byte* ptr){
     
-    initializeBallTimeline();
+    //initializeBallTimeline();
+    initializeChatTimeline();
     map<string, Variant> sync_data ;
     sync_data["descriptor"] = timeline->getDescriptor(0.0, false);
     //printf("initial packet:\n");

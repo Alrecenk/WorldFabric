@@ -30,6 +30,8 @@ class WorldChatMode extends ExecutionMode{
     head_pins = null
     hand_pins = [null, null];
 
+    my_name = "player " + Math.floor(Math.random() * 1000000000) ;
+
 
     // Tools is an object with string keys that may include things such as the canvas,
     // API WASM Module, an Interface manager, and/or a mesh manager for shared webGL functionality
@@ -50,7 +52,9 @@ class WorldChatMode extends ExecutionMode{
 
     // Called at regular intervals by the main app when the mode is active (30 or 60fps probably but not guarsnteed)
     timer(){
-
+        if(tools.sync_link.ready()){
+            tools.API.call("runTimeline", {}, new Serializer());
+        }
     }
 
     // Called when the app should be redrawn
@@ -62,24 +66,33 @@ class WorldChatMode extends ExecutionMode{
             for(let id in new_buffer_data){
                 tools.renderer.prepareBuffer(id, new_buffer_data[id]);
             }
+
+            if(tools.sync_link.ready()){
+                    this.instances = tools.API.call("getMeshInstances", null, new Serializer());
+                    //console.log(instances);
+                
+            }
+
         }
         
+        // Draw your model with no delay
+        
 
-        let mirror = mat4.create();
-        let M = mat4.create();
-        mat4.scale(mirror, mirror, vec3.fromValues(1,1,-1));
-        mat4.translate(mirror, mirror,[0,0,2]);
+        let has_model = false;
+        if(this.instances){
+            for( let k in this.instances){
+                if(this.instances[k].owner != this.my_name){
+                    tools.renderer.drawMesh("MAIN", this.instances[k].pose, this.instances[k].bones);
+                }else{
+                    has_model = true;
+                }
+            }
+        }
 
-        // Draw the model
-        tools.renderer.setMeshDoubleSided("MAIN", false);
-        let bones = tools.API.call("getBones", {mesh:"MAIN"}, new Serializer()).bones ;
-        tools.renderer.drawMesh("MAIN", this.model_pose, bones);
-
-        //Draw the mirror
-        tools.renderer.setMeshDoubleSided("MAIN", true);
-
-        mat4.multiply(M,mirror, this.model_pose);
-        tools.renderer.drawMesh("MAIN", M, bones);
+        if(has_model){
+            let bones = tools.API.call("getBones", {mesh:"MAIN"}, new Serializer()).bones ;
+            tools.renderer.drawMesh("MAIN", this.model_pose, bones);
+        }
     }
 
 
@@ -220,7 +233,12 @@ class WorldChatMode extends ExecutionMode{
                                                 -1,0,0,0,
                                                 0,0,1,0,
                                                 0,0,0,1]);
-            this.hand_pins[right] = {name:"right_hand", initial_matrix : initial_matrices["right_hand"], initial_grip: right_grip};            
+            this.hand_pins[right] = {name:"right_hand", initial_matrix : initial_matrices["right_hand"], initial_grip: right_grip};    
+            
+            
+            
+            tools.API.call("createMeshInstance", {owner:this.my_name}, new Serializer());
+
         }
 
         let which_hand = 0 ;
@@ -297,5 +315,20 @@ class WorldChatMode extends ExecutionMode{
         //tools.API.call("setPinTarget", params, new Serializer());  // not required when body tracks head
 
         tools.API.call("applyPins", {}, new Serializer()); 
+
+        let id =-1;
+        console.log(this.instances);
+        for(let k in this.instances){
+            if(this.instances[k].owner == this.my_name){
+                console.log(k);
+                id = parseInt(k); // k is a string
+                console.log(id);
+                break ;
+            }
+        }
+        if(id >= 0){
+            console.log("Found my owned model: " + id);
+            tools.API.call("setMeshInstance", {id:id, pose:this.model_pose}, new Serializer());
+        }
     }
 }

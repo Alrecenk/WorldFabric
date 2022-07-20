@@ -40,7 +40,6 @@ EXPORTED_FUNCTIONS =[\
 	'_createRotationPin',\
 	'_setRotationPinTarget',\
 	'_runTimelineUnitTests',\
-	'_initialize2DBallTimeline',\
 	'_runTimeline',\
 	'_getBallObjects',\
 	'_getInitialTimelineRequest',\
@@ -52,6 +51,9 @@ EXPORTED_FUNCTIONS =[\
 	'_getFirstPersonPosition',\
 	'_createVRMPins',\
 	'_getBones',\
+	'_getMeshInstances',\
+	'_createMeshInstance',\
+	'_setMeshInstance',\
 	'_free']
 EXTRA_EXPORTED_RUNTIME_METHODS=['ccall']
 API_MAIN = ${API_DIR}source/api.cpp

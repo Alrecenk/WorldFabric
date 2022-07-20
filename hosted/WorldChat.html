@@ -32,7 +32,9 @@ body {
 <script type="text/javascript" src="generated/api.js"></script>
 <script type="text/javascript" src="Serializer.js"></script>
 <script type="text/javascript" src="TableClient.js"></script>
+<script type="text/javascript" src="TimelineClient.js"></script>
 <script type="text/javascript" src="WorldChatMode.js"></script>
+
 
 <script id="shader-fs" type="x-shader/x-fragment">#version 300 es
     // A simple fragment shader with a single point light
@@ -180,7 +182,13 @@ function canvasApp() {
 
     function timeListener(){
 
+        if(tools.sync_link != null && tools.sync_link.ready() && !tools.sync_link.active){
+            tools.sync_link.sendInitialRequest();
+        }
 
+        if(tools.table_link != null && tools.table_link.ready() && !tools.table_link.active){
+            tools.table_link.sendPendingRequests(true); // This works to start even if there aren't any pending requests yet
+        }
 
         if(tools.current_mode!=null){
             if(tools.renderer.has_new_xr_input){
@@ -188,10 +196,6 @@ function canvasApp() {
                 tools.renderer.has_new_xr_input = false;
             }
             tools.current_mode.timer();  
-        }
-
-        if(tools.table_link != null && tools.table_link.ready() && !tools.table_link.active){
-            tools.table_link.sendPendingRequests(true); // This works to start even if there aren't any pending requests yet
         }
     }
 
@@ -342,6 +346,7 @@ function onBodyLoad(){
         tools.API = Module ;
         tools.API.call("getReturnSize", {}, new Serializer()) ; // The first call usually silently fails, so do something harmless 
         tools.table_link = new TableClient(9004, tools.API);
+        tools.sync_link = new TimelineClient(9017, tools.API);
         tools.new_file = false;
         tools.brush_size = 1 ;
         app = canvasApp(); // Start the app

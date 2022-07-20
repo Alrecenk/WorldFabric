@@ -46,6 +46,16 @@ void quit(int signum) {
     running = false;
 }
 
+Timeline* generateBallTimeline(){
+    int width = 600;
+    int height = 600;
+    float min_radius = 10;
+    float max_radius = 15 ;
+    float max_speed = 50 ;
+    Timeline* timeline = initialize2DBallTimeline(width, height, 50, min_radius, max_radius, max_speed) ;
+    return timeline ;
+}
+
 int main(int argc, const char** argv) {
 
     unsigned char* packet_ptr = (unsigned char*)malloc(50000000); // 50 megabytes
@@ -83,12 +93,32 @@ int main(int argc, const char** argv) {
     // boot up the timeline server on a non-blocking thread
     int timeline_port = 9017;
     cout << "Starting the timeline server on port " << timeline_port << "..." << endl;
-    int width = 600;
-    int height = 600;
-    float min_radius = 10;
-    float max_radius = 15 ;
-    float max_speed = 50 ;
-    Timeline* timeline = initialize2DBallTimeline(width, height, 50, min_radius, max_radius, max_speed) ;
+    
+   
+    //Timeline* timeline = generateBallTimeline() ;
+    Timeline* timeline = initializeChatTimeline() ;
+
+    GLTF test_avatar ;
+    test_avatar.receiveTableData("default_avatar", table["default_avatar"]) ;
+    glm::mat4 tm(1);
+    tm[3][0] = 0.1;
+    Variant bones = test_avatar.getBoneData();
+    std::unique_ptr<MeshInstance> o = std::make_unique<MeshInstance>(glm::vec3(0,0,0), 2, "server", "default_avatar", tm, bones) ;
+    
+    /*
+    auto serial = o->serialize();
+    Variant(serial).printFormatted();
+    
+    o->set(serial);
+    serial = o->serialize();
+    Variant(serial).printFormatted();
+    */
+    
+    //timeline->createObject(std::move(o), std::unique_ptr<TEvent>(nullptr) , 0.01234);
+    //timeline->run(1.0) ;
+    
+
+
     TimelineServer timeline_server(timeline_port, timeline,
         "./cert/cert.pem", "./cert/key.pem", "./cert/dh.pem", "");
 
