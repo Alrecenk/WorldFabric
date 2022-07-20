@@ -618,7 +618,7 @@ byte* setMeshInstance(byte* ptr){
     glm::mat4 pose = obj["pose"].getMat4();
     Variant bones = meshes[MAIN_MODEL].getBoneData();
 
-    timeline->addEvent(std::make_unique<SetMeshInstance>(id, glm::vec3(0,0,0), 2, "default_avatar", pose, bones),  timeline->current_time+0.01) ;
+    timeline->addEvent(std::make_unique<SetMeshInstance>(id, glm::vec3(0,0,0), 2, "default_avatar", pose, bones),  timeline->current_time+0.03) ;
     return emptyReturn();
 }
 

@@ -70,13 +70,12 @@ class WorldChatMode extends ExecutionMode{
             if(tools.sync_link.ready()){
                     this.instances = tools.API.call("getMeshInstances", null, new Serializer());
                     //console.log(instances);
-                
+                    this.bones = tools.API.call("getBones", {mesh:"MAIN"}, new Serializer()).bones ;
             }
 
         }
         
-        // Draw your model with no delay
-        
+        tools.renderer.setMeshDoubleSided("MAIN", false);
 
         let has_model = false;
         if(this.instances){
@@ -89,9 +88,9 @@ class WorldChatMode extends ExecutionMode{
             }
         }
 
+        // Draw your model with no delay
         if(has_model){
-            let bones = tools.API.call("getBones", {mesh:"MAIN"}, new Serializer()).bones ;
-            tools.renderer.drawMesh("MAIN", this.model_pose, bones);
+            tools.renderer.drawMesh("MAIN", this.model_pose, this.bones);
         }
     }
 
@@ -317,7 +316,7 @@ class WorldChatMode extends ExecutionMode{
         tools.API.call("applyPins", {}, new Serializer()); 
 
         let id =-1;
-        console.log(this.instances);
+        //console.log(this.instances);
         for(let k in this.instances){
             if(this.instances[k].owner == this.my_name){
                 console.log(k);
@@ -327,8 +326,9 @@ class WorldChatMode extends ExecutionMode{
             }
         }
         if(id >= 0){
-            console.log("Found my owned model: " + id);
+            //console.log("Found my owned model: " + id);
             tools.API.call("setMeshInstance", {id:id, pose:this.model_pose}, new Serializer());
+            
         }
     }
 }

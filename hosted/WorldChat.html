@@ -197,6 +197,10 @@ function canvasApp() {
             }
             tools.current_mode.timer();  
         }
+
+        if(tools.sync_link.ready()){
+            tools.sync_link.sendQuickEvents();
+        }
     }
 
 	function keyDownListener(evt) {
