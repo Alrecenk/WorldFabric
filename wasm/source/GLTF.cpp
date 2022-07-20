@@ -358,6 +358,38 @@ Variant GLTF::getBoneData(){
     return bone_buffer ;
 }
 
+Variant GLTF::getCompressedBoneData(){
+    int num_bones = nodes.size() ;
+    Variant bone_buffer;
+    bone_buffer.makeFillableFloatArray(num_bones*3);
+    float* bone_buffer_array =  bone_buffer.getFloatArray() ;
+    for(int node_id=0; node_id<nodes.size(); node_id++){   
+        Node& node = nodes[node_id];
+        bone_buffer_array[node_id*3] = node.rotation.x ;
+        bone_buffer_array[node_id*3 + 1] = node.rotation.y ;
+        bone_buffer_array[node_id*3 + 2] = node.rotation.z ;
+    }
+    return bone_buffer ;
+}
+
+Variant GLTF::getBoneData(const Variant& compressed){
+    float* x =  compressed.getFloatArray() ;
+    int j = 0 ;
+    for(int node_id=0; node_id<nodes.size(); node_id++){   
+        Node& node = nodes[node_id];
+        node.rotation.x = x[j];
+        j++;
+        node.rotation.y = x[j];
+        j++;
+        node.rotation.z = x[j];
+        j++;
+        node.rotation.w = sqrt(1- (node.rotation.x*node.rotation.x + node.rotation.y*node.rotation.y + node.rotation.z*node.rotation.z));
+    }
+    computeNodeMatrices();
+    return getBoneData();
+
+}
+
 void GLTF::setModel(const byte* data, int data_length){
     vector<Vertex> new_vertices;
     vector<Triangle> new_triangles;

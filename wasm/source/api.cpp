@@ -591,7 +591,7 @@ byte* getMeshInstances(byte* ptr){
                 inst_map["mesh"] = Variant(instance->mesh_name) ;
                 inst_map["owner"] = Variant(instance->owner) ;
                 inst_map["pose"] = Variant(instance->pose);
-                inst_map["bones"] = instance->bone_data.clone() ;
+                inst_map["bones"] = meshes[MAIN_MODEL].getBoneData(instance->bone_data) ;
                 ret_map[std::to_string(ob[k])] = Variant(inst_map);
                 //ret_map[std::to_string(k)].printFormatted();
             }
@@ -605,9 +605,9 @@ byte* createMeshInstance(byte* ptr){
     auto obj = Variant::deserializeObject(ptr);
     string owner = obj["owner"].getString();
     glm::mat4 tm(1);
-    Variant bones = meshes[MAIN_MODEL].getBoneData();
+    Variant bones = meshes[MAIN_MODEL].getCompressedBoneData();
     std::unique_ptr<MeshInstance> o = std::make_unique<MeshInstance>(glm::vec3(0,0,0), 2, owner, "default_avatar", tm, bones) ;
-    timeline->createObject(std::move(o), std::unique_ptr<TEvent>(nullptr) , timeline->current_time + 0.01);
+    timeline->createObject(std::move(o), std::unique_ptr<TEvent>(nullptr) , timeline->current_time + 0.02);
     return emptyReturn();
 }
 
@@ -617,9 +617,9 @@ byte* setMeshInstance(byte* ptr){
     //Variant(obj).printFormatted();
     int id = obj["id"].getInt();
     glm::mat4 pose = obj["pose"].getMat4();
-    Variant bones = meshes[MAIN_MODEL].getBoneData();
+    Variant bones = meshes[MAIN_MODEL].getCompressedBoneData();
 
-    timeline->addEvent(std::make_unique<SetMeshInstance>(id, glm::vec3(0,0,0), 2, "default_avatar", pose, bones),  timeline->current_time+0.03) ;
+    timeline->addEvent(std::make_unique<SetMeshInstance>(id, glm::vec3(0,0,0), 2, "default_avatar", pose, bones),  timeline->current_time+0.1) ;
     return emptyReturn();
 }
 

@@ -113,7 +113,7 @@ int main(int argc, const char** argv) {
     Variant(serial).printFormatted();
     */
     
-    timeline->createObject(std::move(o), std::unique_ptr<TEvent>(nullptr) , 0.01234);
+    //timeline->createObject(std::move(o), std::unique_ptr<TEvent>(nullptr) , 0.01234);
     timeline->run(1.0) ;
     
 
@@ -130,7 +130,7 @@ int main(int argc, const char** argv) {
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
         pose[3][0] = sin(timeline->current_time);
         pose[3][2] = cos(timeline->current_time);
-        timeline->addEvent(std::make_unique<SetMeshInstance>(1, glm::vec3(0,0,0), 2, "default_avatar", pose, bones),  timeline->current_time+0.03) ;
+        //timeline->addEvent(std::make_unique<SetMeshInstance>(1, glm::vec3(0,0,0), 2, "default_avatar", pose, bones),  timeline->current_time+0.1) ;
 
         timeline->run();
         TimelineServer::quickForwardEvents();
