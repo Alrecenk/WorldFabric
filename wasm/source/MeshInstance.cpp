@@ -56,7 +56,9 @@ std::unique_ptr<TObject> MeshInstance::deepCopy(){
 // Override this function to provide logic for interpolation after rollback or extrapolation for slowly updating objects
 // If not overridden getObserved returns the raw value of the object
 std::unique_ptr<TObject> MeshInstance::getObserved(double time, const std::weak_ptr<TObject> last_observed, double last_time){
-    return deepCopy();
+    auto c = deepCopy();
+    c->write_time = write_time ;
+    return c ;
 }
 
 std::unique_ptr<TObject> MeshInstance::createObject(const Variant& serialized){

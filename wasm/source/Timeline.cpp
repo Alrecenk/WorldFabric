@@ -568,7 +568,7 @@ void Timeline::applyUpdate(const Variant& update, bool server){
         }
 
         if(time <= last_clear_time || time > current_time){ // asked for an update outside our timeline
-            printf("Update received outside of time slice!\n");
+            //printf("Update received outside of time slice!\n");
             return ; // return nothing, we don't know what's outside of our time slice
         }
 

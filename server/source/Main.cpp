@@ -100,10 +100,9 @@ int main(int argc, const char** argv) {
 
     GLTF test_avatar ;
     test_avatar.receiveTableData("default_avatar", table["default_avatar"]) ;
-    glm::mat4 tm(1);
-    tm[3][0] = 0.1;
+    glm::mat4 pose(1);
     Variant bones = test_avatar.getBoneData();
-    std::unique_ptr<MeshInstance> o = std::make_unique<MeshInstance>(glm::vec3(0,0,0), 2, "server", "default_avatar", tm, bones) ;
+    std::unique_ptr<MeshInstance> o = std::make_unique<MeshInstance>(glm::vec3(0,0,0), 2, "server", "default_avatar", pose, bones) ;
     
     /*
     auto serial = o->serialize();
@@ -114,8 +113,8 @@ int main(int argc, const char** argv) {
     Variant(serial).printFormatted();
     */
     
-    //timeline->createObject(std::move(o), std::unique_ptr<TEvent>(nullptr) , 0.01234);
-    //timeline->run(1.0) ;
+    timeline->createObject(std::move(o), std::unique_ptr<TEvent>(nullptr) , 0.01234);
+    timeline->run(1.0) ;
     
 
 
@@ -129,6 +128,10 @@ int main(int argc, const char** argv) {
     timeline->observable_interpolation = false;
     while (running) {
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        pose[3][0] = sin(timeline->current_time);
+        pose[3][2] = cos(timeline->current_time);
+        timeline->addEvent(std::make_unique<SetMeshInstance>(1, glm::vec3(0,0,0), 2, "default_avatar", pose, bones),  timeline->current_time+0.03) ;
+
         timeline->run();
         TimelineServer::quickForwardEvents();
     }

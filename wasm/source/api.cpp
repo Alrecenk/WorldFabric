@@ -586,14 +586,15 @@ byte* getMeshInstances(byte* ptr){
         weak_ptr<TObject> ow = timeline->getLastObserved(ob[k]) ;
         if(auto o = ow.lock()){
             shared_ptr<MeshInstance> instance = std::static_pointer_cast<MeshInstance>(o);
-            map<string, Variant> inst_map ;
-
-            inst_map["mesh"] = Variant(instance->mesh_name) ;
-            inst_map["owner"] = Variant(instance->owner) ;
-            inst_map["pose"] = Variant(instance->pose);
-            inst_map["bones"] = instance->bone_data.clone() ;
-            ret_map[std::to_string(ob[k])] = Variant(inst_map);
-            //ret_map[std::to_string(k)].printFormatted();
+            if(instance->write_time > timeline->current_time - 5){
+                map<string, Variant> inst_map ;
+                inst_map["mesh"] = Variant(instance->mesh_name) ;
+                inst_map["owner"] = Variant(instance->owner) ;
+                inst_map["pose"] = Variant(instance->pose);
+                inst_map["bones"] = instance->bone_data.clone() ;
+                ret_map[std::to_string(ob[k])] = Variant(inst_map);
+                //ret_map[std::to_string(k)].printFormatted();
+            }
         }
     }
     return pack(ret_map);
@@ -687,7 +688,7 @@ byte* createVRMPins(byte* ptr){
     ret_map["right_hand"] = getVariantMatrix(avatar.createRotationPin("right_hand", avatar.human_bone["rightHand"], 1.0f));
     
     
-    (Variant( ret_map)).printFormatted();
+    //(Variant( ret_map)).printFormatted();
     return pack(ret_map);
 }
 

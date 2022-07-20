@@ -97,9 +97,10 @@ void TableServer::onMessage(
     // TODO less hardcoded way to limit frequency of table packets
     sleep_for(std::chrono::milliseconds(50));
     // Send the data back to the client
+    websocketpp::lib::error_code ec; // TODO catch error
     s->send(
             std::move(hdl), response.ptr, response_size,
-            websocketpp::frame::opcode::binary);
+            websocketpp::frame::opcode::binary, ec);
 }
 
 

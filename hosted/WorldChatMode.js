@@ -32,6 +32,10 @@ class WorldChatMode extends ExecutionMode{
 
     my_name = "player " + Math.floor(Math.random() * 1000000000) ;
 
+    frame = 0 ;
+    last_time = new Date().getTime();
+    framerate = 0 ;
+
 
     // Tools is an object with string keys that may include things such as the canvas,
     // API WASM Module, an Interface manager, and/or a mesh manager for shared webGL functionality
@@ -52,9 +56,17 @@ class WorldChatMode extends ExecutionMode{
 
     // Called at regular intervals by the main app when the mode is active (30 or 60fps probably but not guarsnteed)
     timer(){
+        
+        let new_buffer_data = tools.API.call("getUpdatedBuffers", null, new Serializer());
+        for(let id in new_buffer_data){
+            tools.renderer.prepareBuffer(id, new_buffer_data[id]);
+        }
+
         if(tools.sync_link.ready()){
             tools.API.call("runTimeline", {}, new Serializer());
-        }
+            this.instances = tools.API.call("getMeshInstances", null, new Serializer());
+            //console.log(instances);
+            }
     }
 
     // Called when the app should be redrawn
@@ -62,17 +74,17 @@ class WorldChatMode extends ExecutionMode{
     drawFrame(frame_id){
         // Get any mesh updates pending in the module
         if(frame_id == 0){
-            let new_buffer_data = tools.API.call("getUpdatedBuffers", null, new Serializer());
-            for(let id in new_buffer_data){
-                tools.renderer.prepareBuffer(id, new_buffer_data[id]);
+            //Update FPS
+            this.frame++;
+            if(this.frame >= 200){
+                var time = new Date().getTime();
+                this.framerate = (this.frame*1000/ (time-this.last_time));
+                this.last_time = time;
+                this.frame = 0 ;
+                console.log("fps:" + this.framerate);
             }
 
-            if(tools.sync_link.ready()){
-                    this.instances = tools.API.call("getMeshInstances", null, new Serializer());
-                    //console.log(instances);
-                    this.bones = tools.API.call("getBones", {mesh:"MAIN"}, new Serializer()).bones ;
-            }
-
+            this.my_bones = tools.API.call("getBones", {mesh:"MAIN"}, new Serializer()).bones ;
         }
         
         tools.renderer.setMeshDoubleSided("MAIN", false);
@@ -90,7 +102,7 @@ class WorldChatMode extends ExecutionMode{
 
         // Draw your model with no delay
         if(has_model){
-            tools.renderer.drawMesh("MAIN", this.model_pose, this.bones);
+            tools.renderer.drawMesh("MAIN", this.model_pose, this.my_bones);
         }
     }
 
@@ -319,9 +331,7 @@ class WorldChatMode extends ExecutionMode{
         //console.log(this.instances);
         for(let k in this.instances){
             if(this.instances[k].owner == this.my_name){
-                console.log(k);
                 id = parseInt(k); // k is a string
-                console.log(id);
                 break ;
             }
         }
