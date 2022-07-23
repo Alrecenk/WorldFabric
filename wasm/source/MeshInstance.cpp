@@ -12,13 +12,14 @@ MeshInstance::MeshInstance(){
     type = 1 ;
 }
 
-MeshInstance::MeshInstance(glm::vec3 p, float r,const std::string& own,const std::string& name, const glm::mat4& m, const Variant& bones){
+MeshInstance::MeshInstance(glm::vec3 p, float r,const std::string& own,const std::string& name, const glm::mat4& m, const Variant& bones, bool compressed){
     position = p ;
     radius = r ;
     owner = own;
     mesh_name = name;
     pose = m ;
     bone_data = bones.clone();
+    bones_compressed = compressed ;
     type = 1 ;
 }
 
@@ -34,6 +35,7 @@ std::map<std::string,Variant> MeshInstance::serialize() const{
     serial["own"] = Variant(owner);
     serial["pose"] = Variant(pose);
     serial["bones"] = bone_data.clone();
+    serial["c"] = Variant(bones_compressed ? 1 : 0);
     return serial;
 }
 
@@ -45,12 +47,13 @@ void MeshInstance::set(std::map<std::string,Variant>& serial){
     owner = serial["own"].getString();
     pose = serial["pose"].getMat4();
     bone_data = serial["bones"].clone();
+    bones_compressed = serial["c"].getInt() ;
 }
 
 // Override this to provide an efficient deep copy of this object
 // If not overridden serialize and set will be used to copy your object (which will be inefficent)
 std::unique_ptr<TObject> MeshInstance::deepCopy(){
-    return std::make_unique<MeshInstance>(position, radius, owner, mesh_name, pose, bone_data);
+    return std::make_unique<MeshInstance>(position, radius, owner, mesh_name, pose, bone_data, bones_compressed);
 }
 
 // Override this function to provide logic for interpolation after rollback or extrapolation for slowly updating objects

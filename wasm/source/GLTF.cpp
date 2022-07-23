@@ -373,6 +373,7 @@ Variant GLTF::getCompressedBoneData(){
 }
 
 Variant GLTF::getBoneData(const Variant& compressed){
+    vector<float> x0 = getX() ;
     float* x =  compressed.getFloatArray() ;
     int j = 0 ;
     for(int node_id=0; node_id<nodes.size(); node_id++){   
@@ -386,7 +387,10 @@ Variant GLTF::getBoneData(const Variant& compressed){
         node.rotation.w = sqrt(1- (node.rotation.x*node.rotation.x + node.rotation.y*node.rotation.y + node.rotation.z*node.rotation.z));
     }
     computeNodeMatrices();
-    return getBoneData();
+    Variant bd = getBoneData() ;
+    setX(x0) ;
+    computeNodeMatrices();//TODO don't rely on holding state in the node matrices
+    return bd;
 
 }
 
