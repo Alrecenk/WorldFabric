@@ -31,6 +31,7 @@ class WorldChatMode extends ExecutionMode{
     hand_pins = [null, null];
 
     my_name = "player " + Math.floor(Math.random() * 1000000000) ;
+    my_avatar = "default_avatar" ;
 
     frame = 0 ;
     last_time = new Date().getTime();
@@ -76,24 +77,24 @@ class WorldChatMode extends ExecutionMode{
         if(frame_id == 0){
             //Update FPS
             this.frame++;
-            if(this.frame >= 200){
+            if(this.frame >= 90){
                 var time = new Date().getTime();
                 this.framerate = (this.frame*1000/ (time-this.last_time));
                 this.last_time = time;
                 this.frame = 0 ;
-                console.log("fps:" + this.framerate);
+                //console.log("fps:" + this.framerate);
             }
 
-            this.my_bones = tools.API.call("getBones", {mesh:"MAIN"}, new Serializer()).bones ;
+            this.my_bones = tools.API.call("getBones", {mesh:this.my_avatar}, new Serializer()).bones ;
         }
         
-        tools.renderer.setMeshDoubleSided("MAIN", false);
+        tools.renderer.setMeshDoubleSided(this.my_avatar, false);
 
         let has_model = false;
         if(this.instances){
             for( let k in this.instances){
                 if(this.instances[k].owner != this.my_name){
-                    tools.renderer.drawMesh("MAIN", this.instances[k].pose, this.instances[k].bones);
+                        tools.renderer.drawMesh(this.instances[k].mesh, this.instances[k].pose, this.instances[k].bones);
                 }else{
                     has_model = true;
                 }
@@ -102,7 +103,7 @@ class WorldChatMode extends ExecutionMode{
 
         // Draw your model with no delay
         if(has_model){
-            tools.renderer.drawMesh("MAIN", this.model_pose, this.my_bones);
+            tools.renderer.drawMesh(this.my_avatar, this.model_pose, this.my_bones);
         }
     }
 

@@ -29,6 +29,7 @@ void runUnitTests(){
 void loadModels(unordered_map<string, Variant>& table){
     map<string,string> models ;
     models["default_avatar"] = "./models/default_avatar.vrm";
+    models["room"] = "./models/room.glb";
     models["sample"] = "./models/Rin.glb";
     for(auto& [key, path] : models){
         std::ifstream input( path.c_str(), std::ios::binary );
@@ -98,11 +99,15 @@ int main(int argc, const char** argv) {
     //Timeline* timeline = generateBallTimeline() ;
     Timeline* timeline = initializeChatTimeline() ;
 
-    GLTF test_avatar ;
-    test_avatar.receiveTableData("default_avatar", table["default_avatar"]) ;
+    GLTF room ;
+    room.receiveTableData("room", table["room"]) ;
     glm::mat4 pose(1);
-    Variant bones = test_avatar.getBoneData();
-    std::unique_ptr<MeshInstance> o = std::make_unique<MeshInstance>(glm::vec3(0,0,0), 2, "server", "default_avatar", pose, bones) ;
+    pose[0][0] = 2 ;
+    pose[1][1] = 2 ;
+    pose[2][2] = 2 ;
+
+    Variant bones; // = room.getBoneData();
+    std::unique_ptr<MeshInstance> o = std::make_unique<MeshInstance>(glm::vec3(0,0,0), 2, "server", "room", pose, bones, false) ;
     
     /*
     auto serial = o->serialize();
@@ -113,7 +118,18 @@ int main(int argc, const char** argv) {
     Variant(serial).printFormatted();
     */
     
-    //timeline->createObject(std::move(o), std::unique_ptr<TEvent>(nullptr) , 0.01234);
+    timeline->createObject(std::move(o), std::unique_ptr<TEvent>(nullptr) , 0.01234);
+
+
+    // Room models as a 3 wall diorama so mirror it and to make a complete room
+    pose[0][0] = 2 ;
+    pose[1][1] = 2 ;
+    pose[2][2] = -2 ;
+    pose[3][2] = 3.5;
+    pose[3][0] = 0.0001; // tiny x offset prevents z fighting on overlap
+    o = std::make_unique<MeshInstance>(glm::vec3(0,0,0), 2, "server", "room", pose, bones, false) ;
+    timeline->createObject(std::move(o), std::unique_ptr<TEvent>(nullptr) , 0.01234);
+
     timeline->run(1.0) ;
     
 

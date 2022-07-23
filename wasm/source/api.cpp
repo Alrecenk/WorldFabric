@@ -23,6 +23,7 @@
 #include "BallWall.h"
 #include "MeshInstance.h"
 #include "SetMeshInstance.h"
+#include "MeshLibrary.h"
 
 
 using std::vector;
@@ -38,9 +39,10 @@ using std::weak_ptr;
 using std::shared_ptr;
 
 // Outermost API holds a global reference to the core data model
-map<string,GLTF> meshes;
-const string MAIN_MODEL = "MAIN" ;
-const string HAND = "HAND";
+//map<string,GLTF> meshes;
+MeshLibrary meshes(100) ;
+
+const string MY_AVATAR = "default_avatar" ;
 
 byte* packet_ptr ; // location ofr data passed as function parameters and returns
 int last_pack_size = 0 ;
@@ -171,30 +173,30 @@ void setPacketPointer(byte* p){
 // Wrappers to model functions applied to model global are made available to callers
 // Expects an object with vertices and faces
 byte* setModel(byte* ptr){
-    string select = MAIN_MODEL;
-    GLTF& model = meshes[select];
+    string select = MY_AVATAR;
+    std::shared_ptr<GLTF> model = meshes[select];
 
     auto start_time = now();
     auto obj = Variant::deserializeObject(ptr);
     byte* byte_array = obj["data"].getByteArray();
     int num_bytes = obj["data"].getArrayLength();
     
-    model.setModel(byte_array, num_bytes);
+    model->setModel(byte_array, num_bytes);
 
     float size = 0 ;
     vec3 center(0,0,0);
     for(int k=0;k<3;k++){
-        center[k] = (model.max[k]+ model.min[k])*0.5f ;
-        size = fmax(size , abs(model.max[k]-center[k]));
-        size = fmax(size , abs(model.min[k]-center[k]));
+        center[k] = (model->max[k]+ model->min[k])*0.5f ;
+        size = fmax(size , abs(model->max[k]-center[k]));
+        size = fmax(size , abs(model->min[k]-center[k]));
         
     }
 
-    model.transform  = glm::scale(mat4(1), {(1.0f/size),(1.0f/size),(1.0f/size)});
-    model.transform  = glm::translate(model.transform, center*-1.0f);
+    model->transform  = glm::scale(mat4(1), {(1.0f/size),(1.0f/size),(1.0f/size)});
+    model->transform  = glm::translate(model->transform, center*-1.0f);
     
-    model.computeNodeMatrices();
-    model.applyTransforms();
+    model->computeNodeMatrices();
+    model->applyTransforms();
     
     //printf("Zoom:%f\n", zoom);
     map<string, Variant> ret_map;
@@ -204,24 +206,27 @@ byte* setModel(byte* ptr){
     int millis = millisBetween(start_time, now());
     printf("Total model load time: %d ms\n", millis);
 
-    GLTF& hand_model = meshes[HAND];
-    hand_model.setTetraModel(vec3(0,0,0), 0.015);
-
     return pack(ret_map);
 }
 
 byte* requestModel(byte* ptr){
-    string select = MAIN_MODEL;
-    GLTF& model = meshes[select];
-
-    auto start_time = now();
     auto obj = Variant::deserializeObject(ptr);
     string key = obj["key"].getString() ;
+    meshes.requestRemoteMesh(key);
 
-    GLTF& hand_model = meshes[HAND];
-    hand_model.setTetraModel(vec3(0,0,0), 0.015);
+    /*
+    string select = MY_AVATAR;
 
-    model.requestTableData(key);
+    
+    std::shared_ptr<GLTF> model = meshes[select];
+
+    auto start_time = now();
+    
+
+    model->requestTableData(key);
+
+    */
+
     return emptyReturn();
 }
 
@@ -230,18 +235,20 @@ byte* requestModel(byte* ptr){
 byte* getUpdatedBuffers(byte* ptr){
 
     map<string,Variant> buffers;
-    for(auto & [name, mesh] : meshes){
+    vector<string> mesh_keys = meshes.getAllKeys();
+    for(auto &name : mesh_keys){
+        std::shared_ptr<GLTF> mesh = meshes[name];
         //st = now();
-        if(mesh.position_changed || mesh.model_changed || mesh.bones_changed){
-            for(auto const & [material_id, mat]: mesh.materials){
+        if(mesh->position_changed || mesh->model_changed || mesh->bones_changed){
+            for(auto const & [material_id, mat]: mesh->materials){
                 std::stringstream ss;
                 ss << name << material_id;
                 string s_id = ss.str();
-                buffers[s_id] = mesh.getChangedBuffer(material_id) ;
+                buffers[s_id] = mesh->getChangedBuffer(material_id) ;
             }
-            mesh.position_changed = false;
-            mesh.model_changed = false;
-            mesh.bones_changed = false;                
+            mesh->position_changed = false;
+            mesh->model_changed = false;
+            mesh->bones_changed = false;                
         }
     }
     //ms = millisBetween(st, now());
@@ -251,45 +258,45 @@ byte* getUpdatedBuffers(byte* ptr){
 
 //expects an object with p and v, retruns a serialized single float for t
 byte* rayTrace(byte* ptr){
-    GLTF& model = meshes[MAIN_MODEL];
+    std::shared_ptr<GLTF> model = meshes[MY_AVATAR];
     auto obj = Variant::deserializeObject(ptr);
     vec3 p = obj["p"].getVec3() ;
     vec3 v = obj["v"].getVec3();
-    float t = model.rayTrace(p, v);
+    float t = model->rayTrace(p, v);
     map<string, Variant> ret_map;
     ret_map["t"] = Variant(t);
     ret_map["x"] = Variant(p+v*t);
-    ret_map["index"] = Variant(model.last_traced_tri);
+    ret_map["index"] = Variant(model->last_traced_tri);
     return pack(ret_map);
 }
 
 byte* scan(byte* ptr){
-    GLTF& model = meshes[MAIN_MODEL];
+    std::shared_ptr<GLTF> model = meshes[MY_AVATAR];
     auto obj = Variant::deserializeObject(ptr);
     vec3 p = obj["p"].getVec3() ;
     vec3 v = obj["v"].getVec3();
 
-    model.applyTransforms(); // Get current animated coordinates on CPU
-    float t = model.rayTrace(p, v);
+    model->applyTransforms(); // Get current animated coordinates on CPU
+    float t = model->rayTrace(p, v);
     map<string, Variant> ret_map;
     ret_map["t"] = Variant(t);
     ret_map["x"] = Variant(p+v*t);
-    ret_map["index"] = Variant(model.last_traced_tri);
+    ret_map["index"] = Variant(model->last_traced_tri);
 
-    if(model.last_traced_tri != -1){
-        GLTF::Triangle tri = model.triangles[model.last_traced_tri];
+    if(model->last_traced_tri != -1){
+        GLTF::Triangle tri = model->triangles[model->last_traced_tri];
         int material_id = tri.material;
-        GLTF::Material mat = model.materials[tri.material];
-        printf("triangle : %d, material: %d \n" ,model.last_traced_tri, material_id);
-        if(model.json["materials"][material_id].defined()){
-            model.json["materials"][material_id].printFormatted();
+        GLTF::Material mat = model->materials[tri.material];
+        printf("triangle : %d, material: %d \n" ,model->last_traced_tri, material_id);
+        if(model->json["materials"][material_id].defined()){
+            model->json["materials"][material_id].printFormatted();
         }
         
-        GLTF::Vertex& v = model.vertices[tri.A];
+        GLTF::Vertex& v = model->vertices[tri.A];
         glm::ivec4 joints = v.joints;
         for(int k=0;k<4;k++){
             int n = v.joints[k];
-            string name = model.nodes[n].name;
+            string name = model->nodes[n].name;
             float w = v.weights[k] ;
             if(w > 0){
                 printf("Joint[%d] = %d (%s)  weight: %f\n", k, n, name.c_str(), w);
@@ -305,12 +312,12 @@ byte* nextAnimation(byte* ptr){
     if(millisBetween(animation_start_time, now()) < 50){
         return emptyReturn();
     }
-    GLTF& model = meshes[MAIN_MODEL];
+    std::shared_ptr<GLTF> model = meshes[MY_AVATAR];
     selected_animation = selected_animation+1;
-    if(selected_animation >= model.animations.size()){
+    if(selected_animation >= model->animations.size()){
         selected_animation = -1;
-        model.setBasePose();
-        model.computeNodeMatrices();
+        model->setBasePose();
+        model->computeNodeMatrices();
     }
     animation_start_time = now();
     return emptyReturn();
@@ -350,27 +357,27 @@ byte* createPin(byte* ptr) {
     auto obj = Variant::deserializeObject(ptr);
     vec3 p = obj["p"].getVec3() ;
     string name = obj["name"].getString();
-    GLTF& model = meshes[MAIN_MODEL];
-    model.applyTransforms(); // Get current animated coordinates on CPU
+    std::shared_ptr<GLTF> model = meshes[MY_AVATAR];
+    model->applyTransforms(); // Get current animated coordinates on CPU
     int vertex_index = -1 ;
     vec3 global ;
     if(obj["v"].defined()){ // we're making the pin from a ray
         vec3 v = obj["v"].getVec3();
-        float t = model.rayTrace(p, v);
-        if(model.last_traced_tri != -1){
-            GLTF::Triangle tri = model.triangles[model.last_traced_tri]; 
+        float t = model->rayTrace(p, v);
+        if(model->last_traced_tri != -1){
+            GLTF::Triangle tri = model->triangles[model->last_traced_tri]; 
             vertex_index = tri.A;
         }
         global = p + v * t;
     }else{
-        vertex_index = model.getClosestVertex(p);
+        vertex_index = model->getClosestVertex(p);
         global = p ;
     }
     if(vertex_index < 0){
-        model.computeNodeMatrices();
+        model->computeNodeMatrices();
         return emptyReturn();
     }
-    GLTF::Vertex& vert = model.vertices[vertex_index];
+    GLTF::Vertex& vert = model->vertices[vertex_index];
     glm::ivec4 joints = vert.joints;
     float max_w = -1.0f ;
     int bone = -1;
@@ -382,11 +389,11 @@ byte* createPin(byte* ptr) {
         }
     }
 
-    vec3 mesh_space =   glm::inverse(model.nodes[bone].transform) * vec4(global,1) ;
-    vec3 local = model.nodes[bone].mesh_to_bone * vec4(mesh_space,1) ;
+    vec3 mesh_space =   glm::inverse(model->nodes[bone].transform) * vec4(global,1) ;
+    vec3 local = model->nodes[bone].mesh_to_bone * vec4(mesh_space,1) ;
 
-    model.createPin(name, bone, local, 1.0f);
-    model.applyPins();
+    model->createPin(name, bone, local, 1.0f);
+    model->applyPins();
     /*
     printf("global: %f, %f, %f\n", global.x, global.y, global.z);
     //printf("actual: %f, %f, %f\n", actual.x, actual.y, actual.z);
@@ -396,10 +403,10 @@ byte* createPin(byte* ptr) {
     printf("Vert Transformed: %f, %f, %f\n", vert.transformed_position.x, vert.transformed_position.y, vert.transformed_position.z);
     
 
-    double error = model.error(model.getX());
+    double error = model->error(model->getX());
     printf("Error: %f\n", error);
     */
-    printf("Pin '%s' created for %s.\n" , name.c_str(), model.nodes[bone].name.c_str());
+    printf("Pin '%s' created for %s.\n" , name.c_str(), model->nodes[bone].name.c_str());
     
 
     return emptyReturn();
@@ -412,12 +419,12 @@ byte* setPinTarget(byte* ptr) {
     vec3 p = obj["p"].getVec3() ;
     
     string name = obj["name"].getString();
-    GLTF& model = meshes[MAIN_MODEL];
+    std::shared_ptr<GLTF> model = meshes[MY_AVATAR];
     vec3 target ;
     if(obj["v"].defined()){ // if fiven a ray
         vec3 v = obj["v"].getVec3();
-        GLTF::Pin& pin = model.pins[name] ;
-        vec3 current = model.nodes[pin.bone].transform * ( model.nodes[pin.bone].bone_to_mesh * vec4(pin.local_point,1));
+        GLTF::Pin& pin = model->pins[name] ;
+        vec3 current = model->nodes[pin.bone].transform * ( model->nodes[pin.bone].bone_to_mesh * vec4(pin.local_point,1));
         // Pull toward the closest point on the mouse ray
         target = p + v * (glm::dot(current-p, v) / glm::dot(v,v)) ;
     }else{
@@ -425,23 +432,23 @@ byte* setPinTarget(byte* ptr) {
     }
 
     //printf("Pulling %s to (%f, %f, %f).\n", name.c_str(), target.x, target.y, target.z);
-    model.setPinTarget(name, target);
+    model->setPinTarget(name, target);
 
-    //model.applyPins();
+    //model->applyPins();
 
     return emptyReturn();
 }
 
 byte* applyPins(byte* ptr){
-    meshes[MAIN_MODEL].applyPins();
+    meshes[MY_AVATAR]->applyPins();
     return emptyReturn();
 }
 
 byte* deletePin(byte* ptr) {
     auto obj = Variant::deserializeObject(ptr);
     string name = obj["name"].getString();
-    GLTF& model = meshes[MAIN_MODEL];
-    model.deletePin(name);
+    std::shared_ptr<GLTF> model = meshes[MY_AVATAR];
+    model->deletePin(name);
     //printf("Pin '%s' deleted.\n" , name.c_str());
     return emptyReturn();
 }
@@ -451,16 +458,16 @@ byte* createRotationPin(byte* ptr) {
     auto obj = Variant::deserializeObject(ptr);
     vec3 p = obj["p"].getVec3() ;
     string name = obj["name"].getString();
-    GLTF& model = meshes[MAIN_MODEL];
-    model.applyTransforms(); // Get current animated coordinates on CPU
-    int vertex_index = model.getClosestVertex(p);
+    std::shared_ptr<GLTF> model = meshes[MY_AVATAR];
+    model->applyTransforms(); // Get current animated coordinates on CPU
+    int vertex_index = model->getClosestVertex(p);
     vec3 global = p ;
 
     if(vertex_index < 0){
-        model.computeNodeMatrices();
+        model->computeNodeMatrices();
         return emptyReturn();
     }
-    GLTF::Vertex& vert = model.vertices[vertex_index];
+    GLTF::Vertex& vert = model->vertices[vertex_index];
     glm::ivec4 joints = vert.joints;
     float max_w = -1.0f ;
     int bone = -1;
@@ -472,7 +479,7 @@ byte* createRotationPin(byte* ptr) {
         }
     }
 
-    glm::quat initial= model.createRotationPin(name, bone, 1.0f);
+    glm::quat initial= model->createRotationPin(name, bone, 1.0f);
 
     map<string, Variant> ret_map ;
     ret_map["initial"].makeFillableFloatArray(4);
@@ -503,15 +510,15 @@ byte* setRotationPinTarget(byte* ptr) {
         *(((float*)&m)+k) = vm[k] ;
     }
     glm::quat target = glm::quat_cast(m) ;
-    GLTF& model = meshes[MAIN_MODEL];
-    model.setRotationPinTarget(name, target);
+    std::shared_ptr<GLTF> model = meshes[MY_AVATAR];
+    model->setRotationPinTarget(name, target);
     return emptyReturn();
 }
 
 byte* getNodeTransform(byte* ptr) {
     auto obj = Variant::deserializeObject(ptr);
     string name = obj["name"].getString();
-    glm::mat4 m = meshes[MAIN_MODEL].getNodeTransform(name);
+    glm::mat4 m = meshes[MY_AVATAR]->getNodeTransform(name);
     map<string, Variant> ret_map ;
     ret_map["transform"].makeFillableFloatArray(16);
     float* vm = ret_map["transform"].getFloatArray();
@@ -586,14 +593,25 @@ byte* getMeshInstances(byte* ptr){
         weak_ptr<TObject> ow = timeline->getLastObserved(ob[k]) ;
         if(auto o = ow.lock()){
             shared_ptr<MeshInstance> instance = std::static_pointer_cast<MeshInstance>(o);
-            if(instance->write_time > timeline->current_time - 5){
+            std::shared_ptr<GLTF> mesh_asset = meshes[instance->mesh_name];
+            if(mesh_asset != nullptr){
                 map<string, Variant> inst_map ;
                 inst_map["mesh"] = Variant(instance->mesh_name) ;
                 inst_map["owner"] = Variant(instance->owner) ;
                 inst_map["pose"] = Variant(instance->pose);
-                inst_map["bones"] = meshes[MAIN_MODEL].getBoneData(instance->bone_data) ;
-                ret_map[std::to_string(ob[k])] = Variant(inst_map);
-                //ret_map[std::to_string(k)].printFormatted();
+                if(instance->bone_data.defined()){
+                    if(instance->bones_compressed){
+                        inst_map["bones"] = mesh_asset->getBoneData(instance->bone_data) ;
+                    }else{
+                        inst_map["bones"] = instance->bone_data.clone() ;
+                    }
+                }
+
+                if(instance->write_time > timeline->current_time - 5 || instance->owner == "server"){ // TODO less hardcoded timeouts
+                    ret_map[std::to_string(ob[k])] = Variant(inst_map);
+                    //printf("Returned instance:\n");
+                    //ret_map[std::to_string(ob[k])].printFormatted();
+                }
             }
         }
     }
@@ -605,8 +623,8 @@ byte* createMeshInstance(byte* ptr){
     auto obj = Variant::deserializeObject(ptr);
     string owner = obj["owner"].getString();
     glm::mat4 tm(1);
-    Variant bones = meshes[MAIN_MODEL].getCompressedBoneData();
-    std::unique_ptr<MeshInstance> o = std::make_unique<MeshInstance>(glm::vec3(0,0,0), 2, owner, "default_avatar", tm, bones) ;
+    Variant bones = meshes[MY_AVATAR]->getCompressedBoneData();
+    std::unique_ptr<MeshInstance> o = std::make_unique<MeshInstance>(glm::vec3(0,0,0), 2, owner, "default_avatar", tm, bones, true) ;
     timeline->createObject(std::move(o), std::unique_ptr<TEvent>(nullptr) , timeline->current_time + 0.02);
     return emptyReturn();
 }
@@ -617,7 +635,7 @@ byte* setMeshInstance(byte* ptr){
     //Variant(obj).printFormatted();
     int id = obj["id"].getInt();
     glm::mat4 pose = obj["pose"].getMat4();
-    Variant bones = meshes[MAIN_MODEL].getCompressedBoneData();
+    Variant bones = meshes[MY_AVATAR]->getCompressedBoneData();
 
     timeline->addEvent(std::make_unique<SetMeshInstance>(id, glm::vec3(0,0,0), 2, "default_avatar", pose, bones),  timeline->current_time+0.1) ;
     return emptyReturn();
@@ -669,23 +687,23 @@ byte* popPendingQuickSends(byte* ptr){
 // Returns the position of the viewpoint of a VRM model in model space
 byte* getFirstPersonPosition(byte* ptr){
     map<string, Variant> ret_map ;
-    ret_map["position"] = Variant (meshes[MAIN_MODEL].getFirstPersonPosition());
+    ret_map["position"] = Variant (meshes[MY_AVATAR]->getFirstPersonPosition());
     return pack(ret_map);
 }
 
 byte* createVRMPins(byte* ptr){
-    GLTF& avatar = meshes[MAIN_MODEL] ;
+    std::shared_ptr<GLTF> avatar = meshes[MY_AVATAR] ;
     map<string, Variant> ret_map ;
 
-    avatar.createPin("head", avatar.first_person_bone, avatar.first_person_offset, 1.0f);
-    ret_map["head"] = getVariantMatrix(avatar.createRotationPin("head", avatar.first_person_bone, 1.0f));
+    avatar->createPin("head", avatar->first_person_bone, avatar->first_person_offset, 1.0f);
+    ret_map["head"] = getVariantMatrix(avatar->createRotationPin("head", avatar->first_person_bone, 1.0f));
 
 
-    avatar.createPin("left_hand", avatar.human_bone["leftHand"], vec3(0,0,0), 1.0f);
-    ret_map["left_hand"] = getVariantMatrix(avatar.createRotationPin("left_hand", avatar.human_bone["leftHand"], 1.0f));
+    avatar->createPin("left_hand", avatar->human_bone["leftHand"], vec3(0,0,0), 1.0f);
+    ret_map["left_hand"] = getVariantMatrix(avatar->createRotationPin("left_hand", avatar->human_bone["leftHand"], 1.0f));
 
-    avatar.createPin("right_hand", avatar.human_bone["rightHand"], vec3(0,0,0), 1.0f);
-    ret_map["right_hand"] = getVariantMatrix(avatar.createRotationPin("right_hand", avatar.human_bone["rightHand"], 1.0f));
+    avatar->createPin("right_hand", avatar->human_bone["rightHand"], vec3(0,0,0), 1.0f);
+    ret_map["right_hand"] = getVariantMatrix(avatar->createRotationPin("right_hand", avatar->human_bone["rightHand"], 1.0f));
     
     
     //(Variant( ret_map)).printFormatted();
@@ -702,19 +720,19 @@ byte* getBones(byte* ptr){
         //int selected_animation = obj["animation"].getInt();
 
         if(selected_animation >= 0){
-            auto& animation = meshes[mesh_name].animations[selected_animation];
+            auto& animation = meshes[mesh_name]->animations[selected_animation];
             float time = millisBetween(animation_start_time, now()) / 1000.0f; // TODO accept time as parameter
                 if(time > animation.duration){
                     time = 0 ;
                     animation_start_time = now();
                 }
-            meshes[mesh_name].animate(animation,time);
+            meshes[mesh_name]->animate(animation,time);
         }
 
     //}
 
     map<string, Variant> ret_map ;
-    ret_map["bones"] = meshes[mesh_name].getBoneData() ;
+    ret_map["bones"] = meshes[mesh_name]->getBoneData() ;
     return pack(ret_map);
 }
 

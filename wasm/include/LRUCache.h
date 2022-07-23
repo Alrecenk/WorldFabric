@@ -3,16 +3,18 @@
 
 #include <memory>
 #include <unordered_map>
+#include <set>
+#include <vector>
 
 template<class Key, class Value>
 class CacheQueueNode {
     public:
         Key entry_key;
-        std::shared_ptr<const Value> entry;
+        std::shared_ptr<Value> entry;
         CacheQueueNode<Key,Value> *next = nullptr;
         CacheQueueNode<Key,Value> *prev = nullptr;
         
-        CacheQueueNode(Key key, std::shared_ptr<const Value> value);
+        CacheQueueNode(Key key, std::shared_ptr<Value> value);
         void removeFromQueue();
 };
 
@@ -24,18 +26,21 @@ class LRUCache {
         std::unordered_map<Key,std::unique_ptr<CacheQueueNode<Key,Value>>> map;
         CacheQueueNode<Key,Value> *most_recent = nullptr;
         CacheQueueNode<Key,Value> *least_recent = nullptr;
+        std::set<Key> deleted_keys ;
         
         LRUCache(int total_size);
         bool contains(Key key) const;
         void removeFromQueue(CacheQueueNode<Key,Value>* node);
         void accessed(CacheQueueNode<Key,Value>* node);
-        void insert(Key key, std::shared_ptr<const Value> value);
-        std::shared_ptr<const Value> get(Key key);
+        void insert(Key key, std::shared_ptr<Value> value);
+        std::shared_ptr<Value> get(Key key);
         void remove(Key key);
+        std::set<Key> popDeletedKeys();
+        std::vector<Key> getAllKeys();
 };
 
 
-template<class Key, class Value> CacheQueueNode<Key, Value>::CacheQueueNode(Key key, std::shared_ptr<const Value> value){
+template<class Key, class Value> CacheQueueNode<Key, Value>::CacheQueueNode(Key key, std::shared_ptr<Value> value){
     entry = value;
     entry_key = key;
 }
@@ -64,7 +69,7 @@ bool LRUCache<Key, Value>::contains(Key key) const{
 }
 
 template<class Key, class Value> 
-void LRUCache<Key, Value>::insert(Key key, std::shared_ptr<const Value> value){
+void LRUCache<Key, Value>::insert(Key key, std::shared_ptr<Value> value){
     remove(key);
     CacheQueueNode<Key, Value> *node = new CacheQueueNode<Key, Value>(key,value) ;
     std::unique_ptr<CacheQueueNode<Key, Value>> ptr = std::unique_ptr<CacheQueueNode<Key, Value>>(node);
@@ -72,6 +77,7 @@ void LRUCache<Key, Value>::insert(Key key, std::shared_ptr<const Value> value){
     accessed(node);
     filled++;
     if(filled > size){
+        deleted_keys.insert(least_recent->entry_key);
         map.erase(least_recent->entry_key);
         removeFromQueue(least_recent);
         filled--;
@@ -80,14 +86,14 @@ void LRUCache<Key, Value>::insert(Key key, std::shared_ptr<const Value> value){
 }
 
 template<class Key, class Value>
-std::shared_ptr<const Value> LRUCache<Key, Value>::get(Key key){
+std::shared_ptr<Value> LRUCache<Key, Value>::get(Key key){
     auto iter = map.find(key);
     if(iter != map.end()){
         CacheQueueNode<Key, Value> *node = (*iter).second.get();
         accessed(node);
         return node->entry;
     }else{
-        return std::shared_ptr<const Value>(nullptr);
+        return std::shared_ptr<Value>(nullptr);
     }
 }
 
@@ -95,6 +101,7 @@ template<class Key, class Value>
 void LRUCache<Key, Value>::remove(Key key){
     auto iter = map.find(key);
     if(iter != map.end()){
+        deleted_keys.insert(key);
         removeFromQueue((*iter).second.get());
         map.erase(iter);
         filled--;
@@ -123,4 +130,21 @@ void LRUCache<Key, Value>::accessed(CacheQueueNode<Key,Value>* node){
     }
     most_recent = node;
 }
+
+template<class Key, class Value>
+std::set<Key> LRUCache<Key, Value>::popDeletedKeys(){
+    std::set<Key> ret = deleted_keys ;
+    deleted_keys.clear();
+    return ret ;
+}
+
+template<class Key, class Value>
+std::vector<Key> LRUCache<Key, Value>::getAllKeys(){
+    std::vector<Key> keys;
+    for(auto& kv : map) {
+        keys.push_back(kv.first);
+    }
+    return keys ;
+}
+
 #endif // #ifndef _LRUCACHE_H_

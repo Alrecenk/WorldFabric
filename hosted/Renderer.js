@@ -454,17 +454,17 @@ class Renderer{
                 bones = buffer.bones ;
             }
             if(bones){
-                var bone_tex = gl.createTexture();
-                gl.bindTexture(gl.TEXTURE_2D, bone_tex);
+                if(!this.bone_tex){
+                    this.bone_tex = gl.createTexture();
+                }
+                gl.activeTexture(gl.TEXTURE0 + 1);
+                gl.bindTexture(gl.TEXTURE_2D, this.bone_tex);
                 gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
                 gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
                 gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
                 gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
                 
                 gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, 32, 32, 0, gl.RGBA, gl.FLOAT, bones);
-    
-                gl.activeTexture(gl.TEXTURE0 + 1);
-                gl.bindTexture(gl.TEXTURE_2D, bone_tex);
                 gl.uniform1i(this.shaderProgram.bones_texture, 1);
             }
 
