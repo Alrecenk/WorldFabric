@@ -119,6 +119,17 @@ int main(int argc, const char** argv) {
     */
     
     timeline->createObject(std::move(o), std::unique_ptr<TEvent>(nullptr) , 0.01234);
+
+
+    // Room models as a 3 wall diorama so mirror it and to make a complete room
+    pose[0][0] = 2 ;
+    pose[1][1] = 2 ;
+    pose[2][2] = -2 ;
+    pose[3][2] = 3.5;
+    pose[3][0] = 0.0001; // tiny x offset prevents z fighting on overlap
+    o = std::make_unique<MeshInstance>(glm::vec3(0,0,0), 2, "server", "room", pose, bones, false) ;
+    timeline->createObject(std::move(o), std::unique_ptr<TEvent>(nullptr) , 0.01234);
+
     timeline->run(1.0) ;
     
 
