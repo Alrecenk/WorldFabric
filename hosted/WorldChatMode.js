@@ -37,6 +37,13 @@ class WorldChatMode extends ExecutionMode{
     last_time = new Date().getTime();
     framerate = 0 ;
 
+    player_space = mat4.create();
+    inv_player_space = mat4.create();
+    player_position = vec3.create();
+    player_angle = 0 ;
+    player_speed = 0.01 ;
+    player_spin_speed = 0.01;
+
 
     // Tools is an object with string keys that may include things such as the canvas,
     // API WASM Module, an Interface manager, and/or a mesh manager for shared webGL functionality
@@ -49,6 +56,8 @@ class WorldChatMode extends ExecutionMode{
     // Called when the mode is becoming active (previous mode will have already exited)
     enter(previous_mode){
         this.camera_zoom = tools.renderer.getZoom(0); 
+        mat4.identity(this.player_space);
+        mat4.identity(this.inv_player_space);
     }
 
     // Called when a mode is becoming inactive (prior to calling to enter on that mode)
@@ -91,10 +100,12 @@ class WorldChatMode extends ExecutionMode{
         tools.renderer.setMeshDoubleSided(this.my_avatar, false);
 
         let has_model = false;
+        let m = mat4.create();
         if(this.instances){
             for( let k in this.instances){
                 if(this.instances[k].owner != this.my_name){
-                        tools.renderer.drawMesh(this.instances[k].mesh, this.instances[k].pose, this.instances[k].bones);
+                        mat4.multiply(m,this.inv_player_space, this.instances[k].pose);
+                        tools.renderer.drawMesh(this.instances[k].mesh, m , this.instances[k].bones);
                 }else{
                     has_model = true;
                 }
@@ -247,10 +258,7 @@ class WorldChatMode extends ExecutionMode{
                                                 0,0,0,1]);
             this.hand_pins[right] = {name:"right_hand", initial_matrix : initial_matrices["right_hand"], initial_grip: right_grip};    
             
-            
-            
             tools.API.call("createMeshInstance", {owner:this.my_name}, new Serializer());
-
         }
 
         let which_hand = 0 ;
@@ -261,9 +269,36 @@ class WorldChatMode extends ExecutionMode{
 
         for (let input_source of xr_input) {
             if(!(input_source.grip_pose)){
-                continue ;
+                continue ; // not a tracked hand
             }
-                
+
+            if(input_source.handedness == "right"){
+                this.player_angle -= this.player_spin_speed * input_source.axes[2] ; // rotate on horizontal axis
+                this.player_position[1] -= this.player_speed * input_source.axes[3] ; // vertical move on vertical axis
+            }
+
+            let mx = Math.sin(this.player_angle);
+            let mz = Math.cos(this.player_angle);
+            // Normalize camera z with y removed
+            let n = 1.0/Math.sqrt(ch[0]*ch[0] + ch[2]*ch[2]);
+            ch[0]*=n;
+            ch[2]*=n;
+
+            if(input_source.handedness == "left"){ // horizontal movement on left stick
+                // move direction by player angle
+                let dx = input_source.axes[3] * mz - input_source.axes[2] * mx;
+                let dz = input_source.axes[3] * mx + input_source.axes[2] * mz ;
+                // rotated by head angle
+                this.player_position[0] +=  this.player_speed*(dx * ch[0] + dz * ch[2]) ;
+                this.player_position[2] +=  this.player_speed*(dx * ch[2] - dz * ch[0]) ;
+            }
+            this.player_space = mat4.fromValues(  mz, 0, -mx, 0,
+                                                    0, 1, 0, 0,
+                                                    mx, 0, mz, 0,
+                                                    this.player_position[0], this.player_position[1], this.player_position[2], 1);
+
+            mat4.invert(this.inv_player_space, this.player_space);
+
             let params = {};
             
             let MP = mat4.create();
@@ -322,6 +357,8 @@ class WorldChatMode extends ExecutionMode{
 
         mat4.multiply(MP2,MP2,initial);
 
+        
+
         params.target = MP2;
         tools.API.call("setRotationPinTarget", params, new Serializer()); 
         //tools.API.call("setPinTarget", params, new Serializer());  // not required when body tracks head
@@ -338,7 +375,8 @@ class WorldChatMode extends ExecutionMode{
         }
         if(id >= 0){
             //console.log("Found my owned model: " + id);
-            tools.API.call("setMeshInstance", {id:id, pose:this.model_pose}, new Serializer());
+            mat4.multiply(MP,this.player_space, this.model_pose, );
+            tools.API.call("setMeshInstance", {id:id, pose:MP}, new Serializer());
             
         }
     }
