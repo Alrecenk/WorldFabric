@@ -20,6 +20,8 @@ class ConvexSolid : public TObject{
 
         ConvexSolid(std::string shape, float mass, glm::vec3 p, glm::quat orientation);
 
+        ConvexSolid(glm::vec3 nposition, float nradius, float nmass, string nshape_name, glm::vec3 nvelocity, glm::quat norientatation, glm::vec3 nangular_velocity);
+    
         ~ConvexSolid() override;
 
         // Serialize this object, so it can be efficiently moved between timelines
