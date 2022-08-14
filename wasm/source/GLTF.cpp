@@ -1164,6 +1164,43 @@ void GLTF::setTetraModel(glm::vec3 center, float size){
     setModel(v, t);
 }
 
+// Sets the model to a polyhedron of the given color (Can be used to generate visuals for ConvexShape objects)
+void GLTF::setPolyhedronModel(std::vector<glm::vec3>& vertices, std::vector<std::vector<int>>& faces, glm::vec3 color){
+
+
+    //TODO color_mult seems tor be g,b,alpha,r for some reason, what's up with that
+
+
+    vector<Vertex> v ;
+    for(int k=0;k<vertices.size();k++){
+        Vertex p;
+        p.position = vertices[k];
+        p.weights = vec4(1,0,0,0);
+        p.color_mult = vec4(color, 1);
+        v.push_back(p);
+    }
+
+    vector<Triangle> t;
+    for(vector<int>& face : faces){
+        for(int k=1; k < face.size()-1;k++){
+            t.push_back({face[0], face[k], face[k+1], 0});
+        }
+    }
+
+    Material m ;
+    materials[0] = m;
+    transform = mat4(1);
+    nodes =  vector<Node>();
+    Node n ;
+    n.transform = mat4(1);
+    nodes.push_back(n);
+    root_nodes = vector<int>();
+    root_nodes.push_back(0);
+
+    setModel(v, t);
+
+}
+
 // Given a ray in model space (p + v*t) return the t value of the nearest collision
 // with the given triangle
 // return negative if no collision
