@@ -5,6 +5,7 @@
 #include <vector>
 #include <string>
 #include <glm/glm.hpp>
+#include "glm/gtc/quaternion.hpp"
 
 typedef unsigned char byte;
 
@@ -70,6 +71,8 @@ class Variant {
     Variant(const glm::vec3& data); // maps to float*
 
     Variant(const glm::mat4& data); // maps to float*
+
+    Variant(const glm::quat& data); // maps to float*
 
     Variant(const double* data, int array_length);
 
@@ -183,6 +186,8 @@ class Variant {
     glm::vec3 getVec3() const;
 
     glm::mat4 getMat4() const;
+
+    glm::quat getQuat() const;
 
     double* getDoubleArray() const;
 

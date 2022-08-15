@@ -3,24 +3,23 @@
 
 #include "TObject.h"
 #include "ConvexShape.h"
+#include "glm/vec3.hpp"
+#include <string>
 
 class ConvexSolid : public TObject{
 
     public:
-        std::string shape_name ;
-        glm::vec3 position;
+        int shape_id ;
         glm::vec3 velocity;
         glm::quat orientation;
         glm::vec3 angular_velocity;
         float mass;
 
-        static MeshLibrary* shape_library ; 
-
         ConvexSolid();
 
-        ConvexSolid(std::string shape, float mass, glm::vec3 p, glm::quat orientation);
+        ConvexSolid(int shape_id, float mass, glm::vec3 p, glm::quat orientation);
 
-        ConvexSolid(glm::vec3 nposition, float nradius, float nmass, string nshape_name, glm::vec3 nvelocity, glm::quat norientatation, glm::vec3 nangular_velocity);
+        ConvexSolid(glm::vec3 nposition, float nradius, float nmass, int nshape_id, glm::vec3 nvelocity, glm::quat norientation, glm::vec3 nangular_velocity);
     
         ~ConvexSolid() override;
 

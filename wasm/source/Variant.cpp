@@ -200,6 +200,14 @@ Variant::Variant(const glm::mat4& data){
     memcpy(ptr + 4, &data, 4 * array_length);
 }
 
+Variant::Variant(const glm::quat& data){
+    type_ = FLOAT_ARRAY;
+    int array_length = 4 ;
+    ptr = (byte *) malloc(4 + 4 * array_length);
+    ((int *) ptr)[0] = array_length;
+    memcpy(ptr + 4, &data, 4 * array_length);
+}
+
 Variant::Variant(const double *data, int array_length) {
     type_ = DOUBLE_ARRAY;
     ptr = (byte *) malloc(4 + 8 * array_length);
@@ -674,6 +682,10 @@ glm::vec3 Variant::getVec3() const{
 
 glm::mat4 Variant::getMat4() const{
     return *((glm::mat4*)getFloatArray()) ;
+}
+
+glm::quat Variant::getQuat() const{
+    return *((glm::quat*)getFloatArray()) ;
 }
 
 double *Variant::getDoubleArray() const {

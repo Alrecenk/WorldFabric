@@ -73,6 +73,21 @@ void MoveSimpleSolid::run(){
             float new_speed = fmax(0,speed-MoveSimpleSolid::angular_friction*interval);
             self->angular_velocity *= new_speed/speed;
         }
+
+        // Calculate radius if it isn't set yet
+        if(self->radius == 0){ // TODO this should probably be done on initialization somehow
+            weak_ptr<TObject> cw = get(shape_id) ; 
+            if(auto cg = cw.lock()){
+                shared_ptr<ConvexShape> shape = std::static_pointer_cast<ConvexShape>(cg);
+                for(int k=0;k<shape->vertex.size;k++){
+                    float r = glm::length(shape->vertex[k]);
+                    if(r > radius){
+                        self->radius = r ;
+                    }
+                }
+            }
+        }
+
         if(moving){
             self->move(interval);
 
@@ -87,6 +102,11 @@ void MoveSimpleSolid::run(){
             */
 
         }
+        
+
+    }else{
+        printf("ConvexSolid initialized without shape library!\n");
+    }
     }
 
     std::unique_ptr<MoveSimpleSolid> next_tick = std::make_unique<MoveSimpleSolid>(anchor_id, interval);

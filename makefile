@@ -77,7 +77,9 @@ API_SRC    =${API_DIR}source/Variant.cpp \
 			${API_DIR}source/ApplyBallImpulse.cpp \
 			${API_DIR}source/MeshInstance.cpp \
 			${API_DIR}source/SetMeshInstance.cpp \
-			${API_DIR}source/MeshLibrary.cpp
+			${API_DIR}source/MeshLibrary.cpp \
+			${API_DIR}source/ConvexShape.cpp \
+			${API_DIR}source/ConvexSolid.cpp
 
 			
 default: all

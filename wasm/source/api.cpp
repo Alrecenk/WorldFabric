@@ -24,6 +24,8 @@
 #include "MeshInstance.h"
 #include "SetMeshInstance.h"
 #include "MeshLibrary.h"
+#include "ConvexShape.h"
+#include "ConvexSolid.h"
 
 
 using std::vector;
