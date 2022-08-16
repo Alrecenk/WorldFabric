@@ -273,8 +273,11 @@ class WorldChatMode extends ExecutionMode{
             }
 
             if(input_source.handedness == "right"){
-                this.player_angle -= this.player_spin_speed * input_source.axes[2] ; // rotate on horizontal axis
-                this.player_position[1] -= this.player_speed * input_source.axes[3] ; // vertical move on vertical axis
+
+                if(Math.sqrt(input_source.axes[3]*input_source.axes[3] + input_source.axes[2]*input_source.axes[2]) > 0.05){
+                    this.player_angle -= this.player_spin_speed * input_source.axes[2] ; // rotate on horizontal axis
+                    this.player_position[1] -= this.player_speed * input_source.axes[3] ; // vertical move on vertical axis
+                }
             }
 
             let mx = Math.sin(this.player_angle);
@@ -285,12 +288,14 @@ class WorldChatMode extends ExecutionMode{
             ch[2]*=n;
 
             if(input_source.handedness == "left"){ // horizontal movement on left stick
-                // move direction by player angle
-                let dx = input_source.axes[3] * mz - input_source.axes[2] * mx;
-                let dz = input_source.axes[3] * mx + input_source.axes[2] * mz ;
-                // rotated by head angle
-                this.player_position[0] +=  this.player_speed*(dx * ch[0] + dz * ch[2]) ;
-                this.player_position[2] +=  this.player_speed*(dx * ch[2] - dz * ch[0]) ;
+                if(Math.sqrt(input_source.axes[3]*input_source.axes[3] + input_source.axes[2]*input_source.axes[2]) > 0.05){
+                    // move direction by player angle
+                    let dx = input_source.axes[3] * mz - input_source.axes[2] * mx;
+                    let dz = input_source.axes[3] * mx + input_source.axes[2] * mz ;
+                    // rotated by head angle
+                    this.player_position[0] +=  this.player_speed*(dx * ch[0] + dz * ch[2]) ;
+                    this.player_position[2] +=  this.player_speed*(dx * ch[2] - dz * ch[0]) ;
+                }
             }
             this.player_space = mat4.fromValues(  mz, 0, -mx, 0,
                                                     0, 1, 0, 0,
