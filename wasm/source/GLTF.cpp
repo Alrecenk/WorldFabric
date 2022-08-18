@@ -303,7 +303,7 @@ Variant GLTF::getChangedBuffer(int selected_material){
         vector<vec4> weights;
         vector<ivec4> joints;
         for(const auto& v : this->vertices){
-            color.push_back(v.color_mult);
+            color.push_back(vec4(v.color_mult.g, v.color_mult.b, v.color_mult.a, v.color_mult.r));// Not sure why, but GLSL doesn't map these the same
             tex_coord.push_back(v.tex_coord);
             weights.push_back(v.weights);
             joints.push_back(v.joints);
@@ -1123,20 +1123,18 @@ vec3 GLTF::getNormal(Triangle t){
 }
 
 void GLTF::setTetraModel(glm::vec3 center, float size){
-
-    //TODO color_mult seems tor be g,b,alpha,r for some reason, what's up with that
     Vertex A, B, C, D ;
     A.position = vec3(center[0] + size ,center[1] + size, center[2]-size);
     A.weights = vec4(1,0,0,0);
-    A.color_mult = vec4(0,0,1,0) ; // black
+    A.color_mult = vec4(0,0,0,1) ; // black
     B.position = vec3(center[0] - size,center[1] + size,center[2]-size);
-    B.color_mult = vec4(1,0,1,0) ; // green
+    B.color_mult = vec4(0,1,0,1) ; // green
     B.weights = vec4(1,0,0,0);
     C.position = vec3(center[0], center[1] - size, center[2]-size);
-    C.color_mult = vec4(0,1,1,0) ; // blue
+    C.color_mult = vec4(0,0,1,1) ; // blue
     C.weights = vec4(1,0,0,0);
     D.position = vec3(center[0], center[1], center[2] + size);
-    D.color_mult = vec4(0,0,1,1) ; // red
+    D.color_mult = vec4(1,0,0,1) ; // red
     D.weights = vec4(1,0,0,0);
 
     vector<Vertex> v ;
