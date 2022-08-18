@@ -13,6 +13,20 @@ CreateObject::CreateObject(){
 CreateObject::CreateObject(std::unique_ptr<TObject> no, std::unique_ptr<TEvent> oc){
     new_object = std::move(no);
     on_created = std::move(oc) ;
+    id_trigger = "";
+    type = 1 ;
+}
+
+CreateObject::CreateObject(std::unique_ptr<TObject> no, std::unique_ptr<TEvent> oc,const std::string& trigger){
+    new_object = std::move(no);
+    on_created = std::move(oc) ;
+    id_trigger = trigger;
+    type = 1 ;
+}
+
+CreateObject::CreateObject(std::unique_ptr<TObject> no,const std::string& trigger){
+    new_object = std::move(no);
+    id_trigger = trigger;
     type = 1 ;
 }
 
@@ -82,6 +96,10 @@ void CreateObject::run(){
          // TODO create object rollback might need custom code
         addEvent(std::move(new_event));
         //printf("on created event added!\n");
+    }
+
+    if(id_trigger.length() > 0){
+        notify(id_trigger, Variant(id));
     }
     
     //printf("create object completed:\n");

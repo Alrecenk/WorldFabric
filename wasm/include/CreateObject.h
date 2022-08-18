@@ -12,6 +12,10 @@ class CreateObject : public TEvent{
         CreateObject();
         CreateObject(std::unique_ptr<TObject> new_object, std::unique_ptr<TEvent> on_created);
 
+        CreateObject(std::unique_ptr<TObject> new_object, std::unique_ptr<TEvent> on_created,const std::string& trigger);
+
+        CreateObject(std::unique_ptr<TObject> new_object,const std::string& trigger);
+
         ~CreateObject() override;
 
         // Serialize this event's data, so it can be efficiently moved between timelines
@@ -29,6 +33,7 @@ class CreateObject : public TEvent{
     private:
         std::unique_ptr<TObject> new_object;
         std::unique_ptr<TEvent> on_created;
+        std::string id_trigger; // external notification to send generated ID to
 
         
 };

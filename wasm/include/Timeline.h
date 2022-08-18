@@ -18,6 +18,7 @@
 #include <mutex>
 #include <memory>
 #include <queue>
+#include <functional>
 
 
 
@@ -68,6 +69,11 @@ class Timeline{
         std::unordered_map<int, double> received_events ; // hash and event time for events recently received over the network
         std::map<int, Variant> pending_quick_sends ; // Externally created events to be sent ASAP
 
+        // subscribers["trigger"]["subscriber_name"] = function pointer (trigger,  subscriber, data);
+        typedef std::function<void(const std::string&, const std::string&,const Variant&)> NotificationReceiever; 
+        std::map<std::string,std::map<std::string, NotificationReceiever>> subscribers;
+        std::vector<std::pair<std::string, Variant>> pending_notifications;
+
         // Set the functions to be used for generating typed timeline events and objects from serialized data
         Timeline(std::unique_ptr<TEvent> (*event_generator)(const Variant& serialized), 
                             std::unique_ptr<TObject>(*object_generator)(const Variant& serialized));
@@ -86,6 +92,12 @@ class Timeline{
 
         // Creates an event that creates an object at the earliest possible time
         void createObject(std::unique_ptr<TObject> obj, std::unique_ptr<TEvent> on_created, double send_time);
+
+        // Creates an event that creates an object at the earliest possible time
+        void createObject(std::unique_ptr<TObject> obj, std::unique_ptr<TEvent> on_created, std::string id_trigger, double send_time);
+
+        // Creates an event that creates an object at the earliest possible time
+        void createObject(std::unique_ptr<TObject> obj, std::string id_trigger, double send_time);
 
          // Creates an event that deletes an object at the earliest possible time
         void deleteObject(int id, double send_time);
@@ -153,6 +165,15 @@ class Timeline{
 
         // Returns a network packet containing the quick sends and then deletes them
         Variant popQuickSends();
+
+        // Send all pending notications to subscribers and clear the notification list
+        void sendNotifications();
+
+        // Subscribe an external function to a given trigger (i.e. catch data sent out by TEvent::notify);
+        void subscribe(const std::string& subscriber,const std::string& trigger, NotificationReceiever receiver);
+
+        // Remove a subcription created with subscribe
+        void unsubscribe(const std::string& subscriber,const std::string& trigger) ;
 
 };
 #endif // #ifndef _TIMELINE_H_

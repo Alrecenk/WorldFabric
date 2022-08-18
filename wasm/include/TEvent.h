@@ -82,6 +82,8 @@ class TEvent{
         // at the time of this event
         std::vector<int> getCollisions();
 
+        // Sends anotifcation which can be picked up outside the timeline by subscribers functions
+        void notify(const std::string& trigger, const Variant& data);
 
         // Override this to provide an efficient deep copy of this object
         // If not overridden serialize and set will be used to copy your object (which will be inefficent)

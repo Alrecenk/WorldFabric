@@ -69,6 +69,11 @@ void TEvent::deleteObject(int id){
     printf("Delete object is not implemented yet!\n");
 }
 
+// Sends anotifcation which can be picked up outside the timeline by subscribers functions
+void TEvent::notify(const std::string& trigger, const Variant& data){
+    timeline->pending_notifications.emplace_back(trigger, data);
+}
+
 void TEvent::unrun(){
     timeline->total_unruns++;
     has_run = false;
