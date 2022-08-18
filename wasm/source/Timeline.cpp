@@ -195,6 +195,8 @@ void Timeline::run(double new_time){
             continue ;
         }
         total_runs++;
+        //printf("running:\n");
+        //Variant(current_event->serialize()).printFormatted();
         current_event->run();
         current_event->has_run = true;
         bool requeued = false;

@@ -33,6 +33,7 @@ std::map<std::string,Variant> SetMeshInstance::serialize() const{
     serial["name"] = Variant(new_mesh_name);
     serial["pose"] = Variant(new_pose);
     serial["bones"] = new_bone_data.clone();
+    serial["type"] = Variant(type);
     return serial;
 
 }

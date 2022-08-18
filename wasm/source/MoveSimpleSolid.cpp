@@ -11,7 +11,7 @@ using std::unique_ptr;
 
 
 float MoveSimpleSolid::friction = 0 ;
-float MoveSimpleSolid::rotational_friction = 0 ;
+float MoveSimpleSolid::angular_friction = 0 ;
 
 MoveSimpleSolid::MoveSimpleSolid(){
     type = 4 ; // TODO don't hardcode this
@@ -37,7 +37,7 @@ std::map<std::string,Variant> MoveSimpleSolid::serialize() const{
     serial["dt"] = Variant(interval);
     serial["t"] = Variant(time);
     serial["a"] = Variant(anchor_id);
-
+    serial["type"] = Variant(type);
     return serial;
 
 }
@@ -76,12 +76,12 @@ void MoveSimpleSolid::run(){
 
         // Calculate radius if it isn't set yet
         if(self->radius == 0){ // TODO this should probably be done on initialization somehow
-            weak_ptr<TObject> cw = get(shape_id) ; 
+            weak_ptr<TObject> cw = get(self->shape_id) ; 
             if(auto cg = cw.lock()){
                 shared_ptr<ConvexShape> shape = std::static_pointer_cast<ConvexShape>(cg);
-                for(int k=0;k<shape->vertex.size;k++){
+                for(int k=0;k<shape->vertex.size();k++){
                     float r = glm::length(shape->vertex[k]);
-                    if(r > radius){
+                    if(r > self->radius){
                         self->radius = r ;
                     }
                 }
@@ -104,9 +104,6 @@ void MoveSimpleSolid::run(){
         }
         
 
-    }else{
-        printf("ConvexSolid initialized without shape library!\n");
-    }
     }
 
     std::unique_ptr<MoveSimpleSolid> next_tick = std::make_unique<MoveSimpleSolid>(anchor_id, interval);

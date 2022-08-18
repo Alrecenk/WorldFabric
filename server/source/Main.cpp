@@ -30,7 +30,7 @@ void loadModels(unordered_map<string, Variant>& table){
     map<string,string> models ;
     models["default_avatar"] = "./models/default_avatar.vrm";
     models["room"] = "./models/room.glb";
-    models["sample"] = "./models/Rin.glb";
+    //models["sample"] = "./models/Rin.glb";
     for(auto& [key, path] : models){
         std::ifstream input( path.c_str(), std::ios::binary );
         std::vector<unsigned char> buffer(std::istreambuf_iterator<char>(input), {});
@@ -128,10 +128,44 @@ int main(int argc, const char** argv) {
     pose[3][2] = 3.5;
     pose[3][0] = 0.0001; // tiny x offset prevents z fighting on overlap
     o = std::make_unique<MeshInstance>(glm::vec3(0,0,0), 2, "server", "room", pose, bones, false) ;
-    timeline->createObject(std::move(o), std::unique_ptr<TEvent>(nullptr) , 0.01234);
+    timeline->createObject(std::move(o), std::unique_ptr<TEvent>(nullptr) , 0.01235);
 
-    timeline->run(1.0) ;
-    
+   
+    std::unique_ptr<ConvexShape> shape = std::make_unique<ConvexShape>(ConvexShape::makeAxisAlignedBox(vec3(0.25,0.25,0.25)));
+    timeline->createObject(std::move(shape), std::unique_ptr<TEvent>(nullptr), "box_shape_created", 0.01236);
+    timeline->subscribe("box_solid_maker", "box_shape_created",
+    [timeline](const string& subscriber, const string& trigger, const Variant& data){
+        int box_id = data.getInt();
+        std::unique_ptr<ConvexSolid> solid = std::make_unique<ConvexSolid>(
+            ConvexSolid(glm::vec3(0,0,1.45), 0.15, 1, box_id, glm::vec3(0,0,0), glm::quat(0,0,0,1), glm::vec3(0.5,0.5,1.3)));
+        timeline->createObject(std::move(solid), std::make_unique<MoveSimpleSolid>(1.0/90), 1.1);
+    });
+
+
+    std::unique_ptr<ConvexShape> shape2 = std::make_unique<ConvexShape>(ConvexShape::makeCylinder(glm::vec3(0,0.15,0), glm::vec3(0,-0.15,0), 0.03, 16));
+    timeline->createObject(std::move(shape2), std::unique_ptr<TEvent>(nullptr), "cylinder_shape_created", 0.01236);
+    timeline->subscribe("cylinder_solid_maker", "cylinder_shape_created",
+    [timeline](const string& subscriber, const string& trigger, const Variant& data){
+        int shape_id = data.getInt();
+        std::unique_ptr<ConvexSolid> solid = std::make_unique<ConvexSolid>(
+            ConvexSolid(glm::vec3(0,0,1.75), 0.15, 1, shape_id, glm::vec3(0,0,0), glm::quat(0,0,0,1), glm::vec3(0.4,0.9,0.3)));
+        timeline->createObject(std::move(solid), std::make_unique<MoveSimpleSolid>(1.0/90), 1.1);
+    });
+
+    std::unique_ptr<ConvexShape> shape3 = std::make_unique<ConvexShape>(ConvexShape::makeSphere(glm::vec3(0,0,0), 0.15, 2));
+    timeline->createObject(std::move(shape3), std::unique_ptr<TEvent>(nullptr), "sphere_shape_created", 0.01236);
+    timeline->subscribe("sphere_solid_maker", "sphere_shape_created",
+    [timeline](const string& subscriber, const string& trigger, const Variant& data){
+        int shape_id = data.getInt();
+        std::unique_ptr<ConvexSolid> solid = std::make_unique<ConvexSolid>(
+            ConvexSolid(glm::vec3(0,0,2.05), 0.15, 1, shape_id, glm::vec3(0,0,0), glm::quat(0,0,0,1), glm::vec3(0.0,3.0,0.0)));
+        timeline->createObject(std::move(solid), std::make_unique<MoveSimpleSolid>(1.0/90), 1.1);
+    });
+
+
+
+    timeline->run(1.0) ;// notifications go out after a call to run completes
+    timeline->run(2.0) ; // run some more to get the solid made
 
 
     TimelineServer timeline_server(timeline_port, timeline,
@@ -144,10 +178,6 @@ int main(int argc, const char** argv) {
     timeline->observable_interpolation = false;
     while (running) {
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
-        pose[3][0] = sin(timeline->current_time);
-        pose[3][2] = cos(timeline->current_time);
-        //timeline->addEvent(std::make_unique<SetMeshInstance>(1, glm::vec3(0,0,0), 2, "default_avatar", pose, bones),  timeline->current_time+0.1) ;
-
         timeline->run();
         TimelineServer::quickForwardEvents();
     }

@@ -26,6 +26,7 @@
 #include "MeshLibrary.h"
 #include "ConvexShape.h"
 #include "ConvexSolid.h"
+#include "MoveSimpleSolid.h"
 
 
 using std::vector;
@@ -594,26 +595,51 @@ byte* getMeshInstances(byte* ptr){
     for(int k=0;k<ob.size();k++){
         weak_ptr<TObject> ow = timeline->getLastObserved(ob[k]) ;
         if(auto o = ow.lock()){
-            shared_ptr<MeshInstance> instance = std::static_pointer_cast<MeshInstance>(o);
-            std::shared_ptr<GLTF> mesh_asset = meshes[instance->mesh_name];
-            if(mesh_asset != nullptr){
-                map<string, Variant> inst_map ;
-                inst_map["mesh"] = Variant(instance->mesh_name) ;
-                inst_map["owner"] = Variant(instance->owner) ;
-                inst_map["pose"] = Variant(instance->pose);
-                if(instance->bone_data.defined()){
-                    if(instance->bones_compressed){
-                        inst_map["bones"] = mesh_asset->getBoneData(instance->bone_data) ;
-                    }else{
-                        inst_map["bones"] = instance->bone_data.clone() ;
+            if(o->type == 1){
+                shared_ptr<MeshInstance> instance = std::static_pointer_cast<MeshInstance>(o);
+                std::shared_ptr<GLTF> mesh_asset = meshes[instance->mesh_name];
+                if(mesh_asset != nullptr){
+                    map<string, Variant> inst_map ;
+                    inst_map["mesh"] = Variant(instance->mesh_name) ;
+                    inst_map["owner"] = Variant(instance->owner) ;
+                    inst_map["pose"] = Variant(instance->pose);
+                    if(instance->bone_data.defined()){
+                        if(instance->bones_compressed){
+                            inst_map["bones"] = mesh_asset->getBoneData(instance->bone_data) ;
+                        }else{
+                            inst_map["bones"] = instance->bone_data.clone() ;
+                        }
+                    }
+
+                    if(instance->write_time > timeline->current_time - 5 || instance->owner == "server"){ // TODO less hardcoded timeouts
+                        ret_map[std::to_string(ob[k])] = Variant(inst_map);
+                        //printf("Returned instance:\n");
+                        //ret_map[std::to_string(ob[k])].printFormatted();
                     }
                 }
-
-                if(instance->write_time > timeline->current_time - 5 || instance->owner == "server"){ // TODO less hardcoded timeouts
+            }else if(o->type == 2){ // convex solid
+                shared_ptr<ConvexSolid> solid= std::static_pointer_cast<ConvexSolid>(o);
+                map<string, Variant> inst_map ;
+                string mesh_name = "shape-" + std::to_string(solid->shape_id) ;
+                std::shared_ptr<GLTF> mesh_asset = meshes[mesh_name];
+                if(mesh_asset != nullptr){
+                    inst_map["mesh"] = Variant(mesh_name) ;
+                    inst_map["owner"] = Variant("physics") ;
+                    inst_map["pose"] = Variant(solid->getTransform());
                     ret_map[std::to_string(ob[k])] = Variant(inst_map);
-                    //printf("Returned instance:\n");
-                    //ret_map[std::to_string(ob[k])].printFormatted();
                 }
+            
+            }else if(o->type == 3){ // convex shape
+                string mesh_name = "shape-" + std::to_string(ob[k]) ;
+                std::shared_ptr<GLTF> mesh_asset = meshes[mesh_name];
+                if(mesh_asset == nullptr){
+                    shared_ptr<ConvexShape> shape = std::static_pointer_cast<ConvexShape>(o);
+                    meshes.addLocalShapeMesh(mesh_name, shape, vec3(1.0,1.0,1.0));
+                }
+
+            }else{
+                printf("Got an unrecognized object in the timeline:\n");
+                Variant(o->serialize()).printFormatted();
             }
         }
     }

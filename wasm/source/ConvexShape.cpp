@@ -53,6 +53,7 @@ std::map<std::string,Variant> ConvexShape::serialize() const{
         }
     }
 
+    serial["type"] = Variant(type);
     return serial;
 }
 

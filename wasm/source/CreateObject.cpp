@@ -46,6 +46,7 @@ std::map<std::string,Variant> CreateObject::serialize() const{
     }
     serial["t"] = Variant(time);
     serial["a"] = Variant(anchor_id);
+    serial["type"] = Variant(type);
     return serial;
 }
 

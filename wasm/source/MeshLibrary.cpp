@@ -58,6 +58,13 @@ void MeshLibrary::uploadMesh(std::string key, const Variant& glb_file_data){
     }
 }
 
+void MeshLibrary::addLocalShapeMesh(std::string key, std::shared_ptr<ConvexShape> shape, glm::vec3 color){
+    std::shared_ptr<GLTF> shape_mesh = std::make_shared<GLTF>() ;
+    shape_mesh->setPolyhedronModel(shape->vertex, shape->face, color);
+    meshes.insert(key, shape_mesh);
+
+}
+
 // Returns and deletes the set of keys of meshes that need to be removed from VRAm
 std::set<std::string> MeshLibrary::popDeletedKeys(){
     return meshes.popDeletedKeys();

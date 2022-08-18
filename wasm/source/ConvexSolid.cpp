@@ -32,6 +32,7 @@ ConvexSolid::ConvexSolid(glm::vec3 nposition, float nradius, float nmass, int ns
     orientation = norientation;
     angular_velocity = nangular_velocity;
     mass = nmass;
+    type = 2 ;
 }
 
 ConvexSolid::~ConvexSolid(){
@@ -48,6 +49,7 @@ std::map<std::string,Variant> ConvexSolid::serialize() const {
     serial["o"] = Variant(orientation);
     serial["w"] = Variant(angular_velocity);
     serial["m"] = Variant(mass);
+    serial["type"] = Variant(type);
     return serial;
 }
 
@@ -88,7 +90,9 @@ void ConvexSolid::move(double dt){
     position += velocity*(float)dt;
     float da = glm::length(angular_velocity) * (float)dt ;
     quat dr = glm::angleAxis(da, angular_velocity);
+    dr = glm::normalize(dr);
     orientation *= dr;
+    orientation = glm::normalize(orientation);
 }
 
 // Checks if there is a collision between this solid and another

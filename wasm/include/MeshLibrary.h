@@ -4,6 +4,7 @@
 #include "GLTF.h"
 #include "TableInterface.h"
 #include "LRUCache.h"
+#include "ConvexShape.h"
 
 #include <vector>
 #include <memory>
@@ -40,6 +41,9 @@ class MeshLibrary : public TableInterface{
 
         // Uploads a GLB file to the server, making its mesh data available to all connected clients
         void uploadMesh(std::string key, const Variant& glb_file_data);
+
+        // Adds a Shape Mesh for local rendering only (for debugging)
+        void addLocalShapeMesh(std::string key, std::shared_ptr<ConvexShape> shape, glm::vec3 color);
 
         // Returns and deletes the set of keys of meshes that need to be removed from VRAM
         std::set<std::string> popDeletedKeys();
