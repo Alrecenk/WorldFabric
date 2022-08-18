@@ -141,6 +141,7 @@ class Renderer{
         this.shaderProgram.bones_texture = gl.getUniformLocation(this.shaderProgram, "bones_texture");
         this.shaderProgram.has_texture = gl.getUniformLocation(this.shaderProgram, "u_has_texture");
         this.shaderProgram.alpha_cutoff = gl.getUniformLocation(this.shaderProgram, "u_alpha_cutoff");
+        this.shaderProgram.nearness_cutoff = gl.getUniformLocation(this.shaderProgram, "u_nearness_cutoff");
     }
 
     static onFrame(){
@@ -481,6 +482,7 @@ class Renderer{
             }
 
             gl.uniform1f(this.shaderProgram.alpha_cutoff, 0.5 );
+            gl.uniform1f(this.shaderProgram.nearness_cutoff, 0.2*0.2 );
 
             if(buffer.double_sided){
                 gl.disable(gl.CULL_FACE);
