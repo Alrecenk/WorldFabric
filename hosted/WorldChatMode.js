@@ -41,8 +41,8 @@ class WorldChatMode extends ExecutionMode{
     inv_player_space = mat4.create();
     player_position = vec3.create();
     player_angle = 0 ;
-    player_speed = 0.01 ;
-    player_spin_speed = 0.01;
+    player_speed = 0.015 ;
+    player_spin_speed = 0.007;
 
     held_id = [-1,-1]; // objects currently held by each hand
     held_offset = [mat4.create(), mat4.create()];

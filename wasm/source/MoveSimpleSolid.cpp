@@ -10,8 +10,8 @@ using std::shared_ptr;
 using std::unique_ptr;
 
 
-float MoveSimpleSolid::friction = 0.5 ;
-float MoveSimpleSolid::angular_friction = 0.05 ;
+float MoveSimpleSolid::friction = 0.45 ;
+float MoveSimpleSolid::angular_friction = 0.25 ;
 
 MoveSimpleSolid::MoveSimpleSolid(){
     type = 4 ; // TODO don't hardcode this
@@ -100,6 +100,12 @@ void MoveSimpleSolid::run(){
                 }
             }
             */
+
+            //clamp to local area for demo
+            if(glm::length(self->position)>7){
+                self->position = vec3(0,0,0);
+                self->velocity = vec3(0,0,0);
+            }
 
         }
         

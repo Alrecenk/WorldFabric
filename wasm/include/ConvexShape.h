@@ -68,10 +68,11 @@ class ConvexShape : public TObject{
     // Averages two points then pushes result to lie on the sphere.
     static glm::vec3 makeSpherePoint(glm::vec3 a, glm::vec3 b, glm::vec3 center, float radius);
 
-    // Returns a Mesh for a cylinder with center of ends and A and B
+    // Returns a shape for a cylinder with center of ends and A and B
     static ConvexShape makeCylinder(glm::vec3 A, glm::vec3 B, float radius, int sides);
 
-
+    // Returns a shape for a Tetrahedron with the given points
+    static ConvexShape makeTetra(glm::vec3 A, glm::vec3 B, glm::vec3 C, glm::vec3 D);
 
 };
 #endif // #ifndef _CONVEX_SHAPE_H_

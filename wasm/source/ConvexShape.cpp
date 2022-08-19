@@ -302,3 +302,35 @@ ConvexShape ConvexShape::makeCylinder(glm::vec3 A, glm::vec3 B, float radius, in
     faces.emplace_back(bottom);
     return ConvexShape(vertices, faces);
 }
+
+
+// Returns a shape for a Tetrahedron with the given points
+ConvexShape ConvexShape::makeTetra(glm::vec3 A, glm::vec3 B, glm::vec3 C, glm::vec3 D){
+    vector<vec3> vertices;
+    vertices.push_back(A);
+    vertices.push_back(B);
+    vertices.push_back(C);
+    vertices.push_back(D);
+
+    vector<vector<int>> faces;
+    faces.push_back(vector<int>({0, 1, 2}));
+    faces.push_back(vector<int>({0, 1, 3}));
+    faces.push_back(vector<int>({0, 3, 2}));
+    faces.push_back(vector<int>({3, 1, 2}));
+
+    // Fix winding order so normals face out
+    vec3 center = (A+B+C+D)*0.25f;
+    for(int k=0;k<faces.size();k++){
+        vec3& a = vertices[faces[k][0]];
+        vec3& b = vertices[faces[k][1]];
+        vec3& c = vertices[faces[k][2]];
+
+        vec3 n = glm::cross(b-a,c-a);
+        if(glm::dot(a-center,n) < 0){
+            int t = faces[k][1];
+            faces[k][1] = faces[k][2];
+            faces[k][2] = t ;
+        }
+    }
+    return ConvexShape(vertices, faces);
+}
