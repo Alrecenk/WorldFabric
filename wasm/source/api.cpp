@@ -27,6 +27,7 @@
 #include "ConvexShape.h"
 #include "ConvexSolid.h"
 #include "MoveSimpleSolid.h"
+#include "SetConvexSolid.h"
 
 
 using std::vector;
@@ -54,6 +55,8 @@ int selected_animation = -1;
 std::chrono::high_resolution_clock::time_point animation_start_time;
 
 unique_ptr<Timeline> timeline ;
+
+float action_delay = 0.05;
 
 
 long timeMilliseconds() {
@@ -665,7 +668,7 @@ byte* setMeshInstance(byte* ptr){
     glm::mat4 pose = obj["pose"].getMat4();
     Variant bones = meshes[MY_AVATAR]->getCompressedBoneData();
 
-    timeline->addEvent(std::make_unique<SetMeshInstance>(id, glm::vec3(0,0,0), 2, "default_avatar", pose, bones),  timeline->current_time+0.1) ;
+    timeline->addEvent(std::make_unique<SetMeshInstance>(id, glm::vec3(0,0,0), 2, "default_avatar", pose, bones),  timeline->current_time+action_delay) ;
     return emptyReturn();
 }
 
@@ -762,6 +765,51 @@ byte* getBones(byte* ptr){
     map<string, Variant> ret_map ;
     ret_map["bones"] = meshes[mesh_name]->getBoneData() ;
     return pack(ret_map);
+}
+
+// Returns the timeline "id" and "distance" of the nearest observable solid to the given point p
+byte* getNearestSolid(byte* ptr){
+    auto obj = Variant::deserializeObject(ptr);
+    vec3 grab_position = obj["p"].getVec3();
+    int closest = -1;
+    float best_score = 1E30;
+    mat4 initial_pose;
+
+    vector<int> ob = timeline->updateObservables();
+    for(int k=0;k<ob.size();k++){
+        weak_ptr<TObject> ow = timeline->getLastObserved(ob[k]) ;
+        if(auto o = ow.lock()){
+            if(o->type == 2){
+                shared_ptr<ConvexSolid> solid = std::static_pointer_cast<ConvexSolid>(o);
+                float score = glm::length(solid->position-grab_position);
+                printf("%d : %f\n", ob[k], score);
+                if(score < best_score){
+                    best_score = score;
+                    closest = ob[k];
+                    initial_pose = solid->getTransform();
+                }
+            }
+        }
+    }
+
+    map<string, Variant> ret_map ;
+    ret_map["id"] = Variant(closest);
+    ret_map["distance"] = Variant(best_score);
+    ret_map["initial_pose"] = Variant(initial_pose);
+    return pack(ret_map);
+}
+
+// sets the solid given by "id" to the given mat4 "pose" 
+byte* setSolidPose(byte* ptr){
+    auto obj = Variant::deserializeObject(ptr);
+    int id = obj["id"].getInt();
+    mat4 pose = obj["pose"].getMat4();
+    vec3 p = vec3(pose[3]);
+    vec3 v = vec3(0,0,0);
+    glm::quat o = glm::quat_cast(pose);
+    vec3 av = vec3(0,0,0);
+    timeline->addEvent(std::make_unique<SetConvexSolid>(id, p, v, o, av),  timeline->current_time+action_delay) ;
+    return emptyReturn();
 }
 
 }// end extern C

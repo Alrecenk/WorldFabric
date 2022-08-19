@@ -44,6 +44,9 @@ class WorldChatMode extends ExecutionMode{
     player_speed = 0.01 ;
     player_spin_speed = 0.01;
 
+    held_id = [-1,-1]; // objects currently held by each hand
+    held_offset = [mat4.create(), mat4.create()];
+
 
     // Tools is an object with string keys that may include things such as the canvas,
     // API WASM Module, an Interface manager, and/or a mesh manager for shared webGL functionality
@@ -188,7 +191,7 @@ class WorldChatMode extends ExecutionMode{
     }
     
     vrInputSourcesUpdated(xr_input){
-
+        let GRIP = 1 ; //constant for grip button on controllers
         //console.log("model pose start:" + JSON.stringify(this.model_pose));
 
         // Move entire model to line up with head
@@ -273,7 +276,6 @@ class WorldChatMode extends ExecutionMode{
             }
 
             if(input_source.handedness == "right"){
-
                 if(Math.sqrt(input_source.axes[3]*input_source.axes[3] + input_source.axes[2]*input_source.axes[2]) > 0.05){
                     this.player_angle -= this.player_spin_speed * input_source.axes[2] ; // rotate on horizontal axis
                     this.player_position[1] -= this.player_speed * input_source.axes[3] ; // vertical move on vertical axis
@@ -334,6 +336,37 @@ class WorldChatMode extends ExecutionMode{
                 params.target = MP2;
                 tools.API.call("setRotationPinTarget", params, new Serializer()); 
                 tools.API.call("setPinTarget", params, new Serializer()); 
+
+                // if gripping with this hand
+                if(input_source.buttons[GRIP].pressed){
+                    //console.log("grip button pressed");
+                    let pose = mat4.create();
+                    mat4.multiply(pose,this.player_space,current_grip);
+                    let inv_pose = mat4.create();
+                    mat4.invert(inv_pose, pose);
+
+                    if(this.held_id[which_hand] == -1){
+                        console.log("getting nearest solid:");
+                        let gp = new Float32Array([pose[12], pose[13], pose[14]]);
+
+                        let result = tools.API.call("getNearestSolid", {p:gp}, new Serializer()); 
+                        console.log(result);
+                        if(result.distance < 0.3){
+                            
+                            this.held_id[which_hand] = result.id ;
+
+                            mat4.multiply(this.held_offset[which_hand],inv_pose ,result.initial_pose);
+                        }
+                    }
+                    if(this.held_id[which_hand] != -1){
+                        //console.log("setting solid pose");
+                        mat4.multiply(pose, pose,this.held_offset[which_hand]);
+                        tools.API.call("setSolidPose", {id:this.held_id[which_hand], pose: pose}, new Serializer()); 
+                    }
+                }else{
+                    this.held_id[which_hand] = -1 ;
+                }
+
             }
             which_hand++;
         }
@@ -380,7 +413,7 @@ class WorldChatMode extends ExecutionMode{
         }
         if(id >= 0){
             //console.log("Found my owned model: " + id);
-            mat4.multiply(MP,this.player_space, this.model_pose, );
+            mat4.multiply(MP,this.player_space, this.model_pose);
             tools.API.call("setMeshInstance", {id:id, pose:MP}, new Serializer());
             
         }

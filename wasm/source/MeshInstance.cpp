@@ -5,6 +5,7 @@
 #include "ConvexShape.h"
 #include "ConvexSolid.h"
 #include "MoveSimpleSolid.h"
+#include "SetConvexSolid.h"
 
 using std::map;
 using std::string;
@@ -105,6 +106,8 @@ std::unique_ptr<TEvent> MeshInstance::createEvent(const Variant& serialized){
         event = std::make_unique<CreateObject>();
     }else if(type == 2){
         event = std::make_unique<SetMeshInstance>();
+    }else if(type == 3){
+        event = std::make_unique<SetConvexSolid>();
     }else if(type == 4){
         event = std::make_unique<MoveSimpleSolid>();
     }

@@ -54,6 +54,8 @@ EXPORTED_FUNCTIONS =[\
 	'_getMeshInstances',\
 	'_createMeshInstance',\
 	'_setMeshInstance',\
+	'_getNearestSolid',\
+	'_setSolidPose',\
 	'_free']
 EXTRA_EXPORTED_RUNTIME_METHODS=['ccall']
 API_MAIN = ${API_DIR}source/api.cpp
@@ -80,7 +82,8 @@ API_SRC    =${API_DIR}source/Variant.cpp \
 			${API_DIR}source/MeshLibrary.cpp \
 			${API_DIR}source/ConvexShape.cpp \
 			${API_DIR}source/ConvexSolid.cpp \
-			${API_DIR}source/MoveSimpleSolid.cpp
+			${API_DIR}source/MoveSimpleSolid.cpp \
+			${API_DIR}source/SetConvexSolid.cpp
 
 			
 default: all
