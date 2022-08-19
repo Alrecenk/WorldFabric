@@ -10,8 +10,8 @@ using std::shared_ptr;
 using std::unique_ptr;
 
 
-float MoveSimpleSolid::friction = 0.02 ;
-float MoveSimpleSolid::angular_friction = 0.02 ;
+float MoveSimpleSolid::friction = 0.5 ;
+float MoveSimpleSolid::angular_friction = 0.05 ;
 
 MoveSimpleSolid::MoveSimpleSolid(){
     type = 4 ; // TODO don't hardcode this

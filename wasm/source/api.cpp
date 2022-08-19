@@ -637,7 +637,7 @@ byte* getMeshInstances(byte* ptr){
                 std::shared_ptr<GLTF> mesh_asset = meshes[mesh_name];
                 if(mesh_asset == nullptr){
                     shared_ptr<ConvexShape> shape = std::static_pointer_cast<ConvexShape>(o);
-                    meshes.addLocalShapeMesh(mesh_name, shape, vec3(0.75, 0.75, 1.0));
+                    meshes.addLocalShapeMesh(mesh_name, shape, vec3(0.85, 0.85, 1.0));
                 }
 
             }else{
@@ -809,20 +809,20 @@ byte* setSolidPose(byte* ptr){
     glm::quat o = glm::quat_cast(pose);
     vec3 av = vec3(0,0,0);
 
-    Variant(obj).printFormatted();
+    //Variant(obj).printFormatted();
     if(obj["last_pose"].defined()){
         mat4 last_pose = obj["last_pose"].getMat4();
         float dt = obj["dt"].getNumberAsFloat();
         vec3 lp = vec3(last_pose[3]);
         v = (p-lp)/dt ;
-        printf("v: %f, %f, %f\n", v.x, v.y, v.z) ;
+        //printf("v: %f, %f, %f\n", v.x, v.y, v.z) ;
         glm::quat lo = glm::quat_cast(last_pose);
 
         glm::quat dq = glm::inverse(o) *  lo; 
         float angle = -glm::angle(dq); // TODO why is this negative here? Something is probably wrong elsewhere.
         vec3 axis = glm::axis(dq);
         av = axis*angle/dt;
-        printf("av: %f, %f, %f\n", av.x, av.y, av.z) ;
+        //printf("av: %f, %f, %f\n", av.x, av.y, av.z) ;
     }
     timeline->addEvent(std::make_unique<SetConvexSolid>(id, p, v, o, av),  timeline->current_time+action_delay) ;
     return emptyReturn();

@@ -353,7 +353,7 @@ class WorldChatMode extends ExecutionMode{
                         let gp = new Float32Array([pose[12], pose[13], pose[14]]);
 
                         let result = tools.API.call("getNearestSolid", {p:gp}, new Serializer()); 
-                        console.log(result);
+                        //console.log(result);
                         if(result.distance < 0.3){
                             
                             this.held_id[which_hand] = result.id ;
@@ -365,27 +365,28 @@ class WorldChatMode extends ExecutionMode{
                         //console.log("setting solid pose");
                         mat4.multiply(pose, pose,this.held_offset[which_hand]);
                         let time = new Date().getTime();
-                        if(this.last_hand_time[which_hand] == 0 ){
+                        //if(this.last_hand_time[which_hand] == 0 ){
                             tools.API.call("setSolidPose", {id:this.held_id[which_hand], pose: pose}, new Serializer()); 
-                        }else{
+                        /*}else{
                             tools.API.call("setSolidPose", {id:this.held_id[which_hand], pose: pose, 
                                 last_pose:this.last_pose[which_hand], dt:(time-this.last_hand_time[which_hand])*0.001 }, new Serializer()); 
-                        }
+                        }*/
                         this.last_pose[which_hand] = pose;
                         this.last_hand_time[which_hand] = time ;
                     }
                 }else{
                     if(this.held_id[which_hand] != -1){ // on release
-                        /*
+                        
                         if(this.last_hand_time[which_hand] != 0 ){ // if had two frames
                             let pose = mat4.create();
                             mat4.multiply(pose,this.player_space,current_grip);
+                            mat4.multiply(pose, pose,this.held_offset[which_hand]);
                             let time = new Date().getTime();
                             // apply exit velocity
                             tools.API.call("setSolidPose", {id:this.held_id[which_hand], pose: pose, 
                                 last_pose:this.last_pose[which_hand], dt:(time-this.last_hand_time[which_hand])*0.001 }, new Serializer()); 
                         }
-                        */
+                        
                     }
 
 
