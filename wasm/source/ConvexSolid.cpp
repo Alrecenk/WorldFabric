@@ -88,9 +88,10 @@ glm::mat4 ConvexSolid::getTransform(){
 // Steps this solid forward by the given amount of time
 void ConvexSolid::move(double dt){
     position += velocity*(float)dt;
-    float da = glm::length(angular_velocity) * (float)dt ;
-    quat dr = glm::angleAxis(da, angular_velocity);
-    dr = glm::normalize(dr);
+    float angular_speed = glm::length(angular_velocity);
+    float da = angular_speed  * (float)dt ;
+    quat dr = glm::angleAxis(da, angular_velocity/angular_speed );
+    //dr = glm::normalize(dr);
     orientation *= dr;
     orientation = glm::normalize(orientation);
 }

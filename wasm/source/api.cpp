@@ -808,6 +808,22 @@ byte* setSolidPose(byte* ptr){
     vec3 v = vec3(0,0,0);
     glm::quat o = glm::quat_cast(pose);
     vec3 av = vec3(0,0,0);
+
+    Variant(obj).printFormatted();
+    if(obj["last_pose"].defined()){
+        mat4 last_pose = obj["last_pose"].getMat4();
+        float dt = obj["dt"].getNumberAsFloat();
+        vec3 lp = vec3(last_pose[3]);
+        v = (p-lp)/dt ;
+        printf("v: %f, %f, %f\n", v.x, v.y, v.z) ;
+        glm::quat lo = glm::quat_cast(last_pose);
+
+        glm::quat dq = glm::inverse(o) *  lo; 
+        float angle = -glm::angle(dq); // TODO why is this negative here? Something is probably wrong elsewhere.
+        vec3 axis = glm::axis(dq);
+        av = axis*angle/dt;
+        printf("av: %f, %f, %f\n", av.x, av.y, av.z) ;
+    }
     timeline->addEvent(std::make_unique<SetConvexSolid>(id, p, v, o, av),  timeline->current_time+action_delay) ;
     return emptyReturn();
 }

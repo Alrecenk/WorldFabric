@@ -46,6 +46,8 @@ class WorldChatMode extends ExecutionMode{
 
     held_id = [-1,-1]; // objects currently held by each hand
     held_offset = [mat4.create(), mat4.create()];
+    last_pose = [mat4.create(), mat4.create()] ;
+    last_hand_time = [0,0] ;
 
 
     // Tools is an object with string keys that may include things such as the canvas,
@@ -342,11 +344,12 @@ class WorldChatMode extends ExecutionMode{
                     //console.log("grip button pressed");
                     let pose = mat4.create();
                     mat4.multiply(pose,this.player_space,current_grip);
-                    let inv_pose = mat4.create();
-                    mat4.invert(inv_pose, pose);
+                    
 
                     if(this.held_id[which_hand] == -1){
-                        console.log("getting nearest solid:");
+                        let inv_pose = mat4.create();
+                        mat4.invert(inv_pose, pose);
+                        //console.log("getting nearest solid:");
                         let gp = new Float32Array([pose[12], pose[13], pose[14]]);
 
                         let result = tools.API.call("getNearestSolid", {p:gp}, new Serializer()); 
@@ -361,10 +364,33 @@ class WorldChatMode extends ExecutionMode{
                     if(this.held_id[which_hand] != -1){
                         //console.log("setting solid pose");
                         mat4.multiply(pose, pose,this.held_offset[which_hand]);
-                        tools.API.call("setSolidPose", {id:this.held_id[which_hand], pose: pose}, new Serializer()); 
+                        let time = new Date().getTime();
+                        if(this.last_hand_time[which_hand] == 0 ){
+                            tools.API.call("setSolidPose", {id:this.held_id[which_hand], pose: pose}, new Serializer()); 
+                        }else{
+                            tools.API.call("setSolidPose", {id:this.held_id[which_hand], pose: pose, 
+                                last_pose:this.last_pose[which_hand], dt:(time-this.last_hand_time[which_hand])*0.001 }, new Serializer()); 
+                        }
+                        this.last_pose[which_hand] = pose;
+                        this.last_hand_time[which_hand] = time ;
                     }
                 }else{
+                    if(this.held_id[which_hand] != -1){ // on release
+                        /*
+                        if(this.last_hand_time[which_hand] != 0 ){ // if had two frames
+                            let pose = mat4.create();
+                            mat4.multiply(pose,this.player_space,current_grip);
+                            let time = new Date().getTime();
+                            // apply exit velocity
+                            tools.API.call("setSolidPose", {id:this.held_id[which_hand], pose: pose, 
+                                last_pose:this.last_pose[which_hand], dt:(time-this.last_hand_time[which_hand])*0.001 }, new Serializer()); 
+                        }
+                        */
+                    }
+
+
                     this.held_id[which_hand] = -1 ;
+                    this.last_hand_time[which_hand] = 0 ;
                 }
 
             }
