@@ -85,6 +85,9 @@ std::unique_ptr<TObject> MeshInstance::createObject(const Variant& serialized){
         obj = std::make_unique<ConvexSolid>();
     }else if(type == 3){
         obj = std::make_unique<ConvexShape>();
+    }else{
+        printf("Unrecognized Object type\n");
+        Variant(map).printFormatted();
     }
 
     obj->set(map);
@@ -110,6 +113,9 @@ std::unique_ptr<TEvent> MeshInstance::createEvent(const Variant& serialized){
         event = std::make_unique<SetConvexSolid>();
     }else if(type == 4){
         event = std::make_unique<MoveSimpleSolid>();
+    }else{
+        printf("Unrecognized Event type\n");
+        Variant(map).printFormatted();
     }
     event->set(map);
     return std::move(event);

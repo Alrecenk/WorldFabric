@@ -19,9 +19,8 @@ ConvexSolid::ConvexSolid(int shape, float m, glm::vec3 p, glm::quat r){
     velocity = vec3(0,0,0);
     orientation = r ;
     angular_velocity = vec3(0,0,0);
-    type = 2 ; // TODO make some constants or something
     radius = 0 ;
-    
+    type = 2 ; // TODO make some constants or something
 }
 
 ConvexSolid::ConvexSolid(glm::vec3 nposition, float nradius, float nmass, int nshape_id, glm::vec3 nvelocity, glm::quat norientation, glm::vec3 nangular_velocity){
