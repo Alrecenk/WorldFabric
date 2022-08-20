@@ -8,6 +8,7 @@ LIBS_DIRS  =-L${USR_DIR}/lib
 CPP_DEFS=
 #CPP_DEFS   =-D=HAVE_CONFIG_H
 CPP_OPTS   = -O3 -Wno-pessimizing-move
+MAKEFLAGS += -j2
 #-Wall
 LIBS       = -levent -levent_core -lssl -lcrypto
 

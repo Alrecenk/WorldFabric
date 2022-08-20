@@ -986,7 +986,7 @@ void GLTF::addAnimation(Variant& animation_json, Variant& json, const Variant& b
     
     Animation animation ;
     animation.name = animation_json["name"].getString();
-    printf("Adding animation %s!\n", animation.name.c_str());
+    printf("Adding animation %d: %s!\n", (int)this->animations.size(), animation.name.c_str());
 
     vector<Variant> accessors = json["accessors"].getVariantArray();
     vector<Variant> views = json["bufferViews"].getVariantArray() ;

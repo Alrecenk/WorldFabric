@@ -249,6 +249,10 @@ class WorldChatMode extends ExecutionMode{
             }
 
             let initial_matrices = tools.API.call("createVRMPins", {}, new Serializer()); 
+            if(initial_matrices["error"]){
+                console.log(initial_matrices["error"]);
+                return;
+            }
             this.head_pins = {name:"head", initial_matrix : initial_matrices["head"], initial_pose: initial_matrices["head"]};
             
             let left_grip = new Float32Array([  0,-1,0,0,

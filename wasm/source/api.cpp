@@ -44,7 +44,7 @@ using std::shared_ptr;
 
 // Outermost API holds a global reference to the core data model
 //map<string,GLTF> meshes;
-MeshLibrary meshes(100) ;
+MeshLibrary meshes(50) ;
 
 const string MY_AVATAR = "default_avatar" ;
 
@@ -56,7 +56,7 @@ std::chrono::high_resolution_clock::time_point animation_start_time;
 
 unique_ptr<Timeline> timeline ;
 
-float action_delay = 0.05;
+float action_delay = 0.07;
 
 
 long timeMilliseconds() {
@@ -656,7 +656,7 @@ byte* createMeshInstance(byte* ptr){
     glm::mat4 tm(1);
     Variant bones = meshes[MY_AVATAR]->getCompressedBoneData();
     std::unique_ptr<MeshInstance> o = std::make_unique<MeshInstance>(glm::vec3(0,0,0), 2, owner, "default_avatar", tm, bones, true) ;
-    timeline->createObject(std::move(o), std::unique_ptr<TEvent>(nullptr) , timeline->current_time + 0.02);
+    timeline->createObject(std::move(o), std::unique_ptr<TEvent>(nullptr) , timeline->current_time + action_delay);
     return emptyReturn();
 }
 
@@ -725,6 +725,10 @@ byte* getFirstPersonPosition(byte* ptr){
 byte* createVRMPins(byte* ptr){
     std::shared_ptr<GLTF> avatar = meshes[MY_AVATAR] ;
     map<string, Variant> ret_map ;
+    if(avatar == nullptr){
+        ret_map["error"] = Variant("avatar not found on VRM IK bind!");
+        return pack(ret_map);
+    }
 
     avatar->createPin("head", avatar->first_person_bone, avatar->first_person_offset, 1.0f);
     ret_map["head"] = getVariantMatrix(avatar->createRotationPin("head", avatar->first_person_bone, 1.0f));
@@ -782,7 +786,6 @@ byte* getNearestSolid(byte* ptr){
             if(o->type == 2){
                 shared_ptr<ConvexSolid> solid = std::static_pointer_cast<ConvexSolid>(o);
                 float score = glm::length(solid->position-grab_position);
-                printf("%d : %f\n", ob[k], score);
                 if(score < best_score){
                     best_score = score;
                     closest = ob[k];
