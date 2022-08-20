@@ -361,13 +361,14 @@ Variant GLTF::getBoneData(){
 Variant GLTF::getCompressedBoneData(){
     int num_bones = nodes.size() ;
     Variant bone_buffer;
-    bone_buffer.makeFillableFloatArray(num_bones*3);
+    bone_buffer.makeFillableFloatArray(num_bones*4);
     float* bone_buffer_array =  bone_buffer.getFloatArray() ;
     for(int node_id=0; node_id<nodes.size(); node_id++){   
         Node& node = nodes[node_id];
-        bone_buffer_array[node_id*3] = node.rotation.x ;
-        bone_buffer_array[node_id*3 + 1] = node.rotation.y ;
-        bone_buffer_array[node_id*3 + 2] = node.rotation.z ;
+        bone_buffer_array[node_id*4] = node.rotation.x ;
+        bone_buffer_array[node_id*4 + 1] = node.rotation.y ;
+        bone_buffer_array[node_id*4 + 2] = node.rotation.z ;
+        bone_buffer_array[node_id*4 + 3] = node.rotation.w ;
     }
     return bone_buffer ;
 }
@@ -384,7 +385,8 @@ Variant GLTF::getBoneData(const Variant& compressed){
         j++;
         node.rotation.z = x[j];
         j++;
-        node.rotation.w = sqrt(1- (node.rotation.x*node.rotation.x + node.rotation.y*node.rotation.y + node.rotation.z*node.rotation.z));
+        node.rotation.w = x[j];
+        j++;
     }
     computeNodeMatrices();
     Variant bd = getBoneData() ;
