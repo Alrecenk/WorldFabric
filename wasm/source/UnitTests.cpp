@@ -42,8 +42,11 @@ bool UnitTests::runAll(){
     
     success = UnitTests::checkSyncExistingObject() ? "passed" : "failed" ;
     printf("checkSyncExistingObject : %s\n", success.c_str());
+
+    success = UnitTests::checkCreateObjectNotification() ? "passed" : "failed" ;
+    printf("checkCreateObjectNotification : %s\n", success.c_str());
     
-    return true; 
+    return true; // TODO return whether all succeeded
 }
 
 void UnitTests::expect(bool& success, bool condition, std::string error_message){
@@ -501,3 +504,31 @@ bool UnitTests::checkSyncExistingObject(){
 
 }
 
+
+bool UnitTests::checkCreateObjectNotification(){
+    bool s = true ;
+    Timeline t = Timeline(&BouncingBall::createEvent, &BouncingBall::createObject);
+    t.history_kept = 1000;
+    t.base_age = 100 ;
+    //printf("setting generators...\n");
+    //printf("init circle...\n");
+    std::unique_ptr<BouncingBall> o = std::make_unique<BouncingBall>(vec3(1,0,0),vec3(0,2,0), 3.0f) ;
+    //printf("create object event...\n");
+    t.createObject(std::move(o), std::unique_ptr<TEvent>(nullptr), "ball_id_trigger", 1.0);
+    shared_ptr<int> ball_id = std::make_shared<int>(-1);
+    t.subscribe("ball_id_catcher", "ball_id_trigger",
+    [ball_id](const string& subscriber, const string& trigger, const Variant& data){
+        //printf("notified of ball ID: %d\n", data.getInt());
+        //printf("Subscriber: %s, Trigger: %s\n", subscriber.c_str(), trigger.c_str());
+        *ball_id = data.getInt();
+    });
+    t.run(2.0);
+    expect(s, *ball_id == 1, "Notification did not set ball ID correctly!");
+    t.unsubscribe("ball_id_catcher", "ball_id_trigger");
+    o = std::make_unique<BouncingBall>(vec3(10,0,0),vec3(0,2,0), 3.0f) ;
+    t.createObject(std::move(o), std::unique_ptr<TEvent>(nullptr), "ball_id_trigger", 3.0);
+    t.run(4.0);
+    expect(s, *ball_id == 1, "ID not correct after notifying after unsubscribing!");
+
+    return s ;
+}

@@ -1,22 +1,30 @@
-#ifndef _CREATEOBJECT_H_
-#define _CREATEOBJECT_H_ 1
+#ifndef _MOVE_SIMPLE_SOLID_H_
+#define _MOVE_SIMPLE_SOLID_H_ 1
 
 #include "TEvent.h"
-#include "Timeline.h"
 #include "TObject.h"
+#include "Variant.h"
 
-class CreateObject : public TEvent{
+#include <string>
+#include <map>
+
+
+class MoveSimpleSolid : public TEvent{
 
     public:
 
-        CreateObject();
-        CreateObject(std::unique_ptr<TObject> new_object, std::unique_ptr<TEvent> on_created);
+        static float friction ; // amount of velocity lost per second
+        static float angular_friction ; // amount of angular velocity lost per second
 
-        CreateObject(std::unique_ptr<TObject> new_object, std::unique_ptr<TEvent> on_created,const std::string& trigger);
+        double interval ;
 
-        CreateObject(std::unique_ptr<TObject> new_object,const std::string& trigger);
+        MoveSimpleSolid();
 
-        ~CreateObject() override;
+        MoveSimpleSolid(int moving_object, double time_step);
+
+        MoveSimpleSolid(double time_step);
+
+        ~MoveSimpleSolid() override;
 
         // Serialize this event's data, so it can be efficiently moved between timelines
         std::map<std::string,Variant> serialize() const override;
@@ -29,12 +37,6 @@ class CreateObject : public TEvent{
         // To maintain causality run should only interact with dynamic data by using the privided methods:
         // get(id), getMutable(), addEvent, createObject, deleteObject, and getCollisions
         void run() override;
-
-    private:
-        std::unique_ptr<TObject> new_object;
-        std::unique_ptr<TEvent> on_created;
-        std::string id_trigger; // external notification to send generated ID to
-
         
 };
-#endif // #ifndef _CREATEOBJECT_H_
+#endif // #ifndef _MOVE_SIMPLE_SOLID_H_

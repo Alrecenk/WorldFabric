@@ -168,6 +168,9 @@ class GLTF : public OptimizationProblem, public TableInterface {
         // Sets the model to a single tetrahedron (can be used as a placeholder or for debugging without a model)
         void setTetraModel(glm::vec3 center, float size);
 
+        // Sets the model to a polyhedron of the given color (Can be used to generate visuals for ConvexShape objects)
+        void setPolyhedronModel(std::vector<glm::vec3>& vertices, std::vector<std::vector<int>>& faces, glm::vec3 color);
+
         void addPrimitive(std::vector<Vertex>& vertices, std::vector<Triangle>& triangles,
             Variant& primitive, int node_id, const glm::mat4& transform, Variant& json, const Variant& bin);
 

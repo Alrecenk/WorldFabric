@@ -8,6 +8,7 @@ LIBS_DIRS  =-L${USR_DIR}/lib
 CPP_DEFS=
 #CPP_DEFS   =-D=HAVE_CONFIG_H
 CPP_OPTS   = -O3 -Wno-pessimizing-move
+MAKEFLAGS += -j2
 #-Wall
 LIBS       = -levent -levent_core -lssl -lcrypto
 
@@ -54,6 +55,8 @@ EXPORTED_FUNCTIONS =[\
 	'_getMeshInstances',\
 	'_createMeshInstance',\
 	'_setMeshInstance',\
+	'_getNearestSolid',\
+	'_setSolidPose',\
 	'_free']
 EXTRA_EXPORTED_RUNTIME_METHODS=['ccall']
 API_MAIN = ${API_DIR}source/api.cpp
@@ -77,7 +80,11 @@ API_SRC    =${API_DIR}source/Variant.cpp \
 			${API_DIR}source/ApplyBallImpulse.cpp \
 			${API_DIR}source/MeshInstance.cpp \
 			${API_DIR}source/SetMeshInstance.cpp \
-			${API_DIR}source/MeshLibrary.cpp
+			${API_DIR}source/MeshLibrary.cpp \
+			${API_DIR}source/ConvexShape.cpp \
+			${API_DIR}source/ConvexSolid.cpp \
+			${API_DIR}source/MoveSimpleSolid.cpp \
+			${API_DIR}source/SetConvexSolid.cpp
 
 			
 default: all

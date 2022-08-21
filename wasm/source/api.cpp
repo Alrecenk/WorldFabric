@@ -24,6 +24,10 @@
 #include "MeshInstance.h"
 #include "SetMeshInstance.h"
 #include "MeshLibrary.h"
+#include "ConvexShape.h"
+#include "ConvexSolid.h"
+#include "MoveSimpleSolid.h"
+#include "SetConvexSolid.h"
 
 
 using std::vector;
@@ -40,7 +44,7 @@ using std::shared_ptr;
 
 // Outermost API holds a global reference to the core data model
 //map<string,GLTF> meshes;
-MeshLibrary meshes(100) ;
+MeshLibrary meshes(50) ;
 
 const string MY_AVATAR = "default_avatar" ;
 
@@ -51,6 +55,8 @@ int selected_animation = -1;
 std::chrono::high_resolution_clock::time_point animation_start_time;
 
 unique_ptr<Timeline> timeline ;
+
+float action_delay = 0.07;
 
 
 long timeMilliseconds() {
@@ -592,26 +598,51 @@ byte* getMeshInstances(byte* ptr){
     for(int k=0;k<ob.size();k++){
         weak_ptr<TObject> ow = timeline->getLastObserved(ob[k]) ;
         if(auto o = ow.lock()){
-            shared_ptr<MeshInstance> instance = std::static_pointer_cast<MeshInstance>(o);
-            std::shared_ptr<GLTF> mesh_asset = meshes[instance->mesh_name];
-            if(mesh_asset != nullptr){
-                map<string, Variant> inst_map ;
-                inst_map["mesh"] = Variant(instance->mesh_name) ;
-                inst_map["owner"] = Variant(instance->owner) ;
-                inst_map["pose"] = Variant(instance->pose);
-                if(instance->bone_data.defined()){
-                    if(instance->bones_compressed){
-                        inst_map["bones"] = mesh_asset->getBoneData(instance->bone_data) ;
-                    }else{
-                        inst_map["bones"] = instance->bone_data.clone() ;
+            if(o->type == 1){
+                shared_ptr<MeshInstance> instance = std::static_pointer_cast<MeshInstance>(o);
+                std::shared_ptr<GLTF> mesh_asset = meshes[instance->mesh_name];
+                if(mesh_asset != nullptr){
+                    map<string, Variant> inst_map ;
+                    inst_map["mesh"] = Variant(instance->mesh_name) ;
+                    inst_map["owner"] = Variant(instance->owner) ;
+                    inst_map["pose"] = Variant(instance->pose);
+                    if(instance->bone_data.defined()){
+                        if(instance->bones_compressed){
+                            inst_map["bones"] = mesh_asset->getBoneData(instance->bone_data) ;
+                        }else{
+                            inst_map["bones"] = instance->bone_data.clone() ;
+                        }
+                    }
+
+                    if(instance->write_time > timeline->current_time - 5 || instance->owner == "server"){ // TODO less hardcoded timeouts
+                        ret_map[std::to_string(ob[k])] = Variant(inst_map);
+                        //printf("Returned instance:\n");
+                        //ret_map[std::to_string(ob[k])].printFormatted();
                     }
                 }
-
-                if(instance->write_time > timeline->current_time - 5 || instance->owner == "server"){ // TODO less hardcoded timeouts
+            }else if(o->type == 2){ // convex solid
+                shared_ptr<ConvexSolid> solid= std::static_pointer_cast<ConvexSolid>(o);
+                map<string, Variant> inst_map ;
+                string mesh_name = "shape-" + std::to_string(solid->shape_id) ;
+                std::shared_ptr<GLTF> mesh_asset = meshes[mesh_name];
+                if(mesh_asset != nullptr){
+                    inst_map["mesh"] = Variant(mesh_name) ;
+                    inst_map["owner"] = Variant("physics") ;
+                    inst_map["pose"] = Variant(solid->getTransform());
                     ret_map[std::to_string(ob[k])] = Variant(inst_map);
-                    //printf("Returned instance:\n");
-                    //ret_map[std::to_string(ob[k])].printFormatted();
                 }
+            
+            }else if(o->type == 3){ // convex shape
+                string mesh_name = "shape-" + std::to_string(ob[k]) ;
+                std::shared_ptr<GLTF> mesh_asset = meshes[mesh_name];
+                if(mesh_asset == nullptr){
+                    shared_ptr<ConvexShape> shape = std::static_pointer_cast<ConvexShape>(o);
+                    meshes.addLocalShapeMesh(mesh_name, shape, vec3(0.85, 0.85, 1.0));
+                }
+
+            }else{
+                printf("Got an unrecognized object in the timeline:\n");
+                Variant(o->serialize()).printFormatted();
             }
         }
     }
@@ -625,7 +656,7 @@ byte* createMeshInstance(byte* ptr){
     glm::mat4 tm(1);
     Variant bones = meshes[MY_AVATAR]->getCompressedBoneData();
     std::unique_ptr<MeshInstance> o = std::make_unique<MeshInstance>(glm::vec3(0,0,0), 2, owner, "default_avatar", tm, bones, true) ;
-    timeline->createObject(std::move(o), std::unique_ptr<TEvent>(nullptr) , timeline->current_time + 0.02);
+    timeline->createObject(std::move(o), std::unique_ptr<TEvent>(nullptr) , timeline->current_time + action_delay);
     return emptyReturn();
 }
 
@@ -637,7 +668,7 @@ byte* setMeshInstance(byte* ptr){
     glm::mat4 pose = obj["pose"].getMat4();
     Variant bones = meshes[MY_AVATAR]->getCompressedBoneData();
 
-    timeline->addEvent(std::make_unique<SetMeshInstance>(id, glm::vec3(0,0,0), 2, "default_avatar", pose, bones),  timeline->current_time+0.1) ;
+    timeline->addEvent(std::make_unique<SetMeshInstance>(id, glm::vec3(0,0,0), 2, "default_avatar", pose, bones),  timeline->current_time+action_delay) ;
     return emptyReturn();
 }
 
@@ -694,6 +725,10 @@ byte* getFirstPersonPosition(byte* ptr){
 byte* createVRMPins(byte* ptr){
     std::shared_ptr<GLTF> avatar = meshes[MY_AVATAR] ;
     map<string, Variant> ret_map ;
+    if(avatar == nullptr){
+        ret_map["error"] = Variant("avatar not found on VRM IK bind!");
+        return pack(ret_map);
+    }
 
     avatar->createPin("head", avatar->first_person_bone, avatar->first_person_offset, 1.0f);
     ret_map["head"] = getVariantMatrix(avatar->createRotationPin("head", avatar->first_person_bone, 1.0f));
@@ -734,6 +769,66 @@ byte* getBones(byte* ptr){
     map<string, Variant> ret_map ;
     ret_map["bones"] = meshes[mesh_name]->getBoneData() ;
     return pack(ret_map);
+}
+
+// Returns the timeline "id" and "distance" of the nearest observable solid to the given point p
+byte* getNearestSolid(byte* ptr){
+    auto obj = Variant::deserializeObject(ptr);
+    vec3 grab_position = obj["p"].getVec3();
+    int closest = -1;
+    float best_score = 1E30;
+    mat4 initial_pose;
+
+    vector<int> ob = timeline->updateObservables();
+    for(int k=0;k<ob.size();k++){
+        weak_ptr<TObject> ow = timeline->getLastObserved(ob[k]) ;
+        if(auto o = ow.lock()){
+            if(o->type == 2){
+                shared_ptr<ConvexSolid> solid = std::static_pointer_cast<ConvexSolid>(o);
+                float score = glm::length(solid->position-grab_position);
+                if(score < best_score){
+                    best_score = score;
+                    closest = ob[k];
+                    initial_pose = solid->getTransform();
+                }
+            }
+        }
+    }
+
+    map<string, Variant> ret_map ;
+    ret_map["id"] = Variant(closest);
+    ret_map["distance"] = Variant(best_score);
+    ret_map["initial_pose"] = Variant(initial_pose);
+    return pack(ret_map);
+}
+
+// sets the solid given by "id" to the given mat4 "pose" 
+byte* setSolidPose(byte* ptr){
+    auto obj = Variant::deserializeObject(ptr);
+    int id = obj["id"].getInt();
+    mat4 pose = obj["pose"].getMat4();
+    vec3 p = vec3(pose[3]);
+    vec3 v = vec3(0,0,0);
+    glm::quat o = glm::quat_cast(pose);
+    vec3 av = vec3(0,0,0);
+
+    //Variant(obj).printFormatted();
+    if(obj["last_pose"].defined()){
+        mat4 last_pose = obj["last_pose"].getMat4();
+        float dt = obj["dt"].getNumberAsFloat();
+        vec3 lp = vec3(last_pose[3]);
+        v = (p-lp)/dt ;
+        //printf("v: %f, %f, %f\n", v.x, v.y, v.z) ;
+        glm::quat lo = glm::quat_cast(last_pose);
+
+        glm::quat dq = glm::inverse(o) *  lo; 
+        float angle = -glm::angle(dq); // TODO why is this negative here? Something is probably wrong elsewhere.
+        vec3 axis = glm::axis(dq);
+        av = axis*angle/dt;
+        //printf("av: %f, %f, %f\n", av.x, av.y, av.z) ;
+    }
+    timeline->addEvent(std::make_unique<SetConvexSolid>(id, p, v, o, av),  timeline->current_time+action_delay) ;
+    return emptyReturn();
 }
 
 }// end extern C

@@ -108,6 +108,24 @@ void Timeline::createObject(std::unique_ptr<TObject> obj, std::unique_ptr<TEvent
     lock.unlock();
 }
 
+// Creates an event that creates an object at the earliest possible time
+void Timeline::createObject(std::unique_ptr<TObject> obj, std::unique_ptr<TEvent> on_created, std::string id_trigger, double send_time){
+    lock.lock();
+    std::unique_ptr<CreateObject> create_object_event = std::make_unique<CreateObject>(std::move(obj), std::move(on_created), id_trigger) ;
+    create_object_event->anchor_id = vantage_id ;
+    addEvent(std::move(create_object_event), send_time);
+    lock.unlock();
+}
+
+        // Creates an event that creates an object at the earliest possible time
+void Timeline::createObject(std::unique_ptr<TObject> obj, std::string id_trigger, double send_time){
+    lock.lock();
+    std::unique_ptr<CreateObject> create_object_event = std::make_unique<CreateObject>(std::move(obj), id_trigger) ;
+    create_object_event->anchor_id = vantage_id ;
+    addEvent(std::move(create_object_event), send_time);
+    lock.unlock();
+}
+
     // Creates an event that deletes an object at the earliest possible time
 void Timeline::deleteObject(int id, double send_time){
     printf("deleting IDs is not supported yet!\n");
@@ -177,6 +195,8 @@ void Timeline::run(double new_time){
             continue ;
         }
         total_runs++;
+        //printf("running:\n");
+        //Variant(current_event->serialize()).printFormatted();
         current_event->run();
         current_event->has_run = true;
         bool requeued = false;
@@ -241,6 +261,7 @@ void Timeline::run(double new_time){
 
     current_time = new_time ;
     //printf("run  %d events to time: %f\n", run_events, new_time);
+    sendNotifications();
     lock.unlock();
 }
 
@@ -777,4 +798,26 @@ Variant Timeline::popQuickSends(){
     pending_quick_sends.clear();
     lock.unlock();
     return Variant(packet); ;
+}
+
+
+// Send all pending notications to subscribers and clear the notification list
+void Timeline::sendNotifications(){
+    for(auto& [trigger,data] : pending_notifications){
+        std::map<std::string, NotificationReceiever>& receivers = subscribers[trigger];
+        for(auto& [subscriber, receiver] : receivers){
+            receiver(trigger,subscriber, data);
+        }
+    }
+    pending_notifications.clear();
+}
+
+// Subscribe an external function to a given trigger (i.e. catch data sent out by TEvent::notify);
+void Timeline::subscribe(const std::string& subscriber,const std::string& trigger, NotificationReceiever receiver){
+    subscribers[trigger][subscriber] = receiver ;
+}
+
+// Remove a subcription created with subscribe
+void Timeline::unsubscribe(const std::string& subscriber,const std::string& trigger){
+    subscribers[trigger].erase(subscriber);
 }

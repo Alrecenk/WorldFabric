@@ -2,6 +2,10 @@
 
 #include "CreateObject.h"
 #include "SetMeshInstance.h"
+#include "ConvexShape.h"
+#include "ConvexSolid.h"
+#include "MoveSimpleSolid.h"
+#include "SetConvexSolid.h"
 
 using std::map;
 using std::string;
@@ -36,6 +40,7 @@ std::map<std::string,Variant> MeshInstance::serialize() const{
     serial["pose"] = Variant(pose);
     serial["bones"] = bone_data.clone();
     serial["c"] = Variant(bones_compressed ? 1 : 0);
+    serial["type"] = Variant(type);
     return serial;
 }
 
@@ -72,7 +77,19 @@ std::unique_ptr<TObject> MeshInstance::createObject(const Variant& serialized){
         printf("timeline attemped to create an object with a nonobject variant!\n");
     }
     auto map = serialized.getObject() ;
-    std::unique_ptr<TObject> obj = std::make_unique<MeshInstance>();
+    int type = map["type"].getShort();
+    std::unique_ptr<TObject> obj ;
+    if(type == 1){
+        obj = std::make_unique<MeshInstance>();
+    }else if(type == 2){
+        obj = std::make_unique<ConvexSolid>();
+    }else if(type == 3){
+        obj = std::make_unique<ConvexShape>();
+    }else{
+        printf("Unrecognized Object type\n");
+        Variant(map).printFormatted();
+    }
+
     obj->set(map);
     return std::move(obj);
 }
@@ -86,13 +103,19 @@ std::unique_ptr<TEvent> MeshInstance::createEvent(const Variant& serialized){
         return std::unique_ptr<TEvent>(nullptr);
     }
     auto map = serialized.getObject() ;
+    int type = map["type"].getShort();
     std::unique_ptr<TEvent> event ;
-    if(map["o"].type_ == Variant::OBJECT){
-        //printf("Create object created!\n");
+    if(type == 1){
         event = std::make_unique<CreateObject>();
-    }else{
-        //printf("SetMeshInstance created!\n");
+    }else if(type == 2){
         event = std::make_unique<SetMeshInstance>();
+    }else if(type == 3){
+        event = std::make_unique<SetConvexSolid>();
+    }else if(type == 4){
+        event = std::make_unique<MoveSimpleSolid>();
+    }else{
+        printf("Unrecognized Event type\n");
+        Variant(map).printFormatted();
     }
     event->set(map);
     return std::move(event);

@@ -303,7 +303,7 @@ Variant GLTF::getChangedBuffer(int selected_material){
         vector<vec4> weights;
         vector<ivec4> joints;
         for(const auto& v : this->vertices){
-            color.push_back(v.color_mult);
+            color.push_back(vec4(v.color_mult.g, v.color_mult.b, v.color_mult.a, v.color_mult.r));// Not sure why, but GLSL doesn't map these the same
             tex_coord.push_back(v.tex_coord);
             weights.push_back(v.weights);
             joints.push_back(v.joints);
@@ -361,13 +361,14 @@ Variant GLTF::getBoneData(){
 Variant GLTF::getCompressedBoneData(){
     int num_bones = nodes.size() ;
     Variant bone_buffer;
-    bone_buffer.makeFillableFloatArray(num_bones*3);
+    bone_buffer.makeFillableFloatArray(num_bones*4);
     float* bone_buffer_array =  bone_buffer.getFloatArray() ;
     for(int node_id=0; node_id<nodes.size(); node_id++){   
         Node& node = nodes[node_id];
-        bone_buffer_array[node_id*3] = node.rotation.x ;
-        bone_buffer_array[node_id*3 + 1] = node.rotation.y ;
-        bone_buffer_array[node_id*3 + 2] = node.rotation.z ;
+        bone_buffer_array[node_id*4] = node.rotation.x ;
+        bone_buffer_array[node_id*4 + 1] = node.rotation.y ;
+        bone_buffer_array[node_id*4 + 2] = node.rotation.z ;
+        bone_buffer_array[node_id*4 + 3] = node.rotation.w ;
     }
     return bone_buffer ;
 }
@@ -384,7 +385,8 @@ Variant GLTF::getBoneData(const Variant& compressed){
         j++;
         node.rotation.z = x[j];
         j++;
-        node.rotation.w = sqrt(1- (node.rotation.x*node.rotation.x + node.rotation.y*node.rotation.y + node.rotation.z*node.rotation.z));
+        node.rotation.w = x[j];
+        j++;
     }
     computeNodeMatrices();
     Variant bd = getBoneData() ;
@@ -984,7 +986,7 @@ void GLTF::addAnimation(Variant& animation_json, Variant& json, const Variant& b
     
     Animation animation ;
     animation.name = animation_json["name"].getString();
-    printf("Adding animation %s!\n", animation.name.c_str());
+    printf("Adding animation %d: %s!\n", (int)this->animations.size(), animation.name.c_str());
 
     vector<Variant> accessors = json["accessors"].getVariantArray();
     vector<Variant> views = json["bufferViews"].getVariantArray() ;
@@ -1123,20 +1125,18 @@ vec3 GLTF::getNormal(Triangle t){
 }
 
 void GLTF::setTetraModel(glm::vec3 center, float size){
-
-    //TODO color_mult seems tor be g,b,alpha,r for some reason, what's up with that
     Vertex A, B, C, D ;
     A.position = vec3(center[0] + size ,center[1] + size, center[2]-size);
     A.weights = vec4(1,0,0,0);
-    A.color_mult = vec4(0,0,1,0) ; // black
+    A.color_mult = vec4(0,0,0,1) ; // black
     B.position = vec3(center[0] - size,center[1] + size,center[2]-size);
-    B.color_mult = vec4(1,0,1,0) ; // green
+    B.color_mult = vec4(0,1,0,1) ; // green
     B.weights = vec4(1,0,0,0);
     C.position = vec3(center[0], center[1] - size, center[2]-size);
-    C.color_mult = vec4(0,1,1,0) ; // blue
+    C.color_mult = vec4(0,0,1,1) ; // blue
     C.weights = vec4(1,0,0,0);
     D.position = vec3(center[0], center[1], center[2] + size);
-    D.color_mult = vec4(0,0,1,1) ; // red
+    D.color_mult = vec4(1,0,0,1) ; // red
     D.weights = vec4(1,0,0,0);
 
     vector<Vertex> v ;
@@ -1162,6 +1162,43 @@ void GLTF::setTetraModel(glm::vec3 center, float size){
     root_nodes.push_back(0);
 
     setModel(v, t);
+}
+
+// Sets the model to a polyhedron of the given color (Can be used to generate visuals for ConvexShape objects)
+void GLTF::setPolyhedronModel(std::vector<glm::vec3>& vertices, std::vector<std::vector<int>>& faces, glm::vec3 color){
+
+
+    //TODO color_mult seems tor be g,b,alpha,r for some reason, what's up with that
+
+
+    vector<Vertex> v ;
+    for(int k=0;k<vertices.size();k++){
+        Vertex p;
+        p.position = vertices[k];
+        p.weights = vec4(1,0,0,0);
+        p.color_mult = vec4(color, 1);
+        v.push_back(p);
+    }
+
+    vector<Triangle> t;
+    for(vector<int>& face : faces){
+        for(int k=1; k < face.size()-1;k++){
+            t.push_back({face[0], face[k], face[k+1], 0});
+        }
+    }
+
+    Material m ;
+    materials[0] = m;
+    transform = mat4(1);
+    nodes =  vector<Node>();
+    Node n ;
+    n.transform = mat4(1);
+    nodes.push_back(n);
+    root_nodes = vector<int>();
+    root_nodes.push_back(0);
+
+    setModel(v, t);
+
 }
 
 // Given a ray in model space (p + v*t) return the t value of the nearest collision
