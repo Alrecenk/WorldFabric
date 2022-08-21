@@ -1,6 +1,8 @@
 #include "MoveSimpleSolid.h"
 #include "ConvexSolid.h"
 
+#include <algorithm>
+
 using std::string ;
 using std::map ;
 using std::vector;
@@ -74,19 +76,7 @@ void MoveSimpleSolid::run(){
             self->angular_velocity *= new_speed/speed;
         }
 
-        // Calculate radius if it isn't set yet
-        if(self->radius == 0){ // TODO this should probably be done on initialization somehow
-            weak_ptr<TObject> cw = get(self->shape_id) ; 
-            if(auto cg = cw.lock()){
-                shared_ptr<ConvexShape> shape = std::static_pointer_cast<ConvexShape>(cg);
-                for(int k=0;k<shape->vertex.size();k++){
-                    float r = glm::length(shape->vertex[k]);
-                    if(r > self->radius){
-                        self->radius = r ;
-                    }
-                }
-            }
-        }
+        
 
         if(moving){
             self->move(interval);
@@ -108,6 +98,47 @@ void MoveSimpleSolid::run(){
             }
 
         }
+
+        self->status = 0 ;
+        weak_ptr<TObject> sw = get(self->shape_id) ; 
+        if(auto sg = sw.lock()){ // if has a shape
+            shared_ptr<ConvexShape> shape = std::static_pointer_cast<ConvexShape>(sg);
+            self->radius = shape->radius; // keep radius up to date with shape
+            vector<int> collisions = getCollisions();
+            if(collisions.size() > 0){ // only compute world planes for this frame if close enough anything to use them
+                self->computeWorldPlanes(shape);
+            }
+            
+            for(int j = 0 ;j < collisions.size();j++){
+                weak_ptr<TObject> cw = get(collisions[j]) ;
+                if(auto cg = cw.lock()){
+                    if(cg->type == 2 ) { //other is also a solid
+                        self->status = std::max(1,self->status) ; //update status to yellow
+                        shared_ptr<ConvexSolid> other = std::static_pointer_cast<ConvexSolid>(cg);
+                        // Compute other's world planes if required (and it might be since they aren't serialized)
+                        if(other->world_vertex.size() == 0){
+                            weak_ptr<TObject> qsw = get(other->shape_id) ; 
+                            if(auto qsg = qsw.lock()){ // if has a shape
+                                shared_ptr<ConvexShape> other_shape = std::static_pointer_cast<ConvexShape>(qsg);
+                                other->computeWorldPlanes(other_shape);
+                            }else{
+                                printf("Error: solid without shape!\n");
+                            }
+                        }
+
+                        std::pair<glm::vec3, glm::vec3> collision = self->checkCollision(other) ;
+                        vec3 move = collision.first ;
+                        vec3 point = collision.second ;
+                        if(glm::dot(move,move) > 0){
+                            self->status = 2; // mark colliding for visualizer
+                        }
+                    }
+                }
+            }
+        }else{
+            printf("Error: solid without shape!\n");
+        }
+
         
 
     }

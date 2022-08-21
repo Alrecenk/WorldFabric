@@ -11,7 +11,16 @@ ConvexShape::ConvexShape(const std::vector<glm::vec3> &vertices, const std::vect
     vertex = vertices;
     face = faces;
     position = vec3(0,0,0);
-    radius = 0;
+    
+     // Calculate radius
+    radius = 0 ;
+    for(int k=0;k<vertex.size();k++){
+        float r = glm::length(vertex[k]);
+        if(r > radius){
+            radius = r ;
+        }
+    }
+
     type = 3;
 }
 
@@ -52,7 +61,6 @@ std::map<std::string,Variant> ConvexShape::serialize() const{
             j++;
         }
     }
-
     serial["type"] = Variant(type);
     return serial;
 }
@@ -79,6 +87,15 @@ void ConvexShape::set(std::map<std::string,Variant>& serialized){
             j++;
         }
         face.push_back(f);
+    }
+
+    // Calculate radius
+    radius = 0 ;
+    for(int k=0;k<vertex.size();k++){
+        float r = glm::length(vertex[k]);
+        if(r > radius){
+            radius = r ;
+        }
     }
 }
 

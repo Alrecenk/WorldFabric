@@ -15,6 +15,11 @@ class ConvexSolid : public TObject{
         glm::vec3 angular_velocity;
         float mass;
 
+        //temporary computed variables
+        std::vector<glm::vec3> world_vertex;
+        std::vector<std::pair<glm::vec3, float>> world_plane;
+        int status = 0 ;// for debug render 0 = no collison, 1 = sphere collision, 2 = full collision
+
         ConvexSolid();
 
         ConvexSolid(int shape_id, float mass, glm::vec3 p, glm::quat orientation);
@@ -43,15 +48,19 @@ class ConvexSolid : public TObject{
         // Steps this solid forward by the given amount of time
         void move(double dt);
 
+        void computeWorldPlanes(std::shared_ptr<ConvexShape> shape);
+
         // Checks if there is a collision between this solid and another
         // Returns the minimal projection vector to move this object to no longer collide
         // If there was a collision the second element will be the point of collision
         // If there is not a collision return (0,0,0) for both vectors.
-        std::pair<glm::vec3, glm::vec3> checkCollision(ConvexSolid& other);
+        std::pair<glm::vec3, glm::vec3> checkCollision(std::shared_ptr<ConvexSolid> other);
 
         // Given an object that does collide this returns the change to velocity and angular_velocity 
         // that should be applied to this for a completely elastic collision
-        std::pair<glm::vec3, glm::vec3> getCollisionImpulse(ConvexSolid& other);
+        std::pair<glm::vec3, glm::vec3> getCollisionImpulse(std::shared_ptr<ConvexSolid> other);
+
+        
 
 
         
