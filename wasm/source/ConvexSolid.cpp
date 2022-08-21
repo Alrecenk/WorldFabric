@@ -2,6 +2,7 @@
 #include "ConvexSolid.h"
 
 using glm::vec3 ;
+using glm::vec4 ;
 using glm::mat4 ;
 using glm::quat ;
 using std::vector ;
@@ -67,7 +68,9 @@ void ConvexSolid::set(std::map<std::string,Variant>& serialized){
 // Override this to provide an efficient deep copy of this object
 // If not overridden serialize and set will be used to copy your object (which will be inefficent)
 std::unique_ptr<TObject> ConvexSolid::deepCopy(){
-    return std::make_unique<ConvexSolid>(position, radius, mass, shape_id, velocity, orientation, angular_velocity);
+    std::unique_ptr<ConvexSolid> c = std::make_unique<ConvexSolid>(position, radius, mass, shape_id, velocity, orientation, angular_velocity);
+    c->status = status ; // copy status only locally, so getObservable can pick it up for debug visuals
+    return c ;
 }
 
 // Override this function to provide logic for interpolation after rollback or extrapolation for slowly updating objects
@@ -94,6 +97,27 @@ void ConvexSolid::move(double dt){
         orientation *= dr;
     }
     orientation = glm::normalize(orientation);
+}
+
+
+void ConvexSolid::computeWorldPlanes(std::shared_ptr<ConvexShape> shape){
+    world_vertex = vector<vec3>();
+    world_vertex.reserve(shape->vertex.size());
+    glm::mat mat = getTransform();
+    for(int k=0;k < shape->vertex.size();k++){
+        world_vertex.push_back(mat*vec4(shape->vertex[k],1.0f));
+    }
+    world_plane = vector<std::pair<glm::vec3, float>>();
+    world_plane.reserve(shape->face.size());
+    for (int k = 0; k < shape->face.size(); k++) {
+        const vec3 &A = world_vertex[shape->face[k][0]];
+        const vec3 &B = world_vertex[shape->face[k][1]];
+        const vec3 &C = world_vertex[shape->face[k][2]];
+        // How normal is defined determines which winding order is "correct"
+        vec3 world_face_normal = glm::normalize(glm::cross(B - A, C - A));
+        float world_face_d = -glm::dot(A, world_face_normal);
+        world_plane.push_back(std::make_pair(world_face_normal, world_face_d));
+    }
 }
 
 // Checks if there is a collision between this solid and another

@@ -74,19 +74,7 @@ void MoveSimpleSolid::run(){
             self->angular_velocity *= new_speed/speed;
         }
 
-        // Calculate radius if it isn't set yet
-        if(self->radius == 0){ // TODO this should probably be done on initialization somehow
-            weak_ptr<TObject> cw = get(self->shape_id) ; 
-            if(auto cg = cw.lock()){
-                shared_ptr<ConvexShape> shape = std::static_pointer_cast<ConvexShape>(cg);
-                for(int k=0;k<shape->vertex.size();k++){
-                    float r = glm::length(shape->vertex[k]);
-                    if(r > self->radius){
-                        self->radius = r ;
-                    }
-                }
-            }
-        }
+        
 
         if(moving){
             self->move(interval);
@@ -107,6 +95,28 @@ void MoveSimpleSolid::run(){
                 self->velocity = vec3(0,0,0);
             }
 
+        }
+
+        self->status = 0 ;
+        weak_ptr<TObject> sw = get(self->shape_id) ; 
+        if(auto sg = sw.lock()){ // if has a shape
+            shared_ptr<ConvexShape> shape = std::static_pointer_cast<ConvexShape>(sg);
+            self->radius = shape->radius; // keep radius up to date with shape
+            vector<int> collisions = getCollisions();
+            for(int j = 0 ;j < collisions.size();j++){
+            
+                weak_ptr<TObject> cw = get(collisions[j]) ;
+                if(auto cg = cw.lock()){
+                    if(cg->type == 2 ) { //other is also a solid
+                        self->status = 1 ;
+                        /*
+                        if(collisions[j] < anchor_id){ // only handle each collision once
+                            shared_ptr<ConvexSolid> c = std::static_pointer_cast<ConvexSolid>(cg);
+                        }
+                        */
+                    }
+                }
+            }
         }
         
 
