@@ -3,6 +3,7 @@
 
 using glm::vec3 ;
 using glm::vec4 ;
+using glm::mat3 ;
 using glm::mat4 ;
 using glm::quat ;
 using std::vector ;
@@ -123,9 +124,13 @@ void ConvexSolid::computeWorldPlanes(std::shared_ptr<ConvexShape> shape){
 // Checks if there is a collision between this solid and another
 // Assumes both solids have computed up to date world planes
 // Returns the minimal projection vector to move this object to no longer collide
-// If there was a collision the second element will be the point of collision
-// If there is not a collision return (0,0,0) for both vectors.
-std::pair<glm::vec3, glm::vec3> ConvexSolid::checkCollision(std::shared_ptr<ConvexSolid> other){
+// If there was a collision the second element will be the point of collision, and third will be normal
+// If there is not a collision returns empty vector
+std::vector<glm::vec3> ConvexSolid::checkCollision(std::shared_ptr<ConvexSolid> other){
+    if(world_vertex.size() == 0 || other->world_vertex.size() ==0){
+        printf("Collision check on undefined world_data!\n");
+    }
+
 
     float best_move = std::numeric_limits<float>::max();
     vec3 best_normal = vec3(0,0,0);
@@ -146,7 +151,7 @@ std::pair<glm::vec3, glm::vec3> ConvexSolid::checkCollision(std::shared_ptr<Conv
             }
         }
         if (correction >= 0) { // worst collision is no collision
-            return std::pair<glm::vec3, glm::vec3>(vec3(0,0,0), vec3(0,0,0)); // no collision, we're done
+            return vector<vec3>();  // no collision, we're done
         } else if (-correction < best_move) {
             // keep track of smallest correction
             best_move = -correction;
@@ -169,7 +174,7 @@ std::pair<glm::vec3, glm::vec3> ConvexSolid::checkCollision(std::shared_ptr<Conv
             }
         }
         if (correction >= 0) { // worst collision is no collision
-            return std::pair<glm::vec3, glm::vec3>(vec3(0,0,0), vec3(0,0,0)); // no collision, we're done
+            return vector<vec3>();  // no collision, we're done
         } else if (-correction < best_move) {
             // keep track of smallest correction
             best_move = -correction;
@@ -177,13 +182,42 @@ std::pair<glm::vec3, glm::vec3> ConvexSolid::checkCollision(std::shared_ptr<Conv
             best_point = cp + N*(best_move*0.5f); // collision point halfway between plane and point
         }
     }
-    return std::pair<glm::vec3, glm::vec3>(best_normal * best_move, best_point);
+
+    vector<vec3> result ;
+    result.push_back(best_normal * best_move );
+    result.push_back(best_point);
+    result.push_back(best_normal);
+    return result ;
 }
 
-// Given an object that does collide this returns the change to velocity and angular_velocity 
-// that should be applied to this for a completely elastic collision
-std::pair<glm::vec3, glm::vec3> ConvexSolid::getCollisionImpulse(std::shared_ptr<ConvexSolid> other){
-    // TODO
-    return std::pair<glm::vec3, glm::vec3>(vec3(0,0,0), vec3(0,0,0));
+// Given an object that does collide with the collision point and normal
+// return the impulse to be applied to this object to resolve the collision (negative should be applied to other)
+glm::vec3 ConvexSolid::getCollisionImpulse(std::shared_ptr<ConvexSolid> other, const vec3& collision_point, const vec3& collision_normal, double elasticity){
+    // Formula from Game Physics by David H Eberly, Chapter 5 pg 248
+    mat3 AJinv(5.0f / (2.0f*mass*radius*radius)); // TODO inverse moment of inertia
+    mat3 BJinv(5.0f / (2.0f*other->mass*other->radius*other->radius));
+    //mat3 AJinv(1.0f);
+    //mat3 BJinv(1.0f);
+    vec3 rA = collision_point - position;
+    vec3 rB = collision_point - other->position;
+    vec3 kA = glm::cross(rA,collision_normal);
+    vec3 kB = glm::cross(rB,collision_normal);
+    vec3 uA = AJinv * kA;
+    vec3 uB = BJinv * kB;
+    double f_num = -(1.0+elasticity)* (glm::dot(collision_normal, velocity - other->velocity) + glm::dot(angular_velocity,kA) - glm::dot(other->angular_velocity,kB));
+    double f_den = 1.0/mass + 1.0/other->mass + glm::dot(kA, uA) + glm::dot(kB, uB) ;
+    double f = f_num/f_den;
+    vec3 impulse = collision_normal*(float)f;
+
+    return impulse;
+}
+
+// apply an impulse (momentum change) at the given point in world cooredinates
+void ConvexSolid::applyImpulse(const vec3& impulse, const vec3& point){
+    vec3 rA = point - position;
+    mat3 AJinv(5.0f / (2.0f*mass*radius*radius)); // TODO inverse moment of inertia
+    //mat3 AJinv(1.0f);
+    velocity += impulse/mass;
+    angular_velocity += AJinv * glm::cross(rA, impulse) ; // TODO why is this minus
 }
 

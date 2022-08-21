@@ -84,7 +84,8 @@ API_SRC    =${API_DIR}source/Variant.cpp \
 			${API_DIR}source/ConvexShape.cpp \
 			${API_DIR}source/ConvexSolid.cpp \
 			${API_DIR}source/MoveSimpleSolid.cpp \
-			${API_DIR}source/SetConvexSolid.cpp
+			${API_DIR}source/SetConvexSolid.cpp \
+			${API_DIR}source/ApplySolidImpulse.cpp
 
 			
 default: all
