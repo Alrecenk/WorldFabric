@@ -121,17 +121,68 @@ void ConvexSolid::computeWorldPlanes(std::shared_ptr<ConvexShape> shape){
 }
 
 // Checks if there is a collision between this solid and another
+// Assumes both solids have computed up to date world planes
 // Returns the minimal projection vector to move this object to no longer collide
 // If there was a collision the second element will be the point of collision
 // If there is not a collision return (0,0,0) for both vectors.
-std::pair<glm::vec3, glm::vec3> ConvexSolid::checkCollision(ConvexSolid& other){
-    // TODO
-    return std::pair<glm::vec3, glm::vec3>(vec3(0,0,0), vec3(0,0,0));
+std::pair<glm::vec3, glm::vec3> ConvexSolid::checkCollision(std::shared_ptr<ConvexSolid> other){
+
+    float best_move = std::numeric_limits<float>::max();
+    vec3 best_normal = vec3(0,0,0);
+    vec3 best_point = vec3(0,0,0);
+    // Check our faces for a separating axis_
+    for (int k = 0; k < world_plane.size(); k++) {
+        const vec3 &N = world_plane[k].first;
+        const float d = world_plane[k].second;
+        //TODO there's an early out trick per face if the face points away from the other mesh, but I forgot how it works
+        float correction = std::numeric_limits<float>::max();
+        // Get the most intersecting point on the other polygon (most behind plane)
+        vec3 cp = vec3(0,0,0);
+        for (auto& j : other->world_vertex) {
+            float nd = glm::dot(j, N) + d ;
+            if(nd < correction){
+                correction = nd ;
+                cp = j ;
+            }
+        }
+        if (correction >= 0) { // worst collision is no collision
+            return std::pair<glm::vec3, glm::vec3>(vec3(0,0,0), vec3(0,0,0)); // no collision, we're done
+        } else if (-correction < best_move) {
+            // keep track of smallest correction
+            best_move = -correction;
+            best_normal = N * -1.0f;
+            best_point = cp + N*(best_move*0.5f); // collision point halfway between plane and point
+        }
+    }
+    //Check their faces for a separating axis
+    for (int k = 0; k < other->world_plane.size(); k++) {
+        const vec3 &N = other->world_plane[k].first;
+        const float d = other->world_plane[k].second;
+        float correction = std::numeric_limits<float>::max();
+        // Get the most intersecting point on the other polygon (most behind plane)
+        vec3 cp = vec3(0,0,0);
+        for (auto& vertex : world_vertex) {
+            float nd = glm::dot(vertex, N) + d ;
+            if(nd < correction){
+                correction = nd ;
+                cp = vertex ;
+            }
+        }
+        if (correction >= 0) { // worst collision is no collision
+            return std::pair<glm::vec3, glm::vec3>(vec3(0,0,0), vec3(0,0,0)); // no collision, we're done
+        } else if (-correction < best_move) {
+            // keep track of smallest correction
+            best_move = -correction;
+            best_normal = N;
+            best_point = cp + N*(best_move*0.5f); // collision point halfway between plane and point
+        }
+    }
+    return std::pair<glm::vec3, glm::vec3>(best_normal * best_move, best_point);
 }
 
 // Given an object that does collide this returns the change to velocity and angular_velocity 
 // that should be applied to this for a completely elastic collision
-std::pair<glm::vec3, glm::vec3> ConvexSolid::getCollisionImpulse(ConvexSolid& other){
+std::pair<glm::vec3, glm::vec3> ConvexSolid::getCollisionImpulse(std::shared_ptr<ConvexSolid> other){
     // TODO
     return std::pair<glm::vec3, glm::vec3>(vec3(0,0,0), vec3(0,0,0));
 }

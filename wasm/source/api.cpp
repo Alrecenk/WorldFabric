@@ -634,7 +634,7 @@ byte* getMeshInstances(byte* ptr){
             
             }else if(o->type == 3){ // convex shape
                 string mesh_name = "shape-" + std::to_string(ob[k]) +"-"  ;
-                std::shared_ptr<GLTF> mesh_asset = meshes[mesh_name];
+                std::shared_ptr<GLTF> mesh_asset = meshes[mesh_name+"0"] ;
                 if(mesh_asset == nullptr){
                     shared_ptr<ConvexShape> shape = std::static_pointer_cast<ConvexShape>(o);
                     meshes.addLocalShapeMesh(mesh_name + "0", shape, vec3(0.85, 0.85, 1.0)); // blue for good

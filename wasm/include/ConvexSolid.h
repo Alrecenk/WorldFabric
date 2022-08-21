@@ -54,11 +54,11 @@ class ConvexSolid : public TObject{
         // Returns the minimal projection vector to move this object to no longer collide
         // If there was a collision the second element will be the point of collision
         // If there is not a collision return (0,0,0) for both vectors.
-        std::pair<glm::vec3, glm::vec3> checkCollision(ConvexSolid& other);
+        std::pair<glm::vec3, glm::vec3> checkCollision(std::shared_ptr<ConvexSolid> other);
 
         // Given an object that does collide this returns the change to velocity and angular_velocity 
         // that should be applied to this for a completely elastic collision
-        std::pair<glm::vec3, glm::vec3> getCollisionImpulse(ConvexSolid& other);
+        std::pair<glm::vec3, glm::vec3> getCollisionImpulse(std::shared_ptr<ConvexSolid> other);
 
         
 
