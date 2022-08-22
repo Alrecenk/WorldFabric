@@ -15,6 +15,8 @@ class MoveSimpleSolid : public TEvent{
 
         static float friction ; // amount of velocity lost per second
         static float angular_friction ; // amount of angular velocity lost per second
+        static float max_speed ; // max speed
+        static float max_angular_speed ; // max rotational speed
 
         double interval ;
 

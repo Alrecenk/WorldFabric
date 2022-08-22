@@ -141,6 +141,7 @@ std::set<Key> LRUCache<Key, Value>::popDeletedKeys(){
 template<class Key, class Value>
 std::vector<Key> LRUCache<Key, Value>::getAllKeys(){
     std::vector<Key> keys;
+    keys.reserve(map.size());
     for(auto& kv : map) {
         keys.push_back(kv.first);
     }

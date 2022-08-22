@@ -898,7 +898,7 @@ bool GLTF::addImage(int image_id, Variant& json, const Variant& bin){
         
         img.data = Variant(pixels,img.width*img.height*img.channels);
         free(pixels);
-        printf("Loaded texture: %ix%ix%i = %d \n", img.width, img.height, img.channels, byteLength);
+        //printf("Loaded texture: %ix%ix%i = %d \n", img.width, img.height, img.channels, byteLength);
         return true ;
     }
     return true;
@@ -1109,8 +1109,8 @@ void GLTF::setModel(const std::vector<Vertex>& vertices, const std::vector<Trian
     this->model_changed = true;
     this->position_changed = true;
 
-    printf("Total vertices: %d\n",(int) this->vertices.size());
-    printf("Total triangles: %d\n",(int) this->triangles.size());
+    //printf("Total vertices: %d\n",(int) this->vertices.size());
+    //printf("Total triangles: %d\n",(int) this->triangles.size());
 }
 
 // hashes a vertex to allow duplicates to be detected and merged
