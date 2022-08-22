@@ -13,8 +13,10 @@ using std::shared_ptr;
 using std::unique_ptr;
 
 
-float MoveSimpleSolid::friction = 0.025 ;
-float MoveSimpleSolid::angular_friction = 0.015 ;
+float MoveSimpleSolid::friction = 0.035 ;
+float MoveSimpleSolid::angular_friction = 0.035 ;
+float MoveSimpleSolid::max_speed = 10 ;
+float MoveSimpleSolid::max_angular_speed = 10 ;
 
 MoveSimpleSolid::MoveSimpleSolid(){
     type = 4 ; // TODO don't hardcode this
@@ -66,14 +68,14 @@ void MoveSimpleSolid::run(){
         float speed = glm::length(self->velocity);
         if(speed > 0){
             moving = true;
-            float new_speed = fmax(0,speed-MoveSimpleSolid::friction*interval);
+            float new_speed = fmin(MoveSimpleSolid::max_speed,fmax(0,speed-MoveSimpleSolid::friction*interval));
             self->velocity *= new_speed/speed;
         }
 
         speed = glm::length(self->angular_velocity);
         if(speed > 0){
             moving = true;
-            float new_speed = fmax(0,speed-MoveSimpleSolid::angular_friction*interval);
+            float new_speed = fmin(MoveSimpleSolid::max_angular_speed, fmax(0,speed-MoveSimpleSolid::angular_friction*interval));
             self->angular_velocity *= new_speed/speed;
         }
 
@@ -94,8 +96,8 @@ void MoveSimpleSolid::run(){
 
             //clamp to local area for demo
             if(glm::length(self->position)>7){
-                self->position = self->velocity + vec3(0,0,1.75) ;
                 self->velocity = self->velocity*0.1f ;
+                self->position = self->velocity + vec3(0,0,1.75) ;
             }
 
         }

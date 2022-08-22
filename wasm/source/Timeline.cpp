@@ -152,8 +152,8 @@ TEvent* Timeline::nextEventToRun(glm::vec3 vantage, double time){
     return best_event ;
 }
 
-std::priority_queue<std::pair<double, TEvent*>> Timeline::getAllEvenstToRun(glm::vec3 vantage, double time){
-    std::priority_queue<std::pair<double, TEvent*>> event_queue ;
+std::priority_queue<std::pair<double, std::shared_ptr<TEvent>>> Timeline::getAllEventsToRun(glm::vec3 vantage, double time){
+    std::priority_queue<std::pair<double, std::shared_ptr<TEvent>>> event_queue ;
     for(std::shared_ptr<TEvent>& e : pending_events){
         if(e.get() != nullptr && !e->disabled && !e->has_run){
             weak_ptr<TObject> eo = getObjectInstant(e->anchor_id, e->time) ;
@@ -162,8 +162,8 @@ std::priority_queue<std::pair<double, TEvent*>> Timeline::getAllEvenstToRun(glm:
                 double dist = glm::length(vantage - eo2->position);
                 time_to_run = e->time + fmin(max_time_warp, dist/info_speed);
             }
-            if(time_to_run <= time){
-                event_queue.push(std::pair<double,TEvent*>(-time_to_run, e.get())); // priority queue runs highest first
+            if(time_to_run <= time && time_to_run > current_time-history_kept){
+                event_queue.push(std::pair<double,std::shared_ptr<TEvent>>(-time_to_run, e)); // priority queue runs highest first
             }
         }else{
             e.reset();
@@ -187,11 +187,11 @@ void Timeline::run(double new_time){
         has_vantage= true;
     }
 
-    std::priority_queue<std::pair<double, TEvent*>> event_queue = getAllEvenstToRun(vantage, new_time);
+    std::priority_queue<std::pair<double, std::shared_ptr<TEvent>>> event_queue = getAllEventsToRun(vantage, new_time);
     while(!event_queue.empty()){
-        TEvent*  current_event = event_queue.top().second;
+        std::shared_ptr<TEvent> current_event = event_queue.top().second;
         event_queue.pop();
-        if(current_event->disabled || current_event->has_run){ // events could be squashed or duplicated from rollback operations
+        if(current_event == nullptr || current_event->disabled || current_event->has_run){ // events could be squashed or duplicated from rollback operations
             continue ;
         }
         total_runs++;
@@ -201,13 +201,13 @@ void Timeline::run(double new_time){
         current_event->has_run = true;
         bool requeued = false;
         if(current_event->wrote_anchor){
-            collisions.onDataChanged(current_event);
+            collisions.onDataChanged(current_event.get());
             if(has_vantage && current_event->anchor_id == vantage_id ){ // if vantage object changed
                 weak_ptr<TObject> eo = getObjectInstant(current_event->anchor_id, new_time) ;
                 if(auto eo2 = eo.lock()){
                     if(eo2->position != vantage){// vantage point may have changed
                         vantage = eo2->position; 
-                        event_queue = getAllEvenstToRun(vantage, new_time); // regenerate event queue with new vantage
+                        event_queue = getAllEventsToRun(vantage, new_time); // regenerate event queue with new vantage
                         requeued = true ;
                     }
                 }
@@ -227,7 +227,7 @@ void Timeline::run(double new_time){
                             time_to_run = e->time + fmin(max_time_warp, dist/info_speed);
                         }
                         if(time_to_run <= new_time){
-                            event_queue.push(std::pair<double,TEvent*>(-time_to_run, e.get())); // priority queue runs highest first
+                            event_queue.push(std::pair<double,std::shared_ptr<TEvent>>(-time_to_run, e)); // priority queue runs highest first
                         }
                     }
                 }
@@ -245,7 +245,7 @@ void Timeline::run(double new_time){
                             time_to_run = e->time + fmin(max_time_warp, dist/info_speed);
                         }
                         if(time_to_run <= new_time){
-                            event_queue.push(std::pair<double,TEvent*>(-time_to_run, e.get())); // priority queue runs highest first
+                            event_queue.push(std::pair<double,std::shared_ptr<TEvent>>(-time_to_run, e)); // priority queue runs highest first
                         }
                     }
                 }
@@ -640,7 +640,7 @@ void Timeline::applyUpdate(const Variant& update, bool server){
             }
         }
     }
-    
+
 }
 
 // Given a packet with an update and optional descriptor

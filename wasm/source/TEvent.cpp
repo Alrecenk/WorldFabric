@@ -75,6 +75,8 @@ void TEvent::notify(const std::string& trigger, const Variant& data){
 }
 
 void TEvent::unrun(){
+    //printf("unrun:\n");
+    //Variant(serialize()).printFormatted();
     timeline->total_unruns++;
     has_run = false;
     timeline->collisions.removeRequests(this);

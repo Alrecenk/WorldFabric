@@ -94,7 +94,7 @@ void CollisionSystem::onDataChanged(TEvent* event){
     
     for( TEvent* r : to_rerun){
         if(!r->disabled && r->has_run){
-            timeline->collisions.removeRequests(r); // aggressive removal prevents recursive unruns from slowing down on this function           
+            timeline->collisions.removeRequests(r); // aggressive removal prevents recursive unruns from slowing down on this function  
             r->unrun();
         }
     }
