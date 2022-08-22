@@ -13,10 +13,11 @@ class ApplySolidImpulse: public TEvent{
     public:
         glm::vec3 impulse;
         glm::vec3 point ;
+        glm::vec3 move ;
 
         ApplySolidImpulse();
 
-        ApplySolidImpulse(int solid_id, glm::vec3 impulse, glm::vec3 point);
+        ApplySolidImpulse(int solid_id, glm::vec3 impulse, glm::vec3 point, glm::vec3 move);
 
         ~ApplySolidImpulse() override;
 

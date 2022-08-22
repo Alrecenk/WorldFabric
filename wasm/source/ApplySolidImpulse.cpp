@@ -11,10 +11,11 @@ using std::unique_ptr;
 ApplySolidImpulse::ApplySolidImpulse(){
     type = 5 ;
 }
-ApplySolidImpulse::ApplySolidImpulse(int solid_id, glm::vec3 nimpulse, glm::vec3 npoint){
+ApplySolidImpulse::ApplySolidImpulse(int solid_id, glm::vec3 nimpulse, glm::vec3 npoint, glm::vec3 nmove){
     anchor_id = solid_id;
     impulse = nimpulse;
     point = npoint ;
+    move = nmove;
     type = 5 ;
 }
 
@@ -27,6 +28,7 @@ std::map<std::string,Variant> ApplySolidImpulse::serialize() const {
     serial["t"] = Variant(time);
     serial["p"] = Variant(point);
     serial["i"] = Variant(impulse);
+    serial["m"] = Variant(move);
     serial["type"] = Variant(type);
     return serial;
 }
@@ -37,6 +39,7 @@ void ApplySolidImpulse::set(std::map<std::string,Variant>& serialized){
     time = serialized["t"].getDouble();
     point = serialized["p"].getVec3();
     impulse = serialized["i"].getVec3();
+    move = serialized["m"].getVec3();
 }
 
 // Runs the event
@@ -48,6 +51,7 @@ void ApplySolidImpulse::run(){
     if(auto og = ow.lock()){
         shared_ptr<ConvexSolid> self = std::static_pointer_cast<ConvexSolid>(og);
         self->applyImpulse(impulse, point);
+        self->position += move;
 
         weak_ptr<TObject> sw = get(self->shape_id) ; 
         if(auto sg = sw.lock()){ // if has a shape

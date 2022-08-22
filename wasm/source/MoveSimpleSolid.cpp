@@ -131,8 +131,9 @@ void MoveSimpleSolid::run(){
                             vec3& point = collision[1] ;
                             vec3& normal = collision[2] ;
                             vec3 impulse = self->getCollisionImpulse(other, point,normal, 1.0);
+                            self->position += move*0.5f;
                             self->applyImpulse(impulse, point);
-                            addEvent(std::make_unique<ApplySolidImpulse>(collisions[j], impulse*-1.0f, point));
+                            addEvent(std::make_unique<ApplySolidImpulse>(collisions[j], impulse*-1.0f, point, move*-0.5f));
 
                         }
                     }
