@@ -93,30 +93,9 @@ void ConvexSolid::move(double dt){
     position += velocity*(float)dt;
     float angular_speed = glm::length(angular_velocity);
     if(angular_speed > 0.00001){
-
-        
-        vec3 rl = vec3(.1,.1,.1);
-        mat4 before = getTransform();
-        vec3 pb = before * vec4(rl,1);
-        vec3 r = pb-position ;
-        vec3 pw = pb + (glm::cross(angular_velocity,r)*(float)dt) ;
-    
-
         float da = angular_speed  * (float)dt ;
         quat dr = glm::angleAxis(da, angular_velocity/angular_speed );
-        //orientation *= dr;
         orientation = dr * orientation ;
-
-        mat4 after = getTransform();
-        vec3 pa = after * vec4(rl,1) ;
-        if(glm::length(pa-pw)>glm::length(pb-pw)){
-            printf("position: (%f, %f, %f)\n", position.x, position.y, position.z);
-            printf("av: (%f, %f, %f)\n", angular_velocity.x, angular_velocity.y, angular_velocity.z);
-            printf("pb:(%f,%f,%f)\n", pb.x, pb.y, pb.z); 
-            printf("pa:(%f,%f,%f)\n", pa.x, pa.y, pa.z); 
-            printf("pw:(%f,%f,%f)\n", pw.x, pw.y, pw.z); 
-        }
-        
     }
     orientation = glm::normalize(orientation);
 }

@@ -819,14 +819,12 @@ byte* setSolidPose(byte* ptr){
         float dt = obj["dt"].getNumberAsFloat();
         vec3 lp = vec3(last_pose[3]);
         v = (p-lp)/dt ;
-        //printf("v: %f, %f, %f\n", v.x, v.y, v.z) ;
         glm::quat lo = glm::quat_cast(last_pose);
 
         glm::quat dq = o * glm::inverse(lo); 
         float angle = glm::angle(dq);
         vec3 axis = glm::axis(dq);
         av = axis*angle/dt;
-        //printf("av: %f, %f, %f\n", av.x, av.y, av.z) ;
     }
     timeline->addEvent(std::make_unique<SetConvexSolid>(id, p, v, o, av),  timeline->current_time+action_delay) ;
     return emptyReturn();

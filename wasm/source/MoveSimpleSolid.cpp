@@ -13,8 +13,8 @@ using std::shared_ptr;
 using std::unique_ptr;
 
 
-float MoveSimpleSolid::friction = 0.25 ;
-float MoveSimpleSolid::angular_friction = 0.15 ;
+float MoveSimpleSolid::friction = 0.025 ;
+float MoveSimpleSolid::angular_friction = 0.015 ;
 
 MoveSimpleSolid::MoveSimpleSolid(){
     type = 4 ; // TODO don't hardcode this
@@ -94,8 +94,8 @@ void MoveSimpleSolid::run(){
 
             //clamp to local area for demo
             if(glm::length(self->position)>7){
-                self->position = self->velocity ;
-                self->velocity = self->velocity*0.5f ;
+                self->position = self->velocity + vec3(0,0,1.75) ;
+                self->velocity = self->velocity*0.1f ;
             }
 
         }
@@ -113,7 +113,6 @@ void MoveSimpleSolid::run(){
                 weak_ptr<TObject> cw = get(collisions[j]) ;
                 if(auto cg = cw.lock()){
                     if(cg->type == 2 ) { //other is also a solid
-                        self->status = std::max(1,self->status) ; //update status to yellow
                         shared_ptr<ConvexSolid> other = std::static_pointer_cast<ConvexSolid>(cg);
                         // Compute other's world planes if required (and it might be since they aren't serialized)
                         //if(other->world_vertex.size() == 0){
@@ -131,24 +130,7 @@ void MoveSimpleSolid::run(){
                             vec3& move = collision[0] ;
                             vec3& point = collision[1] ;
                             vec3& normal = collision[2] ;
-                            self->status = 2; // mark colliding for visualizer
-                            printf("collision of A (%f, %f, %f) r = %f and B(%f,%f,%f) r= %f\n", 
-                                self->position.x,self->position.y,self->position.z, self->radius,
-                                other->position.x, other->position.y, other->position.z, other->radius);
-                            printf("A.v = (%f, %f, %f) A.av = (%f,%f,%f)\n", 
-                                self->velocity.x, self->velocity.y, self->velocity.z,
-                                self->angular_velocity.x, self->angular_velocity.y, self->angular_velocity.z);
-                            printf("B.v = (%f, %f, %f) B.av = (%f,%f,%f)\n", 
-                                other->velocity.x, other->velocity.y, other->velocity.z,
-                                other->angular_velocity.x, other->angular_velocity.y, other->angular_velocity.z);
-                            printf("time: %f\n", time);
-                            printf("move: (%f, %f, %f)\n", move.x,move.y,move.z);
-                            vec3 center = (self->position + other->position)*0.5f ;
-                            printf("point: (%f, %f, %f) = (%f,%f,%f) [%f]\n", point.x, point.y, point.z,center.x, center.y,center.z, glm::length(point-center) );
-                            printf("normal: ( %f, %f,%f ) \n", normal.x, normal.y, normal.z);
-
                             vec3 impulse = self->getCollisionImpulse(other, point,normal, 1.0);
-                            printf("impulse: ( %f, %f,%f ) \n", impulse.x, impulse.y, impulse.z);
                             self->applyImpulse(impulse, point);
                             addEvent(std::make_unique<ApplySolidImpulse>(collisions[j], impulse*-1.0f, point));
 
