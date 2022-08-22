@@ -6,6 +6,7 @@
 #include "ConvexSolid.h"
 #include "MoveSimpleSolid.h"
 #include "SetConvexSolid.h"
+#include "ApplySolidImpulse.h"
 
 using std::map;
 using std::string;
@@ -113,6 +114,8 @@ std::unique_ptr<TEvent> MeshInstance::createEvent(const Variant& serialized){
         event = std::make_unique<SetConvexSolid>();
     }else if(type == 4){
         event = std::make_unique<MoveSimpleSolid>();
+    }else if(type == 5){
+        event = std::make_unique<ApplySolidImpulse>();
     }else{
         printf("Unrecognized Event type\n");
         Variant(map).printFormatted();

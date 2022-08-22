@@ -51,18 +51,18 @@ class ConvexSolid : public TObject{
         void computeWorldPlanes(std::shared_ptr<ConvexShape> shape);
 
         // Checks if there is a collision between this solid and another
+        // Assumes both solids have computed up to date world planes
         // Returns the minimal projection vector to move this object to no longer collide
-        // If there was a collision the second element will be the point of collision
-        // If there is not a collision return (0,0,0) for both vectors.
-        std::pair<glm::vec3, glm::vec3> checkCollision(std::shared_ptr<ConvexSolid> other);
+        // If there was a collision the second element will be the point of collision, and third will be normal
+        // If there is not a collision returns empty vector(0,0,0) for both vectors.
+        std::vector<glm::vec3> checkCollision(std::shared_ptr<ConvexSolid> other);
 
-        // Given an object that does collide this returns the change to velocity and angular_velocity 
-        // that should be applied to this for a completely elastic collision
-        std::pair<glm::vec3, glm::vec3> getCollisionImpulse(std::shared_ptr<ConvexSolid> other);
+        // Given an object that does collide with the collision point and normal
+        // return the impulse to be applied to this object to resolve the collision (negative should be applied to other)
+        glm::vec3 getCollisionImpulse(std::shared_ptr<ConvexSolid> other,const glm::vec3& collision_point, const glm::vec3& collision_normal, double elasticity);
 
-        
-
-
-        
+        // apply an impulse (momentum change) at the given point in world cooredinates
+        void applyImpulse(const glm::vec3& impulse, const glm::vec3& point);
+      
 };
 #endif // #ifndef _CONVEX_SOLID_H_

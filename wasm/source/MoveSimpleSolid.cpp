@@ -1,5 +1,6 @@
 #include "MoveSimpleSolid.h"
 #include "ConvexSolid.h"
+#include "ApplySolidImpulse.h"
 
 #include <algorithm>
 
@@ -12,8 +13,8 @@ using std::shared_ptr;
 using std::unique_ptr;
 
 
-float MoveSimpleSolid::friction = 0.45 ;
-float MoveSimpleSolid::angular_friction = 0.25 ;
+float MoveSimpleSolid::friction = 0.025 ;
+float MoveSimpleSolid::angular_friction = 0.015 ;
 
 MoveSimpleSolid::MoveSimpleSolid(){
     type = 4 ; // TODO don't hardcode this
@@ -93,8 +94,8 @@ void MoveSimpleSolid::run(){
 
             //clamp to local area for demo
             if(glm::length(self->position)>7){
-                self->position = vec3(0,0,0);
-                self->velocity = vec3(0,0,0);
+                self->position = self->velocity + vec3(0,0,1.75) ;
+                self->velocity = self->velocity*0.1f ;
             }
 
         }
@@ -104,19 +105,17 @@ void MoveSimpleSolid::run(){
         if(auto sg = sw.lock()){ // if has a shape
             shared_ptr<ConvexShape> shape = std::static_pointer_cast<ConvexShape>(sg);
             self->radius = shape->radius; // keep radius up to date with shape
+            self->computeWorldPlanes(shape);
             vector<int> collisions = getCollisions();
-            if(collisions.size() > 0){ // only compute world planes for this frame if close enough anything to use them
-                self->computeWorldPlanes(shape);
-            }
-            
+
             for(int j = 0 ;j < collisions.size();j++){
+            if(collisions[j] < anchor_id){ // only handle each collision once
                 weak_ptr<TObject> cw = get(collisions[j]) ;
                 if(auto cg = cw.lock()){
                     if(cg->type == 2 ) { //other is also a solid
-                        self->status = std::max(1,self->status) ; //update status to yellow
                         shared_ptr<ConvexSolid> other = std::static_pointer_cast<ConvexSolid>(cg);
                         // Compute other's world planes if required (and it might be since they aren't serialized)
-                        if(other->world_vertex.size() == 0){
+                        //if(other->world_vertex.size() == 0){
                             weak_ptr<TObject> qsw = get(other->shape_id) ; 
                             if(auto qsg = qsw.lock()){ // if has a shape
                                 shared_ptr<ConvexShape> other_shape = std::static_pointer_cast<ConvexShape>(qsg);
@@ -124,17 +123,22 @@ void MoveSimpleSolid::run(){
                             }else{
                                 printf("Error: solid without shape!\n");
                             }
-                        }
+                        //}
 
-                        std::pair<glm::vec3, glm::vec3> collision = self->checkCollision(other) ;
-                        vec3 move = collision.first ;
-                        vec3 point = collision.second ;
-                        if(glm::dot(move,move) > 0){
-                            self->status = 2; // mark colliding for visualizer
+                        vector<vec3> collision = self->checkCollision(other) ;
+                        if(collision.size()>0){
+                            vec3& move = collision[0] ;
+                            vec3& point = collision[1] ;
+                            vec3& normal = collision[2] ;
+                            vec3 impulse = self->getCollisionImpulse(other, point,normal, 1.0);
+                            self->position += move*0.5f;
+                            self->applyImpulse(impulse, point);
+                            addEvent(std::make_unique<ApplySolidImpulse>(collisions[j], impulse*-1.0f, point, move*-0.5f));
+
                         }
                     }
                 }
-            }
+            }}
         }else{
             printf("Error: solid without shape!\n");
         }

@@ -369,12 +369,12 @@ class WorldChatMode extends ExecutionMode{
                         //console.log("setting solid pose");
                         mat4.multiply(pose, pose,this.held_offset[which_hand]);
                         let time = new Date().getTime();
-                        //if(this.last_hand_time[which_hand] == 0 ){
+                        if(this.last_hand_time[which_hand] == 0 ){
                             tools.API.call("setSolidPose", {id:this.held_id[which_hand], pose: pose}, new Serializer()); 
-                        /*}else{
+                        }else{
                             tools.API.call("setSolidPose", {id:this.held_id[which_hand], pose: pose, 
                                 last_pose:this.last_pose[which_hand], dt:(time-this.last_hand_time[which_hand])*0.001 }, new Serializer()); 
-                        }*/
+                        }
                         this.last_pose[which_hand] = pose;
                         this.last_hand_time[which_hand] = time ;
                     }
