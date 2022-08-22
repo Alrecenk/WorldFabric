@@ -822,8 +822,8 @@ byte* setSolidPose(byte* ptr){
         //printf("v: %f, %f, %f\n", v.x, v.y, v.z) ;
         glm::quat lo = glm::quat_cast(last_pose);
 
-        glm::quat dq = glm::inverse(o) *  lo; 
-        float angle = -glm::angle(dq); // TODO why is this negative here? Something is probably wrong elsewhere.
+        glm::quat dq = o * glm::inverse(lo); 
+        float angle = glm::angle(dq);
         vec3 axis = glm::axis(dq);
         av = axis*angle/dt;
         //printf("av: %f, %f, %f\n", av.x, av.y, av.z) ;

@@ -132,8 +132,23 @@ void MoveSimpleSolid::run(){
                             vec3& point = collision[1] ;
                             vec3& normal = collision[2] ;
                             self->status = 2; // mark colliding for visualizer
+                            printf("collision of A (%f, %f, %f) r = %f and B(%f,%f,%f) r= %f\n", 
+                                self->position.x,self->position.y,self->position.z, self->radius,
+                                other->position.x, other->position.y, other->position.z, other->radius);
+                            printf("A.v = (%f, %f, %f) A.av = (%f,%f,%f)\n", 
+                                self->velocity.x, self->velocity.y, self->velocity.z,
+                                self->angular_velocity.x, self->angular_velocity.y, self->angular_velocity.z);
+                            printf("B.v = (%f, %f, %f) B.av = (%f,%f,%f)\n", 
+                                other->velocity.x, other->velocity.y, other->velocity.z,
+                                other->angular_velocity.x, other->angular_velocity.y, other->angular_velocity.z);
+                            printf("time: %f\n", time);
+                            printf("move: (%f, %f, %f)\n", move.x,move.y,move.z);
+                            vec3 center = (self->position + other->position)*0.5f ;
+                            printf("point: (%f, %f, %f) = (%f,%f,%f) [%f]\n", point.x, point.y, point.z,center.x, center.y,center.z, glm::length(point-center) );
+                            printf("normal: ( %f, %f,%f ) \n", normal.x, normal.y, normal.z);
 
                             vec3 impulse = self->getCollisionImpulse(other, point,normal, 1.0);
+                            printf("impulse: ( %f, %f,%f ) \n", impulse.x, impulse.y, impulse.z);
                             self->applyImpulse(impulse, point);
                             addEvent(std::make_unique<ApplySolidImpulse>(collisions[j], impulse*-1.0f, point));
 
