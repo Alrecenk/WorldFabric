@@ -338,6 +338,7 @@ Variant GLTF::getChangedBuffer(int selected_material){
 
     if(model_changed || position_changed){
         buffers["bones"] = getBoneData();
+        buffers["boneless"] = Variant(boneless ? 1 : 0) ;
     }
 
     return Variant(buffers);
@@ -1196,7 +1197,7 @@ void GLTF::setPolyhedronModel(std::vector<glm::vec3>& vertices, std::vector<std:
     nodes.push_back(n);
     root_nodes = vector<int>();
     root_nodes.push_back(0);
-
+    boneless = true;
     setModel(v, t);
 
 }

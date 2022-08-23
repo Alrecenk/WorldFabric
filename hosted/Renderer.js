@@ -139,6 +139,7 @@ class Renderer{
         this.shaderProgram.light_point = gl.getUniformLocation(this.shaderProgram, "u_light_point");
         this.shaderProgram.texture = gl.getUniformLocation(this.shaderProgram, "u_texture");
         this.shaderProgram.bones_texture = gl.getUniformLocation(this.shaderProgram, "bones_texture");
+        this.shaderProgram.boneless = gl.getUniformLocation(this.shaderProgram, "boneless");
         this.shaderProgram.has_texture = gl.getUniformLocation(this.shaderProgram, "u_has_texture");
         this.shaderProgram.alpha_cutoff = gl.getUniformLocation(this.shaderProgram, "u_alpha_cutoff");
         this.shaderProgram.nearness_cutoff = gl.getUniformLocation(this.shaderProgram, "u_nearness_cutoff");
@@ -425,6 +426,7 @@ class Renderer{
         }
 
         this.buffers[id].bones = buffer_data.bones ;
+        this.buffers[id].boneless = buffer_data.boneless
         this.buffers[id].ready = true;
     }
 
@@ -455,18 +457,22 @@ class Renderer{
                 bones = buffer.bones ;
             }
             if(bones){
-                if(!this.bone_tex){
-                    this.bone_tex = gl.createTexture();
+                gl.uniform1i(this.shaderProgram.boneless, buffer.boneless);
+                if(buffer.boneless != 1){
+                    if(!this.bone_tex){
+                        this.bone_tex = gl.createTexture();
+                    }
+                    gl.activeTexture(gl.TEXTURE0 + 1);
+                    gl.bindTexture(gl.TEXTURE_2D, this.bone_tex);
+                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+                    
+                    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, 32, 32, 0, gl.RGBA, gl.FLOAT, bones);
+                    gl.uniform1i(this.shaderProgram.bones_texture, 1);
                 }
-                gl.activeTexture(gl.TEXTURE0 + 1);
-                gl.bindTexture(gl.TEXTURE_2D, this.bone_tex);
-                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
                 
-                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, 32, 32, 0, gl.RGBA, gl.FLOAT, bones);
-                gl.uniform1i(this.shaderProgram.bones_texture, 1);
             }
 
             if(buffer.texture_id >= 0){

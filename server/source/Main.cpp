@@ -68,8 +68,8 @@ void addTestShapes(Timeline* timeline){
     timeline->subscribe("tetra_solid_maker", "tetra_shape_created",
     [timeline,st](const string& subscriber, const string& trigger, const Variant& data){
         int box_id = data.getInt();
-        for(float x = -1.75; x < 1.75; x+=0.75f){
-        for(float y = 0; y < 2; y+=0.75f){
+        for(float x = -1.75; x < 1.75; x+=0.65f){
+        for(float y = 0; y < 2.5; y+=0.65f){
             std::unique_ptr<ConvexSolid> solid = std::make_unique<ConvexSolid>(
                 ConvexSolid(glm::vec3(x,y,0.75), 0.15, 1, box_id, glm::vec3(0,0,0), glm::quat(0,0,0,1), glm::vec3(0.5,0.5,1.3)));
             timeline->createObject(std::move(solid), std::make_unique<MoveSimpleSolid>(1.0/90), st+ 1.1 + 0.01*randomFloat() );
@@ -81,8 +81,8 @@ void addTestShapes(Timeline* timeline){
     timeline->subscribe("box_solid_maker", "box_shape_created",
     [timeline,st](const string& subscriber, const string& trigger, const Variant& data){
         int box_id = data.getInt();
-        for(float x = -1.75; x < 1.75; x+=0.75f){
-        for(float y = 0; y < 2; y+=0.75f){
+        for(float x = -1.75; x < 1.75; x+=0.65f){
+        for(float y = 0; y < 2.5; y+=0.65f){
             std::unique_ptr<ConvexSolid> solid = std::make_unique<ConvexSolid>(
                 ConvexSolid(glm::vec3(x,y,1.25), 0.15, 1, box_id, glm::vec3(0,0,0), glm::quat(0,0,0,1), glm::vec3(0.5,0.5,1.3)));
             timeline->createObject(std::move(solid), std::make_unique<MoveSimpleSolid>(1.0/90), st+ 1.1 + 0.01*randomFloat() );
@@ -95,8 +95,8 @@ void addTestShapes(Timeline* timeline){
     timeline->subscribe("cylinder_solid_maker", "cylinder_shape_created",
     [timeline,st](const string& subscriber, const string& trigger, const Variant& data){
         int shape_id = data.getInt();
-        for(float x = -1.75; x < 1.75; x+=0.75f){
-        for(float y = 0; y < 2; y+=0.75f){
+        for(float x = -1.75; x < 1.75; x+=0.65f){
+        for(float y = 0; y < 2.5; y+=0.65f){
             std::unique_ptr<ConvexSolid> solid = std::make_unique<ConvexSolid>(
                 ConvexSolid(glm::vec3(x,y,1.75), 0.15, 1, shape_id, glm::vec3(0,0,0), glm::quat(0,0,0,1), glm::vec3(0.4,0.9,0.3)));
             timeline->createObject(std::move(solid), std::make_unique<MoveSimpleSolid>(1.0/90), st+ 1.1 + 0.01*randomFloat() );
@@ -108,8 +108,8 @@ void addTestShapes(Timeline* timeline){
     timeline->subscribe("sphere_solid_maker", "sphere_shape_created",
     [timeline,st](const string& subscriber, const string& trigger, const Variant& data){
         int shape_id = data.getInt();
-        for(float x = -1.75; x < 1.75; x+=0.75f){
-        for(float y = 0; y < 2; y+=0.75f){
+        for(float x = -1.75; x < 1.75; x+=0.65f){
+        for(float y = 0; y < 2.5; y+=0.65f){
             std::unique_ptr<ConvexSolid> solid = std::make_unique<ConvexSolid>(
                 ConvexSolid(glm::vec3(x,y,2.25), 0.15, 1, shape_id, glm::vec3(0,0,0), glm::quat(0,0,0,1), glm::vec3(0.0,3.0,0.0)));
             timeline->createObject(std::move(solid), std::make_unique<MoveSimpleSolid>(1.0/90), st+ 1.1+ 0.01*randomFloat() );

@@ -126,6 +126,7 @@ class GLTF : public OptimizationProblem, public TableInterface {
         std::map<std::string,int> human_bone ;
         int first_person_bone ;
         glm::vec3 first_person_offset;
+        bool boneless = false; // if set to true bones will be ignored in shader (improves performance for unrigged models)
 
         std::map<std::string, Pin> pins ; // for inverse kinematics
         std::map<std::string, RotationPin> rotation_pins ; // for inverse kinematics
