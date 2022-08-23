@@ -14,6 +14,7 @@ class ConvexSolid : public TObject{
         glm::quat orientation;
         glm::vec3 angular_velocity;
         float mass;
+        bool moveable = true;
 
         //temporary computed variables
         std::vector<glm::vec3> world_vertex;

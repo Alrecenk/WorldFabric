@@ -370,9 +370,9 @@ class WorldChatMode extends ExecutionMode{
                         mat4.multiply(pose, pose,this.held_offset[which_hand]);
                         let time = new Date().getTime();
                         if(this.last_hand_time[which_hand] == 0 ){
-                            tools.API.call("setSolidPose", {id:this.held_id[which_hand], pose: pose}, new Serializer()); 
+                            tools.API.call("setSolidPose", {id:this.held_id[which_hand], pose: pose, freeze:1}, new Serializer()); 
                         }else{
-                            tools.API.call("setSolidPose", {id:this.held_id[which_hand], pose: pose, 
+                            tools.API.call("setSolidPose", {id:this.held_id[which_hand], pose: pose, freeze:1,
                                 last_pose:this.last_pose[which_hand], dt:(time-this.last_hand_time[which_hand])*0.001 }, new Serializer()); 
                         }
                         this.last_pose[which_hand] = pose;
@@ -387,7 +387,7 @@ class WorldChatMode extends ExecutionMode{
                             mat4.multiply(pose, pose,this.held_offset[which_hand]);
                             let time = new Date().getTime();
                             // apply exit velocity
-                            tools.API.call("setSolidPose", {id:this.held_id[which_hand], pose: pose, 
+                            tools.API.call("setSolidPose", {id:this.held_id[which_hand], pose: pose,
                                 last_pose:this.last_pose[which_hand], dt:(time-this.last_hand_time[which_hand])*0.001 }, new Serializer()); 
                         }
                         
