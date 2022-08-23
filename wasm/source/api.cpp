@@ -623,7 +623,7 @@ byte* getMeshInstances(byte* ptr){
             }else if(o->type == 2){ // convex solid
                 shared_ptr<ConvexSolid> solid= std::static_pointer_cast<ConvexSolid>(o);
                 map<string, Variant> inst_map ;
-                string mesh_name = "shape-" + std::to_string(solid->shape_id) + "-" + std::to_string(solid->status);
+                string mesh_name = "shape-" + std::to_string(solid->shape_id);
                 std::shared_ptr<GLTF> mesh_asset = meshes[mesh_name];
                 if(mesh_asset != nullptr){
                     inst_map["mesh"] = Variant(mesh_name) ;
@@ -633,13 +633,13 @@ byte* getMeshInstances(byte* ptr){
                 }
             
             }else if(o->type == 3){ // convex shape
-                string mesh_name = "shape-" + std::to_string(ob[k]) +"-"  ;
-                std::shared_ptr<GLTF> mesh_asset = meshes[mesh_name+"0"] ;
+                string mesh_name = "shape-" + std::to_string(ob[k]) ;
+                std::shared_ptr<GLTF> mesh_asset = meshes[mesh_name] ;
                 if(mesh_asset == nullptr){
                     shared_ptr<ConvexShape> shape = std::static_pointer_cast<ConvexShape>(o);
-                    meshes.addLocalShapeMesh(mesh_name + "0", shape, vec3(0.85, 0.85, 1.0)); // blue for good
-                    meshes.addLocalShapeMesh(mesh_name + "1", shape, vec3(1.0, 1.0, 0.65)); // yellow for sphere collision
-                    meshes.addLocalShapeMesh(mesh_name + "2", shape, vec3(1.0, 0.8, 0.8)); // red for true collision
+                    meshes.addLocalShapeMesh(mesh_name, shape, vec3(0.85, 0.85, 1.0)); // blue for good
+                    //meshes.addLocalShapeMesh(mesh_name + "1", shape, vec3(1.0, 1.0, 0.65)); // yellow for sphere collision
+                    //meshes.addLocalShapeMesh(mesh_name + "2", shape, vec3(1.0, 0.8, 0.8)); // red for true collision
                 }
             }else{
                 printf("Got an unrecognized object in the timeline:\n");

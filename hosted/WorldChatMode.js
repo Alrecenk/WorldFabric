@@ -110,7 +110,11 @@ class WorldChatMode extends ExecutionMode{
             for( let k in this.instances){
                 if(this.instances[k].owner != this.my_name){
                         mat4.multiply(m,this.inv_player_space, this.instances[k].pose);
-                        tools.renderer.drawMesh(this.instances[k].mesh, m , this.instances[k].bones);
+                        if(this.instances[k].mesh.substr(0,5) === "shape"){ // shapes don't need to push bone data
+                            tools.renderer.drawMesh(this.instances[k].mesh, m);
+                        }else{
+                            tools.renderer.drawMesh(this.instances[k].mesh, m , this.instances[k].bones);
+                        }
                 }else{
                     has_model = true;
                 }
