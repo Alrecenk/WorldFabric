@@ -372,6 +372,7 @@ class WorldChatMode extends ExecutionMode{
                         if(this.last_hand_time[which_hand] == 0 ){
                             tools.API.call("setSolidPose", {id:this.held_id[which_hand], pose: pose, freeze:1}, new Serializer()); 
                         }else{
+                            //set velocity for physics but freeze so it doesn't integrate
                             tools.API.call("setSolidPose", {id:this.held_id[which_hand], pose: pose, freeze:1,
                                 last_pose:this.last_pose[which_hand], dt:(time-this.last_hand_time[which_hand])*0.001 }, new Serializer()); 
                         }
@@ -380,15 +381,16 @@ class WorldChatMode extends ExecutionMode{
                     }
                 }else{
                     if(this.held_id[which_hand] != -1){ // on release
-                        
-                        if(this.last_hand_time[which_hand] != 0 ){ // if had two frames
-                            let pose = mat4.create();
+                        let pose = mat4.create();
                             mat4.multiply(pose,this.player_space,current_grip);
                             mat4.multiply(pose, pose,this.held_offset[which_hand]);
+                        if(this.last_hand_time[which_hand] != 0 ){ // if had two frames
                             let time = new Date().getTime();
                             // apply exit velocity
                             tools.API.call("setSolidPose", {id:this.held_id[which_hand], pose: pose,
                                 last_pose:this.last_pose[which_hand], dt:(time-this.last_hand_time[which_hand])*0.001 }, new Serializer()); 
+                        }else{
+                            tools.API.call("setSolidPose", {id:this.held_id[which_hand], pose: pose}, new Serializer());
                         }
                         
                     }
