@@ -198,6 +198,7 @@ bool UnitTests::checkSimpleTimeWarp(){
 bool UnitTests::checkCollisionRollback(){
     bool s = true ;
     Timeline t = Timeline(&BouncingBall::createEvent, &BouncingBall::createObject);
+    t.history_kept = 1000;
     std::unique_ptr<BouncingBall> a = std::make_unique<BouncingBall>(vec3(0,0,0),vec3(1,0,0), 0.4f) ;
     std::unique_ptr<MoveBouncingBall> a_move = std::make_unique<MoveBouncingBall>(0.1) ;
     t.createObject(std::move(a), std::move(a_move), 1.0);
