@@ -787,7 +787,7 @@ byte* getNearestSolid(byte* ptr){
             if(o->type == 2){
                 shared_ptr<ConvexSolid> solid = std::static_pointer_cast<ConvexSolid>(o);
                 float score = glm::length(solid->position-grab_position);
-                if(score < best_score){
+                if(score < best_score && solid->moveable){
                     best_score = score;
                     closest = ob[k];
                     initial_pose = solid->getTransform();
@@ -826,7 +826,8 @@ byte* setSolidPose(byte* ptr){
         vec3 axis = glm::axis(dq);
         av = axis*angle/dt;
     }
-    timeline->addEvent(std::make_unique<SetConvexSolid>(id, p, v, o, av),  timeline->current_time+action_delay) ;
+    bool mv = !(obj["freeze"].defined());
+    timeline->addEvent(std::make_unique<SetConvexSolid>(id, p, v, o, av , mv),  timeline->current_time+action_delay) ;
     return emptyReturn();
 }
 

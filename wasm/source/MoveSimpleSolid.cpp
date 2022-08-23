@@ -64,42 +64,29 @@ void MoveSimpleSolid::run(){
     if(auto og = ow.lock()){
         shared_ptr<ConvexSolid> self = std::static_pointer_cast<ConvexSolid>(og);
         bool moving = false;
-        
-        float speed = glm::length(self->velocity);
-        if(speed > 0){
-            moving = true;
-            float new_speed = fmin(MoveSimpleSolid::max_speed,fmax(0,speed-MoveSimpleSolid::friction*interval));
-            self->velocity *= new_speed/speed;
-        }
+        if(self->moveable){
+            float speed = glm::length(self->velocity);
+            if(speed > 0){
+                moving = true;
+                float new_speed = fmin(MoveSimpleSolid::max_speed,fmax(0,speed-MoveSimpleSolid::friction*interval));
+                self->velocity *= new_speed/speed;
+            }
 
-        speed = glm::length(self->angular_velocity);
-        if(speed > 0){
-            moving = true;
-            float new_speed = fmin(MoveSimpleSolid::max_angular_speed, fmax(0,speed-MoveSimpleSolid::angular_friction*interval));
-            self->angular_velocity *= new_speed/speed;
+            speed = glm::length(self->angular_velocity);
+            if(speed > 0){
+                moving = true;
+                float new_speed = fmin(MoveSimpleSolid::max_angular_speed, fmax(0,speed-MoveSimpleSolid::angular_friction*interval));
+                self->angular_velocity *= new_speed/speed;
+            }
         }
-
-        
 
         if(moving){
             self->move(interval);
-
-            /*
-            vector<int> collisions = getCollisions();
-            for(int j = 0 ;j < collisions.size();j++){
-                weak_ptr<TObject> cw = get(collisions[j]) ; 
-                if(auto cg = cw.lock()){
-                
-                }
-            }
-            */
-
             //clamp to local area for demo
             if(glm::length(self->position)>7){
                 self->velocity = self->velocity*0.1f ;
                 self->position = self->velocity + vec3(0,0,1.75) ;
             }
-
         }
 
         self->status = 0 ;

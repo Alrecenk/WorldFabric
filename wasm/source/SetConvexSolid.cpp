@@ -11,12 +11,14 @@ using std::unique_ptr;
 SetConvexSolid::SetConvexSolid(){
     type = 3 ;
 }
-SetConvexSolid::SetConvexSolid(int solid_id, glm::vec3 p, glm::vec3 v, glm::quat o, glm::vec3 av){
+SetConvexSolid::SetConvexSolid(int solid_id, glm::vec3 p, glm::vec3 v, glm::quat o, glm::vec3 av, bool mv){
     anchor_id = solid_id;
     new_position = p ;
     new_velocity = v ;
     new_orientation = o;
     new_angular_velocity = av ;
+    new_moveable = mv ;
+    
     type = 3 ;
 }
 
@@ -31,6 +33,7 @@ std::map<std::string,Variant> SetConvexSolid::serialize() const {
     serial["v"] = Variant(new_velocity);
     serial["o"] = Variant(new_orientation);
     serial["w"] = Variant(new_angular_velocity);
+    serial["z"] = Variant(new_moveable ? 1 : 0);
     serial["type"] = Variant(type);
     return serial;
 }
@@ -43,6 +46,7 @@ void SetConvexSolid::set(std::map<std::string,Variant>& serialized){
     new_velocity = serialized["v"].getVec3();
     new_orientation = serialized["o"].getQuat();
     new_angular_velocity = serialized["w"].getVec3();
+    new_moveable = serialized["z"].getInt() == 1;
 }
 
 // Runs the event
@@ -57,7 +61,7 @@ void SetConvexSolid::run(){
         self->velocity = new_velocity;
         self->orientation = new_orientation;
         self->angular_velocity = new_angular_velocity;
-
+        self->moveable = new_moveable ;
         weak_ptr<TObject> sw = get(self->shape_id) ; 
         if(auto sg = sw.lock()){ // if has a shape
             shared_ptr<ConvexShape> shape = std::static_pointer_cast<ConvexShape>(sg);

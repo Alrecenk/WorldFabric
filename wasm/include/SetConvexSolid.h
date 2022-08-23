@@ -15,10 +15,11 @@ class SetConvexSolid : public TEvent{
         glm::vec3 new_velocity;
         glm::quat new_orientation;
         glm::vec3 new_angular_velocity;
+        bool new_moveable = true;
 
         SetConvexSolid();
 
-        SetConvexSolid(int solid_id, glm::vec3 p, glm::vec3 v, glm::quat o, glm::vec3 av);
+        SetConvexSolid(int solid_id, glm::vec3 p, glm::vec3 v, glm::quat o, glm::vec3 av, bool m);
 
         ~SetConvexSolid() override;
 
