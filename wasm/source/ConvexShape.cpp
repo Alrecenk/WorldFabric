@@ -167,7 +167,7 @@ float ConvexShape::getVolume(){
     return volume;
 }
 
-// Returns the inertia tensor of the entire shape about the origin assuming a uniform density of 1
+// Returns the inertia tensor of the entire shape about the origin
 glm::mat3 ConvexShape::getInertia(const float mass){
     float total_volume = getVolume();
     // Get a point on the inside
@@ -192,8 +192,7 @@ glm::mat3 ConvexShape::getInertia(const float mass){
 }
 // return the volume of the given tetrahedron
 float ConvexShape::computeTetraVolume(const glm::vec3& a, const glm::vec3& b, const glm::vec3& c, const glm::vec3& d){
-    return abs(glm::dot(a-d, glm::cross(b-d,c-d)))/6.0f ;
-
+    return fabs(glm::dot(a-d, glm::cross(b-d,c-d)))/6.0f ;
 }
 
 // Returns the center of mass of the given tetrahedron
