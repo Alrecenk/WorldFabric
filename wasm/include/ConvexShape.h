@@ -15,6 +15,7 @@ class ConvexShape : public TObject{
     std::vector<glm::vec3> vertex ;
     std::vector<std::vector<int>> face ;
 
+
     ConvexShape();
 
     ConvexShape(const std::vector<glm::vec3> &vertices, const std::vector<std::vector<int>> &faces);
@@ -43,7 +44,7 @@ class ConvexShape : public TObject{
 
     float getVolume();
 
-    // Returns the inertia tensor of the entire shape about the origin assuming a uniform density of 1
+    // Returns the inertia tensor of the entire shape about the origin
     glm::mat3 getInertia(const float mass);
 
     // return the volume of the given tetrahedron

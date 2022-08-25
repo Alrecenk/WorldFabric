@@ -21,6 +21,9 @@ class ConvexSolid : public TObject{
         std::vector<std::pair<glm::vec3, float>> world_plane;
         int status = 0 ;// for debug render 0 = no collison, 1 = sphere collision, 2 = full collision
 
+        glm::mat3 inertia ;
+        glm::mat3 inverse_inertia ;
+
         ConvexSolid();
 
         ConvexSolid(int shape_id, float mass, glm::vec3 p, glm::quat orientation);
@@ -50,6 +53,8 @@ class ConvexSolid : public TObject{
         void move(double dt);
 
         void computeWorldPlanes(std::shared_ptr<ConvexShape> shape);
+
+        void computeInertia(std::shared_ptr<ConvexShape> shape);
 
         // Checks if there is a collision between this solid and another
         // Assumes both solids have computed up to date world planes
