@@ -10,11 +10,10 @@ CPP_DEFS=
 CPP_OPTS   = -O3 -Wno-pessimizing-move
 MAKEFLAGS += -j2
 #-Wall
-LIBS       = -levent -levent_core -lssl -lcrypto
+LIBS       = -lssl -lcrypto
 
 
-SRC		   = ${SERVER_DIR}source/WebServer.cpp \
-			${SERVER_DIR}source/SecureWebServer.cpp \
+SRC		   =${SERVER_DIR}source/SecureWebServer.cpp \
 			${SERVER_DIR}source/TableServer.cpp \
 			${SERVER_DIR}source/TimelineServer.cpp
 
