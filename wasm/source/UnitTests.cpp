@@ -9,6 +9,8 @@
 #include "MoveBouncingBall.h"
 #include "ChangeBallVelocity.h"
 
+#include "ConvexShape.h"
+
 #include <unordered_map>
 #include <vector>
 #include <map>
@@ -18,6 +20,8 @@
 
 using std::vector;
 using glm::vec3;
+using glm::mat3;
+using glm::mat4;
 using std::string;
 using std::map;
 using std::shared_ptr;
@@ -45,7 +49,11 @@ bool UnitTests::runAll(){
 
     success = UnitTests::checkCreateObjectNotification() ? "passed" : "failed" ;
     printf("checkCreateObjectNotification : %s\n", success.c_str());
+
     
+    success = UnitTests::checkShapeInertiaApproximatesPrimitives() ? "passed" : "failed" ;
+    printf("checkShapeInertiaApproximatesPrimitives : %s\n", success.c_str());
+
     return true; // TODO return whether all succeeded
 }
 
@@ -530,6 +538,67 @@ bool UnitTests::checkCreateObjectNotification(){
     t.createObject(std::move(o), std::unique_ptr<TEvent>(nullptr), "ball_id_trigger", 3.0);
     t.run(4.0);
     expect(s, *ball_id == 1, "ID not correct after notifying after unsubscribing!");
+
+    return s ;
+}
+
+bool UnitTests::checkShapeInertiaApproximatesPrimitives(){
+    bool s = true ;
+    //Check example tetra from paper
+    vector<vec3> tetra = vector<vec3>({
+        vec3(8.33220, -11.86875,0.93355),
+        vec3(0.75523, 5, 16.37072),
+        vec3(52.61236, 5, -5.3858),
+        vec3(2, 5, 3)
+    });
+    ConvexShape t = ConvexShape::makeTetra(tetra[0], tetra[1], tetra[2], tetra[3]);
+
+    vec3 centroid = t.getCentroid();
+    vec3 tcentroid = ConvexShape::computeTetraCentroid(tetra[0], tetra[1], tetra[2], tetra[3]) ;
+    float tvol = ConvexShape::computeTetraVolume(tetra[0], tetra[1], tetra[2], tetra[3]) ;
+    float vol = t.getVolume();
+    //printf("volume: %f == %f \n", tvol, vol) ;
+    //Variant(centroid).printFormatted();
+    //Variant(tcentroid).printFormatted();
+    expectNear(s, centroid, tcentroid,0.001, "Tetra centroid different from its own shape centroid!");
+
+    for(auto& tp : tetra){
+        tp -= tcentroid ;
+    }
+    float volume = t.getVolume();
+    float mass = 1 ;
+    float density = mass/volume ;
+    //Variant(centroid).printFormatted();
+    mat3 J = ConvexShape::computeTetraInertia(mass, tetra[0],tetra[1],tetra[2],tetra[3]);
+    float a = J[0][0]/density;
+    float b = J[1][1]/density;
+    float c = J[2][2]/density;
+    float ap = -J[2][1]/density;
+    float bp = -J[0][1]/density;
+    float cp = -J[0][2]/density;
+
+
+    expectNear(s, vec3(a,b,c), vec3(43520, 194711,191168),150, "Inertia tensor diagonal incorrect on tetrahedron!");
+    expectNear(s, vec3(ap,bp,cp), vec3(4418, -46343,11996),150, "Products of inertia incorrect on tetrahedron!");
+
+    t.centerOnCentroid();
+    mat3 J2 = t.getInertia(mass);
+    float a2 = J2[0][0]/density;
+    float b2 = J2[1][1]/density;
+    float c2 = J2[2][2]/density;
+    float ap2 = -J2[2][1]/density;
+    float bp2 = -J2[0][1]/density;
+    float cp2 = -J2[0][2]/density;
+
+    expectNear(s, vec3(a2,b2,c2), vec3(43520, 194711,191168),150, "Inertia tensor diagonal incorrect on tetrahedron as shape!");
+    expectNear(s, vec3(ap2,bp2,cp2), vec3(4418, -46343,11996),150, "Products of inertia incorrect on tetrahedron as shape!");
+
+    float radius = 5 ;
+    ConvexShape sphere = ConvexShape::makeSphere(glm::vec3(0,0,0), radius, 4) ;
+    mat3 Js = sphere.getInertia(mass);
+    float sphere_diagonal  = (2.0f*mass*radius*radius)/5.0f ;
+    expectNear(s, vec3(Js[0][0],Js[1][1],Js[2][2]), vec3(sphere_diagonal,sphere_diagonal ,sphere_diagonal ),0.1, "Sphere diagonal inertia incorrect!");
+    expectNear(s, vec3(Js[0][1],Js[2][1],Js[0][2]), vec3(0,0,0),0.1, "Sphere products of inertia incorrect!");
 
     return s ;
 }

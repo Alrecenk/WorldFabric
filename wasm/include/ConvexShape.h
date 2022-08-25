@@ -44,7 +44,7 @@ class ConvexShape : public TObject{
     float getVolume();
 
     // Returns the inertia tensor of the entire shape about the origin assuming a uniform density of 1
-    glm::mat3 getInertia();
+    glm::mat3 getInertia(const float mass);
 
     // return the volume of the given tetrahedron
     static float computeTetraVolume(const glm::vec3& a, const glm::vec3& b, const glm::vec3& c, const glm::vec3& d);
@@ -53,7 +53,7 @@ class ConvexShape : public TObject{
     static glm::vec3 computeTetraCentroid(const glm::vec3& a, const glm::vec3& b, const glm::vec3& c, const glm::vec3& d);
 
     // Returns the inertia tensor of the given tetrahedron about the origin assuming a uniform density of 1
-    static glm::mat3 computeTetraInertia(const glm::vec3& a, const glm::vec3& b, const glm::vec3& c, const glm::vec3& d);
+    static glm::mat3 computeTetraInertia(const float mass, const glm::vec3& a, const glm::vec3& b, const glm::vec3& c, const glm::vec3& d);
 
     // Returns a shaoe for an axis aligned bounding box
     static ConvexShape makeAxisAlignedBox(glm::vec3 min, glm::vec3 max);
