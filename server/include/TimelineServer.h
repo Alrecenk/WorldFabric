@@ -13,9 +13,6 @@
 #include <iostream>
 #include <cstdio>
 #include <cstring>
-#include <event2/http.h>
-#include <evhttp.h>
-#include <event.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <map>
