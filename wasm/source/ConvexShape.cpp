@@ -115,7 +115,7 @@ std::unique_ptr<TObject> ConvexShape::getObserved(double time, const std::weak_p
 // Return the center of mass of this shape
 glm::vec3 ConvexShape::getCentroid(){
     // Get a point on the inside
-    vec3 inner_point ;
+    vec3 inner_point(0,0,0) ;
     for(const auto& v : vertex){
         inner_point+=v;
     }
@@ -149,15 +149,14 @@ glm::vec3 ConvexShape::centerOnCentroid(){
 
 float ConvexShape::getVolume(){
     // Get a point on the inside
-    vec3 inner_point ;
+    vec3 inner_point(0,0,0) ;
     for(const auto& v : vertex){
         inner_point+=v;
     }
     inner_point/=vertex.size();
-    vec3 centroid(0,0,0);
     float volume = 0 ;
     for(const auto& f : face){
-        for(int k=1; k < face.size()-1;k++){
+        for(int k=1; k < f.size()-1;k++){
             vec3& a = vertex[f[0]];
             vec3& b = vertex[f[k]];
             vec3& c = vertex[f[k+1]];
@@ -169,9 +168,10 @@ float ConvexShape::getVolume(){
 }
 
 // Returns the inertia tensor of the entire shape about the origin assuming a uniform density of 1
-glm::mat3 ConvexShape::getInertia(){
+glm::mat3 ConvexShape::getInertia(const float mass){
+    float total_volume = getVolume();
     // Get a point on the inside
-    vec3 inner_point ;
+    vec3 inner_point(0,0,0) ;
     for(const auto& v : vertex){
         inner_point+=v;
     }
@@ -179,12 +179,13 @@ glm::mat3 ConvexShape::getInertia(){
     glm::mat3 inertia = glm::mat3(0);
     float volume = 0 ;
     for(const auto& f : face){
-        for(int k=1; k < face.size()-1;k++){
+        for(int k=1; k < f.size()-1;k++){
             vec3& a = vertex[f[0]];
             vec3& b = vertex[f[k]];
             vec3& c = vertex[f[k+1]];
             vec3& d = inner_point ;
-            inertia += ConvexShape::computeTetraInertia(a, b, c, d);
+            float vol = computeTetraVolume(a, b, c, d);
+            inertia += ConvexShape::computeTetraInertia(mass*vol/total_volume, a, b, c, d);
         }
     }
     return inertia;
@@ -200,14 +201,44 @@ glm::vec3 ConvexShape::computeTetraCentroid(const glm::vec3& a, const glm::vec3&
     return (a+b+c+d)/4.0f;
 }
 
-// Returns the inertia tensor of the given tetrahedron about the origin assuming a uniform density of 1
-glm::mat3 ConvexShape::computeTetraInertia(const vec3& a, const vec3& b, const vec3& c, const vec3& d){
+// Returns the inertia tensor of the given tetrahedron about the origin
+glm::mat3 ConvexShape::computeTetraInertia(const float mass, const vec3& A, const vec3& B, const vec3& C, const vec3& D){
     // pulled from "explicit Exact Formulas for the 3D tetrahedron inertia tensor in terms of vertex coordinates"
     // by F. Tonon, Journal of Mathematics and Statistics
-    float detj = 6*ConvexShape::computeTetraVolume(a, b, c, d);
+    //float volume = ConvexShape::computeTetraVolume(a, b, c, d);
+    //float detj = 6*volume ;
+    //float density = mass/volume ;
 
-    //TODO
-    return glm::mat3(1);
+    const double x1 = A.x, y1 = A.y, z1 = A.z ;
+    const double x2 = B.x, y2 = B.y, z2 = B.z ;
+    const double x3 = C.x, y3 = C.y, z3 = C.z ;
+    const double x4 = D.x, y4 = D.y, z4 = D.z ;
+    double mu = 6*mass ;
+
+    double x_group = x1*x1 + x1*x2 + x2*x2 + x1*x3 + x2*x3 + x3*x3 + x1*x4 + x2*x4 + x3*x4 + x4*x4 ;
+    float y_group = y1*y1 + y1*y2 + y2*y2 + y1*y3 + y2*y3 + y3*y3 + y1*y4 + y2 *y4 + y3*y4 + y4*y4 ;
+    float z_group = z1*z1 + z1*z2 + z2*z2 + z1*z3 + z2*z3 + z3*z3 + z1*z4 + z2*z4 + z3*z4 + z4*z4 ;
+
+    float a = mu*(y_group+z_group)/60.0f;
+    float b = mu*(x_group+z_group)/60.0f;
+    float c = mu*(x_group+y_group)/60.0f;
+
+    float ap = mu*(2*y1*z1 + y2*z1 + y3*z1 + y4*z1 + y1*z2 + 2*y2*z2 + y3*z2 + y4*z2 + y1*z3 + y2*z3 + 2*y3*z3 + y4*z3 + y1*z4 + y2*z4 + y3*z4 + 2*y4*z4)/120.0f ;
+    float bp = mu*(2*x1*z1 + x2*z1 + x3*z1 + x4*z1 + x1*z2 + 2*x2*z2 + x3*z2 + x4*z2 + x1*z3 + x2*z3 + 2*x3*z3 + x4*z3 + x1*z4 + x2*z4 + x3*z4 + 2*x4*z4)/120.0f ;
+    float cp = mu*(2*x1*y1 + x2*y1 + x3*y1 + x4*y1 + x1*y2 + 2*x2*y2 + x3*y2 + x4*y2 + x1*y3 + x2*y3 + 2*x3*y3 + x4*y3 + x1*y4 + x2*y4 + x3*y4 + 2*x4*y4)/120.0f ;
+
+    glm::mat3 J;
+    J[0][0] = a;
+    J[0][1] = -bp;
+    J[0][2] = -cp;
+    J[1][0] = -bp;
+    J[1][1] = b;
+    J[1][2] = -ap;
+    J[2][0] = -cp;
+    J[2][1] = -ap;
+    J[2][2] = c;
+
+    return J;
 }
 
 

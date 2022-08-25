@@ -29,6 +29,8 @@ public:
 
     static bool checkCreateObjectNotification();
 
+    static bool checkShapeInertiaApproximatesPrimitives();
+
     static std::unique_ptr<TObject> createObject(const Variant& serialized);
 
     static std::unique_ptr<TEvent> createEvent(const Variant& serialized);
