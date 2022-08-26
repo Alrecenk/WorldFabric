@@ -678,11 +678,11 @@ byte* createVRMPins(byte* ptr){
         return pack(ret_map);
     }
 
-    ret_map["head"] = getVariantMatrix(avatar->createPin("head", avatar->first_person_bone, avatar->first_person_offset, 1.0f, 1.0f));
+    ret_map["head"] = getVariantMatrix(avatar->createPin("head", avatar->first_person_bone, avatar->first_person_offset, 1.0f, 0.1f));
 
-    ret_map["left_hand"] = getVariantMatrix(avatar->createPin("left_hand", avatar->human_bone["leftHand"], vec3(0,0,0), 1.0f, 1.0f));
+    ret_map["left_hand"] = getVariantMatrix(avatar->createPin("left_hand", avatar->human_bone["leftHand"], vec3(0,0,0), 1.0f, 0.1f));
 
-    ret_map["right_hand"] = getVariantMatrix(avatar->createPin("right_hand", avatar->human_bone["rightHand"], vec3(0,0,0), 1.0f, 1.0f));
+    ret_map["right_hand"] = getVariantMatrix(avatar->createPin("right_hand", avatar->human_bone["rightHand"], vec3(0,0,0), 1.0f, 0.1f));
     
     //(Variant( ret_map)).printFormatted();
     return pack(ret_map);
