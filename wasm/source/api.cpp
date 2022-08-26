@@ -398,47 +398,56 @@ byte* createPin(byte* ptr) {
     vec3 mesh_space =   glm::inverse(model->nodes[bone].transform) * vec4(global,1) ;
     vec3 local = model->nodes[bone].mesh_to_bone * vec4(mesh_space,1) ;
 
-    model->createPin(name, bone, local, 1.0f);
+    glm::quat initial = model->createPin(name, bone, local, 1.0f, 1.0f);
     model->applyPins();
-    /*
-    printf("global: %f, %f, %f\n", global.x, global.y, global.z);
-    //printf("actual: %f, %f, %f\n", actual.x, actual.y, actual.z);
-    printf("Mesh: %f, %f, %f\n", mesh_space.x, mesh_space.y, mesh_space.z);
-    printf("Local: %f, %f, %f\n", local.x, local.y, local.z);
-    printf("Vert: %f, %f, %f\n", vert.position.x, vert.position.y, vert.position.z);
-    printf("Vert Transformed: %f, %f, %f\n", vert.transformed_position.x, vert.transformed_position.y, vert.transformed_position.z);
     
+    map<string, Variant> ret_map ;
+    ret_map["initial"].makeFillableFloatArray(4);
+    float* vm = ret_map["initial"].getFloatArray();
+    vm[0] = initial.w;
+    vm[1] = initial.x;
+    vm[2] = initial.y;
+    vm[3] = initial.z;
 
-    double error = model->error(model->getX());
-    printf("Error: %f\n", error);
-    */
-    printf("Pin '%s' created for %s.\n" , name.c_str(), model->nodes[bone].name.c_str());
-    
-
-    return emptyReturn();
+    mat4 m = glm::mat4_cast(initial);
+    ret_map["matrix"].makeFillableFloatArray(16);
+    vm = ret_map["matrix"].getFloatArray();
+    for(int k=0;k<16;k++){
+        vm[k] = *(((float*)&m)+k) ;
+    }
+    //printf("Pin '%s' created for %s.\n" , name.c_str(), model->nodes[bone].name.c_str());
+    return pack(ret_map);
 
 }
 
 byte* setPinTarget(byte* ptr) {
-
     auto obj = Variant::deserializeObject(ptr);
-    vec3 p = obj["p"].getVec3() ;
-    
     string name = obj["name"].getString();
     std::shared_ptr<GLTF> model = meshes[MY_AVATAR];
-    vec3 target ;
-    if(obj["v"].defined()){ // if fiven a ray
-        vec3 v = obj["v"].getVec3();
-        GLTF::Pin& pin = model->pins[name] ;
-        vec3 current = model->nodes[pin.bone].transform * ( model->nodes[pin.bone].bone_to_mesh * vec4(pin.local_point,1));
-        // Pull toward the closest point on the mouse ray
-        target = p + v * (glm::dot(current-p, v) / glm::dot(v,v)) ;
-    }else{
-        target = p ; // no ray, target is point given
+    if(obj["p"].defined()){
+        vec3 p = obj["p"].getVec3() ;
+        vec3 target ;
+        if(obj["v"].defined()){ // if fiven a ray
+            vec3 v = obj["v"].getVec3();
+            GLTF::Pin& pin = model->pins[name] ;
+            vec3 current = model->nodes[pin.bone].transform * ( model->nodes[pin.bone].bone_to_mesh * vec4(pin.local_point,1));
+            // Pull toward the closest point on the mouse ray
+            target = p + v * (glm::dot(current-p, v) / glm::dot(v,v)) ;
+        }else{
+            target = p ; // no ray, target is point given
+        }
+        model->setPinTarget(name, target);
     }
-
-    //printf("Pulling %s to (%f, %f, %f).\n", name.c_str(), target.x, target.y, target.z);
-    model->setPinTarget(name, target);
+   
+    if(obj["o"].defined()){
+        float* vm = obj["o"].getFloatArray();
+        glm::mat4 m ;
+        for(int k=0;k<16;k++){
+            *(((float*)&m)+k) = vm[k] ;
+        }
+        glm::quat rot_target = glm::quat_cast(m) ;
+        model->setPinTarget(name, rot_target);
+    }
 
     //model->applyPins();
 
@@ -456,68 +465,6 @@ byte* deletePin(byte* ptr) {
     std::shared_ptr<GLTF> model = meshes[MY_AVATAR];
     model->deletePin(name);
     //printf("Pin '%s' deleted.\n" , name.c_str());
-    return emptyReturn();
-}
-
-
-byte* createRotationPin(byte* ptr) {
-    auto obj = Variant::deserializeObject(ptr);
-    vec3 p = obj["p"].getVec3() ;
-    string name = obj["name"].getString();
-    std::shared_ptr<GLTF> model = meshes[MY_AVATAR];
-    model->applyTransforms(); // Get current animated coordinates on CPU
-    int vertex_index = model->getClosestVertex(p);
-    vec3 global = p ;
-
-    if(vertex_index < 0){
-        model->computeNodeMatrices();
-        return emptyReturn();
-    }
-    GLTF::Vertex& vert = model->vertices[vertex_index];
-    glm::ivec4 joints = vert.joints;
-    float max_w = -1.0f ;
-    int bone = -1;
-    for(int k=0;k<4;k++){
-        float w = vert.weights[k] ;
-        if(w > max_w){
-            max_w = w ;
-            bone = vert.joints[k] ;
-        }
-    }
-
-    glm::quat initial= model->createRotationPin(name, bone, 1.0f);
-
-    map<string, Variant> ret_map ;
-    ret_map["initial"].makeFillableFloatArray(4);
-    float* vm = ret_map["initial"].getFloatArray();
-    vm[0] = initial.w;
-    vm[1] = initial.x;
-    vm[2] = initial.y;
-    vm[3] = initial.z;
-
-    mat4 m = glm::mat4_cast(initial);
-    ret_map["matrix"].makeFillableFloatArray(16);
-    vm = ret_map["matrix"].getFloatArray();
-    for(int k=0;k<16;k++){
-        vm[k] = *(((float*)&m)+k) ;
-    }
-
-    return pack(ret_map);
-
-}
-
-byte* setRotationPinTarget(byte* ptr) {
-    auto obj = Variant::deserializeObject(ptr);
-    vec3 p = obj["p"].getVec3() ;
-    string name = obj["name"].getString();
-    glm::mat4 m ;
-    float* vm = obj["target"].getFloatArray();
-    for(int k=0;k<16;k++){
-        *(((float*)&m)+k) = vm[k] ;
-    }
-    glm::quat target = glm::quat_cast(m) ;
-    std::shared_ptr<GLTF> model = meshes[MY_AVATAR];
-    model->setRotationPinTarget(name, target);
     return emptyReturn();
 }
 
@@ -731,16 +678,11 @@ byte* createVRMPins(byte* ptr){
         return pack(ret_map);
     }
 
-    avatar->createPin("head", avatar->first_person_bone, avatar->first_person_offset, 1.0f);
-    ret_map["head"] = getVariantMatrix(avatar->createRotationPin("head", avatar->first_person_bone, 1.0f));
+    ret_map["head"] = getVariantMatrix(avatar->createPin("head", avatar->first_person_bone, avatar->first_person_offset, 1.0f, 1.0f));
 
+    ret_map["left_hand"] = getVariantMatrix(avatar->createPin("left_hand", avatar->human_bone["leftHand"], vec3(0,0,0), 1.0f, 1.0f));
 
-    avatar->createPin("left_hand", avatar->human_bone["leftHand"], vec3(0,0,0), 1.0f);
-    ret_map["left_hand"] = getVariantMatrix(avatar->createRotationPin("left_hand", avatar->human_bone["leftHand"], 1.0f));
-
-    avatar->createPin("right_hand", avatar->human_bone["rightHand"], vec3(0,0,0), 1.0f);
-    ret_map["right_hand"] = getVariantMatrix(avatar->createRotationPin("right_hand", avatar->human_bone["rightHand"], 1.0f));
-    
+    ret_map["right_hand"] = getVariantMatrix(avatar->createPin("right_hand", avatar->human_bone["rightHand"], vec3(0,0,0), 1.0f, 1.0f));
     
     //(Variant( ret_map)).printFormatted();
     return pack(ret_map);

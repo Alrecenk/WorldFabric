@@ -1466,7 +1466,7 @@ glm::vec3 GLTF::applyRotation(const glm::vec3 x, const glm::quat rot){
 void GLTF::createPin(std::string name, int bone, glm::vec3 local_point, float weight){
     vec3 target = nodes[bone].transform * ( nodes[bone].bone_to_mesh * vec4(local_point,1)); // start by pinning in place
     //printf("target: %f, %f, %f\n", target.x, target.y, target.z);
-    pins[name] = {name, bone, local_point, target, weight};
+    pins[name] = {name, bone, local_point, target, weight, glm::quat(0,0,0,1), 0};
 }
 
 // Set the target for a given pin
@@ -1474,39 +1474,41 @@ void GLTF::setPinTarget(std::string name, glm::vec3 target){
     pins[name].target = target ;
 }
 
+// Create an IK pin to pull on the given bone local point and target ortation
+// Returns starting orientation
+glm::quat GLTF::createPin(std::string name, int bone, glm::vec3 local_point, float weight, float rot_weight){
+    vec3 target = nodes[bone].transform * ( nodes[bone].bone_to_mesh * vec4(local_point,1)); // start by pinning in place
+
+    glm::quat rot_target = nodes[bone].rotation ;
+    int node_id = bone;
+    node_id = nodes[node_id].parent;
+    while(node_id != -1){
+        rot_target = nodes[node_id].rotation * rot_target;
+        node_id = nodes[node_id].parent;
+    }
+    rot_target = glm::quat_cast(transform) * rot_target ; 
+    rot_target = glm::normalize(rot_target);
+
+    //printf("target: %f, %f, %f\n", target.x, target.y, target.z);
+    pins[name] = {name, bone, local_point, target, weight, rot_target, rot_weight};
+    return rot_target ;
+}
+
+// Set the target for a given pin
+void GLTF::setPinTarget(std::string name, glm::vec3 target, glm::quat rot_target){
+    pins[name].target = target ;
+    pins[name].rot_target = rot_target ;
+}
+
+void GLTF::setPinTarget(std::string name, glm::quat rot_target){
+    pins[name].rot_target = rot_target ;
+}
+
+
 // delete pin
 void GLTF::deletePin(std::string name){
     if(pins.find(name) != pins.end()){
         pins.erase(name);
-    }
-}
-
-
-// Create an IK pin to rotate a bone to global orientation
-// Returns the starting orientation when the pin was created
-glm::quat GLTF::createRotationPin(std::string name, int bone,float weight){
-    glm::quat target = nodes[bone].rotation ;
-    int node_id = bone;
-    node_id = nodes[node_id].parent;
-    while(node_id != -1){
-        target = nodes[node_id].rotation * target;
-        node_id = nodes[node_id].parent;
-    }
-    target = glm::quat_cast(transform) * target ; 
-    target = glm::normalize(target); // scale in transform may leak into quat
-    rotation_pins[name] = {name, bone, target, weight};
-    return target ;
-}
-
-// Set the target for a given rotation pin
-void GLTF::setRotationPinTarget(std::string name, glm::quat target){
-    rotation_pins[name].target = target ;
-}
-
-// delete rotation pin
-void GLTF::deleteRotationPin(std::string name){
-    if(rotation_pins.find(name) != rotation_pins.end()){
-        rotation_pins.erase(name);
     }
 }
 
@@ -1531,8 +1533,6 @@ void GLTF::applyPins(){
     }
     fixedSpeedIK(0.000001);
     fixedSpeedRotationIK(0.5);
- 
-
     computeNodeMatrices();
 }
 
@@ -1598,6 +1598,8 @@ double GLTF::error(std::vector<float> x){
             Node& bone = nodes[node_id];
             double d2 = glm::dot(bone.rotation, bone.rotation);
             error += barrier_strength*(1-d2)*(1-d2);
+
+            error += stiffness_strength * bone.stiffness * glm::dot(bone.base_rotation-bone.rotation, bone.base_rotation-bone.rotation) ;
     }
     
     return error ;
@@ -1708,7 +1710,8 @@ std::vector<float> GLTF::gradient(std::vector<float> x){
     }
 
     // enforce nromalized quaternions with a barrier penalty
-    for(int node_id=0; node_id<nodes.size(); node_id++){   
+    for(int node_id=0; node_id<nodes.size(); node_id++){ 
+            //TODO barrier is not properly considering stiffness  
             Node& bone = nodes[node_id];
             double d2 = glm::dot(bone.rotation, bone.rotation);
             double dqdb = 4 * (d2-1);
@@ -1717,6 +1720,13 @@ std::vector<float> GLTF::gradient(std::vector<float> x){
             gradient[node_id*4+2] += barrier_strength*bone.rotation.y * dqdb ;
             gradient[node_id*4+3] += barrier_strength*bone.rotation.z * dqdb ;
             
+
+            // enforce node stiffness
+            gradient[node_id*4] += 2*stiffness_strength*(bone.rotation.w-bone.base_rotation.w);
+            gradient[node_id*4+1] += 2*stiffness_strength*(bone.rotation.x-bone.base_rotation.x);
+            gradient[node_id*4+2] += 2*stiffness_strength*(bone.rotation.y-bone.base_rotation.y);
+            gradient[node_id*4+3] += 2*stiffness_strength*(bone.rotation.z-bone.base_rotation.z);
+
     }
     return gradient ;
 }
@@ -1746,7 +1756,7 @@ void GLTF::fixedSpeedIK(float speed){
 
 
 void GLTF::fixedSpeedRotationIK(float speed){
-    for(const auto& [name, pin] : rotation_pins){
+    for(const auto& [name, pin] : pins){
         int node_id = pin.bone;
         glm::quat current = nodes[node_id].rotation ;
         node_id = nodes[node_id].parent;
@@ -1756,9 +1766,8 @@ void GLTF::fixedSpeedRotationIK(float speed){
         }
         current = glm::quat_cast(transform) * current ; 
         current = glm::normalize(current); // scale in transform may leak into quat
-        glm::quat local_target = nodes[pin.bone].rotation * glm::inverse(current) * pin.target  ;
-        nodes[pin.bone].rotation = slerp(nodes[pin.bone].rotation, local_target, speed);
-        
+        glm::quat local_rot_target = nodes[pin.bone].rotation * glm::inverse(current) * pin.rot_target  ;
+        nodes[pin.bone].rotation = slerp(nodes[pin.bone].rotation, local_rot_target, speed);
         //printf("current: %f, %f, %f, %f\n", current.w, current.x, current.y, current.z);
         
         
