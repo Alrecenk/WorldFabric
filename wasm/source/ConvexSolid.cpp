@@ -21,7 +21,7 @@ ConvexSolid::ConvexSolid(int shape, float m, glm::vec3 p, glm::quat r){
     velocity = vec3(0,0,0);
     orientation = r ;
     angular_velocity = vec3(0,0,0);
-    radius = 0 ;
+    radius = 0.001 ;
     type = 2 ; // TODO make some constants or something
 }
 
@@ -122,7 +122,6 @@ void ConvexSolid::computeWorldPlanes(std::shared_ptr<ConvexShape> shape){
         float world_face_d = -glm::dot(A, world_face_normal);
         world_plane.push_back(std::make_pair(world_face_normal, world_face_d));
     }
-    computeInertia(shape);
 }
 
 // computes the inertia and inverse inertia and stores them on this shape instance (they will not be saved in the timeline)
