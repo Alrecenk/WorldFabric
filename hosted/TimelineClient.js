@@ -29,7 +29,11 @@ class TimelineClient{
                     if(timeline_client.active){
                         let byte_array = new Int8Array(msg.data);
                         //timeline_client.synchronizeTimeline(byte_array) ;
-                        setTimeout(timeline_client.synchronizeTimeline, timeline_client.update_delay, byte_array);
+                        if(timeline_client.update_delay == 0){// no simulated latency
+                            timeline_client.synchronizeTimeline(byte_array);
+                        }else{
+                            setTimeout(timeline_client.synchronizeTimeline, timeline_client.update_delay, byte_array);
+                        }
                     }
                 }else{
                     console.log("Timeline Server sent unrecognized formatted data:");
@@ -50,7 +54,11 @@ class TimelineClient{
     }
 
     sendUpdate(message){
-        setTimeout(timeline_client.send, timeline_client.update_delay, message);
+        if(timeline_client.update_delay == 0){ // no simulated latency
+            timeline_client.send(message);
+        }else{
+            setTimeout(timeline_client.send, timeline_client.update_delay, message);
+        }
     }
 
     
