@@ -1534,6 +1534,15 @@ void GLTF::applyPins(){
     fixedSpeedIK(0.000001);
     fixedSpeedRotationIK(0.5);
     computeNodeMatrices();
+    /*
+    vector<float> g = gradient(xf) ;
+    vector<float> ng = numericalGradient(xf,0.0001);
+    double gne = 0 ;
+    for(int k=0;k<g.size();k++){
+        gne += (g[k]-ng[k])*(g[k]-ng[k]) ;
+    }
+    printf("Gradient vs numerical Error: %f\n", gne);
+    */
 }
 
 // Return the current x for this object
@@ -1710,18 +1719,17 @@ std::vector<float> GLTF::gradient(std::vector<float> x){
     }
 
     // enforce nromalized quaternions with a barrier penalty
-    for(int node_id=0; node_id<nodes.size(); node_id++){ 
-            //TODO barrier is not properly considering stiffness  
+    for(int node_id=0; node_id<nodes.size(); node_id++){
             Node& bone = nodes[node_id];
-            double d2 = glm::dot(bone.rotation, bone.rotation);
-            double dqdb = 4 * (d2-1);
-            gradient[node_id*4] += barrier_strength*bone.rotation.w * dqdb ;
-            gradient[node_id*4+1] += barrier_strength*bone.rotation.x * dqdb ;
-            gradient[node_id*4+2] += barrier_strength*bone.rotation.y * dqdb ;
-            gradient[node_id*4+3] += barrier_strength*bone.rotation.z * dqdb ;
+            double d2 = glm::dot(bone.rotation, bone.rotation); // x is bone.rotation/stiffness so that works into the gradient
+            double dqdb = 4 * (d2-1) * barrier_strength/bone.stiffness;
+            gradient[node_id*4] += bone.rotation.w * dqdb ;
+            gradient[node_id*4+1] += bone.rotation.x * dqdb ;
+            gradient[node_id*4+2] += bone.rotation.y * dqdb ;
+            gradient[node_id*4+3] += bone.rotation.z * dqdb ;
             
 
-            // enforce node stiffness
+            // enforce node stiffness (stiffness multiplier cancels with conversion from bone to coordinates)
             gradient[node_id*4] += 2*stiffness_strength*(bone.rotation.w-bone.base_rotation.w);
             gradient[node_id*4+1] += 2*stiffness_strength*(bone.rotation.x-bone.base_rotation.x);
             gradient[node_id*4+2] += 2*stiffness_strength*(bone.rotation.y-bone.base_rotation.y);
