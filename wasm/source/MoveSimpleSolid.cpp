@@ -88,15 +88,17 @@ void MoveSimpleSolid::run(){
                 self->position = self->velocity + vec3(0,0,1.75) ;
             }
         }
-
+        
         self->status = 0 ;
         weak_ptr<TObject> sw = get(self->shape_id) ; 
         if(auto sg = sw.lock()){ // if has a shape
             shared_ptr<ConvexShape> shape = std::static_pointer_cast<ConvexShape>(sg);
             self->radius = shape->radius; // keep radius up to date with shape
-            self->computeWorldPlanes(shape);
+            if(moving || self->world_plane.size() == 0){
+                self->computeWorldPlanes(shape);
+            }
             vector<int> collisions = getCollisions();
-
+            bool computed_inertia = false;
             for(int j = 0 ;j < collisions.size();j++){
             if(collisions[j] < anchor_id){ // only handle each collision once
                 weak_ptr<TObject> cw = get(collisions[j]) ;
@@ -106,25 +108,35 @@ void MoveSimpleSolid::run(){
                         // Compute other's world planes if required (and it might be since they aren't serialized)
                         //if(other->world_vertex.size() == 0){
                             weak_ptr<TObject> qsw = get(other->shape_id) ; 
+
                             if(auto qsg = qsw.lock()){ // if has a shape
                                 shared_ptr<ConvexShape> other_shape = std::static_pointer_cast<ConvexShape>(qsg);
-                                other->computeWorldPlanes(other_shape);
+                                if(other->world_plane.size() != 0){
+                                    vector<vec3> collision = self->checkCollision(other) ;
+                                    if(collision.size()>0){
+                                        if(!computed_inertia){
+                                            self->computeInertia(shape);
+                                            computed_inertia = true;
+                                        }
+                                        other->computeInertia(other_shape); // TODO don't modify other shapes (even cache) when not anchored
+                                        vec3& move = collision[0] ;
+                                        vec3& point = collision[1] ;
+                                        vec3& normal = collision[2] ;
+                                        vec3 impulse = self->getCollisionImpulse(other, point,normal, 1.0);
+                                        self->position += move*0.5f;
+                                        self->applyImpulse(impulse, point);
+                                        addEvent(std::make_unique<ApplySolidImpulse>(collisions[j], impulse*-1.0f, point, move*-0.5f));
+
+                                        self->computeWorldPlanes(shape);
+                                    }
+                                }
+
                             }else{
                                 printf("Error: solid without shape!\n");
                             }
                         //}
 
-                        vector<vec3> collision = self->checkCollision(other) ;
-                        if(collision.size()>0){
-                            vec3& move = collision[0] ;
-                            vec3& point = collision[1] ;
-                            vec3& normal = collision[2] ;
-                            vec3 impulse = self->getCollisionImpulse(other, point,normal, 1.0);
-                            self->position += move*0.5f;
-                            self->applyImpulse(impulse, point);
-                            addEvent(std::make_unique<ApplySolidImpulse>(collisions[j], impulse*-1.0f, point, move*-0.5f));
-
-                        }
+                        
                     }
                 }
             }}
