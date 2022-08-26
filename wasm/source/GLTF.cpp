@@ -1516,23 +1516,23 @@ void GLTF::deletePin(std::string name){
 void GLTF::applyPins(){    
     vector<float> x0 = getX() ;
     // gradient descent handles bone stiffness best so do it first
-    vector<float> xf = OptimizationProblem::minimumByGradientDescent(x0, 0, 5,50) ; 
-    setX(xf);
+    //vector<float> xf = OptimizationProblem::minimumByGradientDescent(x0, 0, 5,50) ; 
+    //setX(xf);
     for(int node_id=0; node_id<nodes.size(); node_id++){   
             Node& bone = nodes[node_id];
             bone.rotation = glm::normalize(bone.rotation);
     }
-    //fixedSpeedIK(0.000001); // Fixed speed IK helps unstick things
-    //fixedSpeedRotationIK(0.5);
+    fixedSpeedIK(0.000001); // Fixed speed IK helps unstick things
+    fixedSpeedRotationIK(0.01);
     x0 = getX() ;
-    xf = OptimizationProblem::minimizeByLBFGS(x0, 3, 3, 50, 0, 0); // L-BFGS converges fast but doesn't obey bone stiffness
+    vector<float>xf = OptimizationProblem::minimizeByLBFGS(x0, 3, 6, 50, 0, 0); // L-BFGS converges fast but doesn't obey bone stiffness
     setX(xf);
     for(int node_id=0; node_id<nodes.size(); node_id++){   
             Node& bone = nodes[node_id];
             bone.rotation = glm::normalize(bone.rotation);
     }
     //fixedSpeedIK(0.000001);
-    //fixedSpeedRotationIK(0.5);
+    //fixedSpeedRotationIK(0.01);
     computeNodeMatrices();
     /*
     vector<float> g = gradient(xf) ;
