@@ -37,8 +37,6 @@ EXPORTED_FUNCTIONS =\
 	'_setPinTarget',\
 	'_getNodeTransform',\
 	'_applyPins',\
-	'_createRotationPin',\
-	'_setRotationPinTarget',\
 	'_runTimelineUnitTests',\
 	'_runTimeline',\
 	'_getBallObjects',\

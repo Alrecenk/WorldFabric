@@ -154,11 +154,12 @@ class WorldChatMode extends ExecutionMode{
 		this.mouse_y = pointers[0].y;
 		if(this.mouse_down){
             if(this.dragging){
+                /*
                 let ray = tools.renderer.getRay([this.mouse_x,this.mouse_y]);
                 ray.name = "drag";
                 tools.API.call("setPinTarget", ray, new Serializer()); 
                 tools.API.call("applyPins", {}, new Serializer()); 
-
+                */
             }else if(this.rotating){
                this.tools.renderer.continueRotate(pointers[0]);
             }
@@ -343,8 +344,7 @@ class WorldChatMode extends ExecutionMode{
                 mat4.multiply(MP2,model_inv,MP2);
                 mat4.multiply(MP2,MP2,initial);
 
-                params.target = MP2;
-                tools.API.call("setRotationPinTarget", params, new Serializer()); 
+                params.o = MP2;
                 tools.API.call("setPinTarget", params, new Serializer()); 
 
                 // if gripping with this hand
@@ -432,12 +432,10 @@ class WorldChatMode extends ExecutionMode{
 
         mat4.multiply(MP2,MP2,initial);
 
-        
-
-        params.target = MP2;
-        tools.API.call("setRotationPinTarget", params, new Serializer()); 
-        //tools.API.call("setPinTarget", params, new Serializer());  // not required when body tracks head
-
+        delete params.p;
+        params.o = MP2;
+        tools.API.call("setPinTarget", params, new Serializer()); 
+ 
         tools.API.call("applyPins", {}, new Serializer()); 
 
         let id =-1;
