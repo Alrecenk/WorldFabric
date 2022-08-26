@@ -1522,8 +1522,8 @@ void GLTF::applyPins(){
             Node& bone = nodes[node_id];
             bone.rotation = glm::normalize(bone.rotation);
     }
-    fixedSpeedIK(0.000001); // Fixed speed IK helps unstick things
-    fixedSpeedRotationIK(0.5);
+    //fixedSpeedIK(0.000001); // Fixed speed IK helps unstick things
+    //fixedSpeedRotationIK(0.5);
     x0 = getX() ;
     xf = OptimizationProblem::minimizeByLBFGS(x0, 3, 3, 50, 0, 0); // L-BFGS converges fast but doesn't obey bone stiffness
     setX(xf);
@@ -1531,8 +1531,8 @@ void GLTF::applyPins(){
             Node& bone = nodes[node_id];
             bone.rotation = glm::normalize(bone.rotation);
     }
-    fixedSpeedIK(0.000001);
-    fixedSpeedRotationIK(0.5);
+    //fixedSpeedIK(0.000001);
+    //fixedSpeedRotationIK(0.5);
     computeNodeMatrices();
     /*
     vector<float> g = gradient(xf) ;
@@ -1586,6 +1586,7 @@ double GLTF::error(std::vector<float> x){
 
         vec3 actual = pin.local_point ;
         int node_id = pin.bone;
+        glm::quat current_rot = nodes[pin.bone].rotation ;
         while(node_id != -1){
             Node& bone = nodes[node_id];
             actual.x *= bone.scale.x;
@@ -1593,13 +1594,21 @@ double GLTF::error(std::vector<float> x){
             actual.z *= bone.scale.z;
             actual = GLTF::applyRotation(actual, bone.rotation);
             actual += bone.translation;
+            if(node_id!=pin.bone){
+                current_rot = nodes[node_id].rotation * current_rot;
+            }
             node_id = bone.parent;
+
+            
         }
         actual = transform * vec4(actual,1.0) ; // overall model pose transform
 
         //printf("error actual: %f, %f, %f\n", actual.x, actual.y, actual.z);
         vec3 diff = (actual - pin.target) ;
         error += pin.weight * glm::dot(diff, diff);
+
+        glm::quat rot_diff = (current_rot-pin.rot_target) ;
+        error += pin.rot_weight * glm::dot(rot_diff,rot_diff)  ;
     }
 
     // enforce normalized quaternions with a barrier penalty
@@ -1675,12 +1684,14 @@ std::vector<float> GLTF::gradient(std::vector<float> x){
     
     for(const auto& [name, pin] : pins){
         double error = 0 ;
-        
+        double rot_error = 0 ;
         // Forward propogate error
         vec3 actual = pin.local_point ;
         int node_id = pin.bone;
         vector<int> bones ;
         vector<vec3> xi;
+        glm::quat current_rot = nodes[pin.bone].rotation ;
+        vector<glm::quat> r ;
         while(node_id != -1){
             bones.push_back(node_id);
             Node& bone = nodes[node_id];
@@ -1690,6 +1701,10 @@ std::vector<float> GLTF::gradient(std::vector<float> x){
             xi.push_back(actual);
             actual = GLTF::applyRotation(actual, bone.rotation);
             actual += bone.translation;
+            if(node_id!=pin.bone){
+                current_rot = nodes[node_id].rotation * current_rot;
+                r.push_back(current_rot) ;
+            }
             node_id = bone.parent;
         }
         actual = transform * vec4(actual,1.0) ; // overall model pose transform
@@ -1697,7 +1712,16 @@ std::vector<float> GLTF::gradient(std::vector<float> x){
         //printf("point: %f, %f, %f\n", actual.x, actual.y, actual.z);
         dvec3 diff = (dvec3(actual) - dvec3(pin.target)) ;
         error = pin.weight * glm::dot(diff, diff);
-        vec3 dedx =  transform * dvec4(diff,0.0) * 2.0f * pin.weight ;
+        vec3 dedx =  transform * dvec4(diff,0.0) * (2.0f * pin.weight) ;
+
+        glm::quat rot_diff = (current_rot-pin.rot_target) ;
+        rot_error += pin.rot_weight * glm::dot(rot_diff,rot_diff)  ;
+        glm::quat bone_rot_gradient = rot_diff *(pin.rot_weight * 2.0f)  ;
+        gradient[pin.bone*4] += bone_rot_gradient.w/nodes[pin.bone].stiffness ; 
+        gradient[pin.bone*4+1] += bone_rot_gradient.x/nodes[pin.bone].stiffness;
+        gradient[pin.bone*4+2] += bone_rot_gradient.y/nodes[pin.bone].stiffness;
+        gradient[pin.bone*4+3] += bone_rot_gradient.z/nodes[pin.bone].stiffness;
+
 
         // back propogate gradient
         for(int bi = bones.size()-1; bi>= 0; bi--){
