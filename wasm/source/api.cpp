@@ -56,7 +56,7 @@ std::chrono::high_resolution_clock::time_point animation_start_time;
 
 unique_ptr<Timeline> timeline ;
 
-float action_delay = 0.08;
+float action_delay = 0.04;
 
 
 long timeMilliseconds() {

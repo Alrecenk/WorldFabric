@@ -1523,9 +1523,9 @@ void GLTF::applyPins(){
             bone.rotation = glm::normalize(bone.rotation);
     }
     fixedSpeedIK(0.000001); // Fixed speed IK helps unstick things
-    fixedSpeedRotationIK(0.01);
+    fixedSpeedRotationIK(0.05);
     x0 = getX() ;
-    vector<float>xf = OptimizationProblem::minimizeByLBFGS(x0, 3, 6, 50, 0, 0); // L-BFGS converges fast but doesn't obey bone stiffness
+    vector<float>xf = OptimizationProblem::minimizeByLBFGS(x0, 5, 20, 100, 0, 0); // L-BFGS converges fast but doesn't obey bone stiffness
     setX(xf);
     for(int node_id=0; node_id<nodes.size(); node_id++){   
             Node& bone = nodes[node_id];
