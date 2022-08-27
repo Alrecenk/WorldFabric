@@ -1514,23 +1514,29 @@ void GLTF::deletePin(std::string name){
 
 // run inverse kinematics on model to bones to attemp to satisfy pin constraints
 void GLTF::applyPins(){    
-    vector<float> x0 = getX() ;
+    //vector<float> x0 = getX() ;
     // gradient descent handles bone stiffness best so do it first
     //vector<float> xf = OptimizationProblem::minimumByGradientDescent(x0, 0, 5,50) ; 
     //setX(xf);
+    /*
     for(int node_id=0; node_id<nodes.size(); node_id++){   
             Node& bone = nodes[node_id];
             bone.rotation = glm::normalize(bone.rotation);
-    }
-    fixedSpeedIK(0.000001); // Fixed speed IK helps unstick things
-    fixedSpeedRotationIK(0.05);
-    x0 = getX() ;
-    vector<float>xf = OptimizationProblem::minimizeByLBFGS(x0, 5, 20, 100, 0, 0); // L-BFGS converges fast but doesn't obey bone stiffness
+    }*/
+    fixedSpeedIK(0.001); // Fixed speed IK helps unstick things
+    fixedSpeedRotationIK(0.01);
+    vector<float> x0 = getX() ;
+    //float in_error = error(x0);
+    vector<float>xf = OptimizationProblem::minimizeByLBFGS(x0, 5, 20, 50, 0.002, 0.0001); // L-BFGS converges fast but doesn't obey bone stiffness
     setX(xf);
     for(int node_id=0; node_id<nodes.size(); node_id++){   
             Node& bone = nodes[node_id];
             bone.rotation = glm::normalize(bone.rotation);
     }
+
+    //float out_error = error(xf);
+
+    //printf("Error in: %f, Error out: %f\n", in_error, out_error);
     //fixedSpeedIK(0.000001);
     //fixedSpeedRotationIK(0.01);
     computeNodeMatrices();

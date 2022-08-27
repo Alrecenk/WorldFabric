@@ -124,8 +124,8 @@ class GLTF : public OptimizationProblem, public TableInterface {
         bool boneless = false; // if set to true bones will be ignored in shader (improves performance for unrigged models)
 
         std::map<std::string, Pin> pins ; // for inverse kinematics
-        double barrier_strength = 0.05;
-        double stiffness_strength = 0.01;
+        double barrier_strength = 0.01;
+        double stiffness_strength = 0.005;
 
         std::vector<Vertex> vertices ;
         std::vector<Triangle> triangles ; 
