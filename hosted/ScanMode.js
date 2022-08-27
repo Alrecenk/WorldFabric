@@ -56,14 +56,14 @@ class ScanMode extends ExecutionMode{
             }
         }
         // Draw the models
-        let bones = tools.API.call("getBones", {mesh:"MAIN"}, new Serializer()).bones ;
-        tools.renderer.drawMesh("MAIN", this.model_pose, bones);
+        let bones = tools.API.call("getBones", {mesh:"default_avatar"}, new Serializer()).bones ;
+        tools.renderer.drawMesh("default_avatar", this.model_pose, bones);
         /*for(let dz = -1; dz <=1; dz++){
             for(let dy = -1; dy <=1; dy++){
                 for(let dx = -1; dx <=1; dx++){
                     let M = mat4.create();
                     mat4.translate(M, this.model_pose,[dx*1.5,dy*1.5,dz*1.5]);
-                    tools.renderer.drawMesh("MAIN", M);
+                    tools.renderer.drawMesh("default_avatar", M);
                 }
             }
         }*/

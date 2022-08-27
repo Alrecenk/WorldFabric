@@ -14,7 +14,7 @@ class MeshLibrary : public TableInterface{
 
 
     private:
-        LRUCache<std::string,GLTF> meshes ; // meshes currently in memory
+        
         std::set<std::string> deleted_keys; // keys deleted from the cache to to overflow (need to be cleared from GPU memory in Javascript)
         std::set<std::string> missing_keys; // keys requested that were not available, queue for remote fetching
         bool request_is_pending = false ;
@@ -23,6 +23,8 @@ class MeshLibrary : public TableInterface{
         void tryRequestNext();
     
     public:
+        LRUCache<std::string,GLTF> meshes ; // meshes currently in memory
+
 
         MeshLibrary(int max_meshes):meshes(max_meshes){}
 

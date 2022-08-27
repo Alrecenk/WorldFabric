@@ -54,6 +54,7 @@ EXPORTED_FUNCTIONS =\
 	'_setMeshInstance',\
 	'_getNearestSolid',\
 	'_setSolidPose',\
+	'_setIKParams',\
 	'_free'
 EXTRA_EXPORTED_RUNTIME_METHODS=['ccall']
 API_MAIN = ${API_DIR}source/api.cpp

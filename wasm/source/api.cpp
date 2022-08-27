@@ -182,6 +182,11 @@ byte* setModel(byte* ptr){
     string select = MY_AVATAR;
     std::shared_ptr<GLTF> model = meshes[select];
 
+    if(model == nullptr){
+        model = std::make_shared<GLTF>() ;
+        meshes.meshes.insert(select, model); // TODO add function for this so meshes.meshes an be private
+    }
+
     auto start_time = now();
     auto obj = Variant::deserializeObject(ptr);
     byte* byte_array = obj["data"].getByteArray();
@@ -242,6 +247,7 @@ byte* getUpdatedBuffers(byte* ptr){
 
     map<string,Variant> buffers;
     vector<string> mesh_keys = meshes.getAllKeys();
+    bool has_hand = false;
     for(auto &name : mesh_keys){
         std::shared_ptr<GLTF> mesh = meshes[name];
         //st = now();
@@ -256,7 +262,16 @@ byte* getUpdatedBuffers(byte* ptr){
             mesh->model_changed = false;
             mesh->bones_changed = false;                
         }
+        if(name == "HAND"){
+            has_hand = true;
+        }
     }
+
+    if(!has_hand){
+        shared_ptr<ConvexShape> shape = std::make_unique<ConvexShape>(ConvexShape::makeSphere(glm::vec3(0,0,0), 0.01, 0));
+        meshes.addLocalShapeMesh("HAND", shape, vec3(0.85, 0.85, 1.0));
+    }
+
     //ms = millisBetween(st, now());
     //printf("api get all buffers: %d ms\n", ms);
     return pack(buffers) ;
@@ -770,6 +785,35 @@ byte* setSolidPose(byte* ptr){
     }
     bool mv = !(obj["freeze"].defined());
     timeline->addEvent(std::make_unique<SetConvexSolid>(id, p, v, o, av , mv),  timeline->current_time+action_delay) ;
+    return emptyReturn();
+}
+
+byte* setIKParams(byte* ptr){
+    auto obj = Variant::deserializeObject(ptr);
+    std::shared_ptr<GLTF> model = meshes[MY_AVATAR];
+
+    if(obj["barrier_strength"].defined()){
+        model->barrier_strength = obj["barrier_strength"].getNumberAsFloat();
+    }
+    if(obj["stiffness_strength"].defined()){
+        model->stiffness_strength = obj["stiffness_strength"].getNumberAsFloat();
+    }
+    if(obj["tolerance"].defined()){
+        model->tolerance = obj["tolerance"].getNumberAsFloat();
+    }
+    if(obj["stiffness_decay"].defined()){
+        model->stiffness_decay = obj["stiffness_decay"].getNumberAsFloat();
+    }
+    if(obj["lbfgs_m"].defined()){
+        model->lbfgs_m = obj["lbfgs_m"].getInt();
+    }
+    if(obj["iter"].defined()){
+        model->iter = obj["iter"].getInt();
+    }
+    if(obj["step_iter"].defined()){
+        model->step_iter = obj["step_iter"].getInt();
+    }
+
     return emptyReturn();
 }
 

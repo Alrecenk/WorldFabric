@@ -1316,7 +1316,7 @@ void GLTF::setStiffnessByDepth(int node_id, float stiffness){
     Node& node = nodes[node_id];
     node.stiffness = stiffness;
     for(int k=0;k<node.children.size();k++){
-        setStiffnessByDepth(node.children[k], stiffness*0.75);
+        setStiffnessByDepth(node.children[k], stiffness*stiffness_decay);
     }
 }
 
@@ -1513,8 +1513,8 @@ void GLTF::deletePin(std::string name){
 }
 
 // run inverse kinematics on model to bones to attemp to satisfy pin constraints
-void GLTF::applyPins(){    
-    //vector<float> x0 = getX() ;
+void GLTF::applyPins(){ 
+    vector<float> x0 = getX() ;
     // gradient descent handles bone stiffness best so do it first
     //vector<float> xf = OptimizationProblem::minimumByGradientDescent(x0, 0, 5,50) ; 
     //setX(xf);
@@ -1523,11 +1523,14 @@ void GLTF::applyPins(){
             Node& bone = nodes[node_id];
             bone.rotation = glm::normalize(bone.rotation);
     }*/
-    fixedSpeedIK(0.001); // Fixed speed IK helps unstick things
-    fixedSpeedRotationIK(0.01);
-    vector<float> x0 = getX() ;
-    //float in_error = error(x0);
-    vector<float>xf = OptimizationProblem::minimizeByLBFGS(x0, 5, 20, 50, 0.002, 0.0001); // L-BFGS converges fast but doesn't obey bone stiffness
+    float in_error = error(x0);
+    if(in_error > tolerance){
+        fixedSpeedIK(0.001); // Fixed speed IK helps unstick things
+        fixedSpeedRotationIK(0.01);
+        x0 = getX() ;
+    }
+    
+    vector<float>xf = OptimizationProblem::minimizeByLBFGS(x0, lbfgs_m, iter, step_iter, tolerance, 0.0001); // L-BFGS converges fast but doesn't obey bone stiffness
     setX(xf);
     for(int node_id=0; node_id<nodes.size(); node_id++){   
             Node& bone = nodes[node_id];

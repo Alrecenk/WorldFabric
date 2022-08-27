@@ -88,22 +88,22 @@ class PossessMode extends ExecutionMode{
         }
 
         // Draw the model
-        tools.renderer.setMeshDoubleSided("MAIN", false);
-        let bones = tools.API.call("getBones", {mesh:"MAIN"}, new Serializer()).bones ;
-        tools.renderer.drawMesh("MAIN", this.model_pose, bones);
+        tools.renderer.setMeshDoubleSided("default_avatar", false);
+        let bones = tools.API.call("getBones", {mesh:"default_avatar"}, new Serializer()).bones ;
+        tools.renderer.drawMesh("default_avatar", this.model_pose, bones);
 
         //Draw the mirror
-        tools.renderer.setMeshDoubleSided("MAIN", true);
+        tools.renderer.setMeshDoubleSided("default_avatar", true);
 
         mat4.multiply(M,mirror, this.model_pose);
-        tools.renderer.drawMesh("MAIN", M, bones);
+        tools.renderer.drawMesh("default_avatar", M, bones);
 
 /*
         let mirror = mat4.create();
         mat4.scale(mirror, this.model_pose, vec3.fromValues(1,1,-1));
         mat4.translate(mirror, mirror,[0,0,2]);
 
-        tools.renderer.drawMesh("MAIN", mirror);
+        tools.renderer.drawMesh("default_avatar", mirror);
 */
     }
 
@@ -289,8 +289,7 @@ class PossessMode extends ExecutionMode{
                         //console.log(gpos[0] +", " + gpos[1] +", " + gpos[2]);
                         params.p = new Float32Array([gpos[g][0], gpos[g][1], gpos[g][2]]);
                         if(creating){
-                            params.initial_matrix = tools.API.call("createRotationPin", params, new Serializer()).matrix;
-                            tools.API.call("createPin", params, new Serializer());
+                            params.initial_matrix = tools.API.call("createPin", params, new Serializer()).matrix;
                             params.initial_grip = mat4.create();
                             params.initial_grip.set(input_source.grip_pose);
                             this.hand_pins[which_hand].push(params); // create pin from current point    
@@ -313,12 +312,8 @@ class PossessMode extends ExecutionMode{
                             mat4.multiply(MP,MP,initial);
 
 
-                            params.target = MP;
-                            tools.API.call("setRotationPinTarget", params, new Serializer()); 
-
-                            tools.API.call("setPinTarget", params, new Serializer()); 
-
-                            
+                            params.o = MP;
+                            tools.API.call("setPinTarget", params, new Serializer());
                         }
                     }
                 }
@@ -350,13 +345,12 @@ class PossessMode extends ExecutionMode{
             //console.log(JSON.stringify(params));
             
             if(creating){
-                params.initial_matrix = tools.API.call("createRotationPin", params, new Serializer()).matrix;
-                tools.API.call("createPin", params, new Serializer()); 
-
+                params.initial_matrix = tools.API.call("createPin", params, new Serializer()).matrix;
                 params.initial_pose = mat4.create();
                 params.initial_pose.set(tools.renderer.head_pose.transform.matrix);
                 this.head_pins.push(params); // create pin from current point
                 this.head_posing = true;
+                tools.API.call("setIKParams", {stiffness_strength:0.01,stiffness_decay : 0.85}, new Serializer());
             }else if(this.head_pins.length>0){
                 
                 let initial = this.head_pins[g].initial_matrix ;
@@ -379,8 +373,7 @@ class PossessMode extends ExecutionMode{
 
                 mat4.multiply(MP,MP,initial);
 
-                params.target = MP;
-                tools.API.call("setRotationPinTarget", params, new Serializer()); 
+                params.o = MP;
                 tools.API.call("setPinTarget", params, new Serializer()); 
             }
             
