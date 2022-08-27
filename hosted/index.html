@@ -50,6 +50,7 @@ body {
     uniform sampler2D u_texture;
     uniform int u_has_texture ;
     uniform float u_alpha_cutoff ;
+    uniform float u_nearness_cutoff ;
 	
 	out vec4 frag_color;
 
@@ -72,7 +73,7 @@ body {
             frag_color.a *= t_color.a ;
         }
 
-        if(frag_color.a < u_alpha_cutoff){
+        if(frag_color.a < u_alpha_cutoff || dot(v_position,v_position) < u_nearness_cutoff ){
             discard ;
         }		
     }
@@ -90,6 +91,7 @@ body {
     uniform mat4 uMVMatrix;
     uniform mat4 uPMatrix;
     uniform sampler2D bones_texture;
+    uniform int boneless ;
 
     out vec4 v_color;
 	out vec3 v_position;
@@ -113,21 +115,26 @@ body {
     }
 
     void main(void) {
-        vec4 x = vec4(aVertexPosition, 1) ;
+        if(boneless == 1){
+            v_position = aVertexPosition ;
+            v_normal = aNormal ;
+        }else{
+            vec4 x = vec4(aVertexPosition, 1) ;
 
-        v_position = vec3(getBone(aJoints[0]) * x * aWeights[0] + 
-                        getBone(aJoints[1]) * x * aWeights[1] + 
-                        getBone(aJoints[2]) * x * aWeights[2] + 
-                        getBone(aJoints[3]) * x * aWeights[3] );
+            v_position = vec3(getBone(aJoints[0]) * x * aWeights[0] + 
+                            getBone(aJoints[1]) * x * aWeights[1] + 
+                            getBone(aJoints[2]) * x * aWeights[2] + 
+                            getBone(aJoints[3]) * x * aWeights[3] );
 
-        vec4 n = vec4(aNormal,0);
+            vec4 n = vec4(aNormal,0);
 
-        v_normal = vec3(getBone(aJoints[0]) * n * aWeights[0] + 
-                        getBone(aJoints[1]) * n * aWeights[1] + 
-                        getBone(aJoints[2]) * n * aWeights[2] + 
-                        getBone(aJoints[3]) * n * aWeights[3] );
+            v_normal = vec3(getBone(aJoints[0]) * n * aWeights[0] + 
+                            getBone(aJoints[1]) * n * aWeights[1] + 
+                            getBone(aJoints[2]) * n * aWeights[2] + 
+                            getBone(aJoints[3]) * n * aWeights[3] );
 
-        v_normal = normalize(v_normal);               
+            v_normal = normalize(v_normal); 
+        }              
         v_color = aVertexColor;
         if(length(v_position) < 0.01f){
             v_position = aVertexPosition;
@@ -137,7 +144,10 @@ body {
 		//v_position = aVertexPosition; 
 		//v_normal = aNormal;
         v_texcoord = aTexcoord;
+        
         gl_Position = uPMatrix * uMVMatrix * vec4(v_position, 1.0);
+        v_position = vec3(uMVMatrix * vec4(v_position, 1.0));
+        v_normal = vec3(uMVMatrix * vec4(v_normal, 0.0));
     }
 </script>
 
@@ -382,10 +392,6 @@ function loadGLBFile() {
 	}
 }
 
-function requestModel(){
-    tools.API.call("requestModel", {key:"default_avatar"}, new Serializer()) ;
-}
-
 </script>
 </head>
 <body onload="onBodyLoad();">
@@ -395,7 +401,6 @@ function requestModel(){
 	</div>
     <p align="center">
         <input id="loader" type="file" onchange='loadGLBFile()' autocomplete="off">
-        <button onclick="requestModel()">Download Model</button>
         </p>
 </body>
 </html>

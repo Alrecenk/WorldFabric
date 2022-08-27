@@ -204,14 +204,7 @@ int main(int argc, const char** argv) {
     // command for generating key files in linux:
     // openssl req -nodes -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -sha256 -days 365
     SecureWebServer web_server(8080, "./hosted/", "./cert/cert.pem","./cert/key.pem");
-    /*
-    char http_address[] = "0.0.0.0";
-    int http_port = 8080;
-    char http_root[] = "hosted"; // relative path from server binary to hosted files
-    cout << "Starting the webserver on port " << http_port << "..." << endl;
-    WebServer web_server(http_address, http_port, http_root);
-    */
-
+ 
     unordered_map<string, Variant> table;
     table["test"] = Variant("cactus") ;
     loadModels(table);
@@ -220,7 +213,7 @@ int main(int argc, const char** argv) {
     /*std::ifstream password_file("./cert/password.txt");
     std::string password;
     std::getline(password_file, password); */
-  
+
     // boot up the tableserver on a non-blocking thread
     int table_port = 9004;
     printf("Starting the table server on port %d...\n", table_port);
@@ -256,6 +249,4 @@ int main(int argc, const char** argv) {
     }
     //web_server.stop();
     timeline_server.stop();
-    
-    
 }

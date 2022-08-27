@@ -88,21 +88,21 @@ class AvatarMode extends ExecutionMode{
         }
 
         // Draw the model
-        tools.renderer.setMeshDoubleSided("MAIN", false);
-        let bones = tools.API.call("getBones", {mesh:"MAIN"}, new Serializer()).bones ;
-        tools.renderer.drawMesh("MAIN", this.model_pose, bones);
+        tools.renderer.setMeshDoubleSided("default_avatar", false);
+        let bones = tools.API.call("getBones", {mesh:"default_avatar"}, new Serializer()).bones ;
+        tools.renderer.drawMesh("default_avatar", this.model_pose, bones);
 
         //Draw the mirror
-        tools.renderer.setMeshDoubleSided("MAIN", true);
+        tools.renderer.setMeshDoubleSided("default_avatar", true);
         mat4.multiply(M,mirror, this.model_pose);
-        tools.renderer.drawMesh("MAIN", M, bones);
+        tools.renderer.drawMesh("default_avatar", M, bones);
 
 /*
         let mirror = mat4.create();
         mat4.scale(mirror, this.model_pose, vec3.fromValues(1,1,-1));
         mat4.translate(mirror, mirror,[0,0,2]);
 
-        tools.renderer.drawMesh("MAIN", mirror);
+        tools.renderer.drawMesh("default_avatar", mirror);
 */
     }
 
@@ -340,8 +340,7 @@ class AvatarMode extends ExecutionMode{
                         params.p = new Float32Array([gpos[g][0], gpos[g][1], gpos[g][2]]);
                         if(creating){
                             params.name = "vr_hand_"+which_hand+"_pose_" + g;
-                            params.initial_matrix = tools.API.call("createRotationPin", params, new Serializer()).matrix;
-                            tools.API.call("createPin", params, new Serializer());
+                            params.initial_matrix = tools.API.call("createPin", params, new Serializer()).matrix;
                             params.initial_grip = mat4.create();
                             params.initial_grip.set(input_source.grip_pose);
                             this.hand_pins[which_hand].push(params); // create pin from current point    
@@ -365,9 +364,7 @@ class AvatarMode extends ExecutionMode{
                             mat4.multiply(MP,MP,initial);
 
 
-                            params.target = MP;
-                            tools.API.call("setRotationPinTarget", params, new Serializer()); 
-
+                            params.o = MP;
                             tools.API.call("setPinTarget", params, new Serializer()); 
 
                             
@@ -396,8 +393,7 @@ class AvatarMode extends ExecutionMode{
             if(creating){
                 params.name = "vr_head_pose_" + g;
                 console.log(JSON.stringify(params));
-                params.initial_matrix = tools.API.call("createRotationPin", params, new Serializer()).matrix;
-                tools.API.call("createPin", params, new Serializer()); 
+                params.initial_matrix = tools.API.call("createPin", params, new Serializer()).matrix;
 
                 params.initial_pose = mat4.create();
                 params.initial_pose.set(tools.renderer.head_pose.transform.matrix);
@@ -424,9 +420,9 @@ class AvatarMode extends ExecutionMode{
 
                 mat4.multiply(MP,MP,initial);
 
-                params.target = MP;
-                tools.API.call("setRotationPinTarget", params, new Serializer()); 
-                //tools.API.call("setPinTarget", params, new Serializer()); 
+                params.o = MP;
+                delete params.p ;
+                tools.API.call("setPinTarget", params, new Serializer()); 
             }
             
         }

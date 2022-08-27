@@ -64,8 +64,8 @@ class PoseMode extends ExecutionMode{
             }
         }
         // Draw the models
-        let bones = tools.API.call("getBones", {mesh:"MAIN"}, new Serializer()).bones ;
-        tools.renderer.drawMesh("MAIN", this.model_pose, bones);
+        let bones = tools.API.call("getBones", {mesh:"default_avatar"}, new Serializer()).bones ;
+        tools.renderer.drawMesh("default_avatar", this.model_pose, bones);
         tools.renderer.drawMesh("HAND", this.hand_pose[0]);
         tools.renderer.drawMesh("HAND", this.hand_pose[1]);
 
@@ -209,10 +209,7 @@ class PoseMode extends ExecutionMode{
 
                     //console.log(grip_pose);
                     let gpos = [
-                        vec4.fromValues(0.025, 0.025, -0.025, 1.0),
-                        vec4.fromValues(-0.025, 0.025, -.025, 1.0),
-                        vec4.fromValues(0, -0.025, -0.025, 1.0),
-                        vec4.fromValues(0, 0, 0.025, 1.0)
+                        vec4.fromValues(0, 0, 0, 1.0)
                     ];
 
                     
@@ -230,8 +227,27 @@ class PoseMode extends ExecutionMode{
                         params.p = new Float32Array([gpos[g][0], gpos[g][1], gpos[g][2]]);
                         if(creating){
                             this.pin.push(params.name); // create pin from current point
-                            tools.API.call("createPin", params, new Serializer()); 
+                            this.initial_pose  = tools.API.call("createPin", params, new Serializer()).matrix; 
+                            this.initial_grip = input_source.grip_pose ;
+                            tools.API.call("setIKParams", {stiffness_strength:0.00005, iter:10, tolerance:0}, new Serializer());
                         }else{
+                            let current_grip = input_source.grip_pose ;
+                            let model_inv = mat4.create();
+                            mat4.invert(model_inv,this.model_pose);
+                            let MP = mat4.create();
+                            let inv = mat4.create();
+                            // get change in grip
+                            mat4.invert(inv, this.initial_grip);
+                            mat4.multiply(MP,current_grip, inv);
+
+                            // make both relative to model pose by wrapping it on both sides
+                            mat4.multiply(MP,model_inv,MP);
+                            mat4.multiply(MP,MP,this.model_pose);
+
+                            mat4.multiply(MP,MP,this.initial_pose);
+
+                            params.o = MP;
+
                             tools.API.call("setPinTarget", params, new Serializer()); 
                             tools.API.call("applyPins", {}, new Serializer()); 
                         }

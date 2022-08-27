@@ -126,6 +126,11 @@ class GLTF : public OptimizationProblem, public TableInterface {
         std::map<std::string, Pin> pins ; // for inverse kinematics
         double barrier_strength = 0.01;
         double stiffness_strength = 0.005;
+        double tolerance = 0.0018 ;
+        double stiffness_decay = 0.75 ;
+        int lbfgs_m = 5;
+        int iter = 20;
+        int step_iter = 50;
 
         std::vector<Vertex> vertices ;
         std::vector<Triangle> triangles ; 
