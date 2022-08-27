@@ -71,7 +71,7 @@ void addTestShapes(Timeline* timeline){
         for(float y = 0; y < 1.5; y+=0.65f){
             std::unique_ptr<ConvexSolid> solid = std::make_unique<ConvexSolid>(
                 ConvexSolid(shape_id, mass, glm::vec3(x,y,0.75), glm::quat(0,0,0,1)));
-            timeline->createObject(std::move(solid), std::make_unique<MoveSimpleSolid>(1.0/72), st+ 1.1 + 0.01*randomFloat() );
+            timeline->createObject(std::move(solid), std::make_unique<MoveSimpleSolid>(1.0/90), st+ 1.1 + 0.01*randomFloat() );
         }}
     });
 
@@ -86,7 +86,7 @@ void addTestShapes(Timeline* timeline){
         for(float y = 0; y < 1.5; y+=0.65f){
             std::unique_ptr<ConvexSolid> solid = std::make_unique<ConvexSolid>(
                 ConvexSolid(shape_id, mass, glm::vec3(x,y,1.25), glm::quat(0,0,0,1)));
-            timeline->createObject(std::move(solid), std::make_unique<MoveSimpleSolid>(1.0/72), st+ 1.1 + 0.01*randomFloat() );
+            timeline->createObject(std::move(solid), std::make_unique<MoveSimpleSolid>(1.0/90), st+ 1.1 + 0.01*randomFloat() );
         }}
     });
 
@@ -101,7 +101,7 @@ void addTestShapes(Timeline* timeline){
         for(float y = 0; y < 1.5; y+=0.65f){
             std::unique_ptr<ConvexSolid> solid = std::make_unique<ConvexSolid>(
                 ConvexSolid(shape_id, mass, glm::vec3(x,y,1.75), glm::quat(0,0,0,1)));
-            timeline->createObject(std::move(solid), std::make_unique<MoveSimpleSolid>(1.0/72), st+ 1.1 + 0.01*randomFloat() );
+            timeline->createObject(std::move(solid), std::make_unique<MoveSimpleSolid>(1.0/90), st+ 1.1 + 0.01*randomFloat() );
         }}
     });
     
@@ -115,7 +115,7 @@ void addTestShapes(Timeline* timeline){
         for(float y = 0; y < 1.5; y+=0.65f){
             std::unique_ptr<ConvexSolid> solid = std::make_unique<ConvexSolid>(
                 ConvexSolid(shape_id, mass, glm::vec3(x,y,2.25), glm::quat(0,0,0,1)));
-            timeline->createObject(std::move(solid), std::make_unique<MoveSimpleSolid>(1.0/72), st+ 1.1+ 0.01*randomFloat() );
+            timeline->createObject(std::move(solid), std::make_unique<MoveSimpleSolid>(1.0/90), st+ 1.1+ 0.01*randomFloat() );
         }}
     });
 
