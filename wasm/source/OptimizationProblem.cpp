@@ -51,7 +51,7 @@ std::vector<float> OptimizationProblem::minimizeByLBFGS(const std::vector<float>
     }
 
     //quit when acceptable accuracy reached or iterations exceeded
-    while (iter < maxiter && norm(gradient) > tolerance && lasterror-error > min_improvement*error){
+    while (iter < maxiter && error > tolerance && lasterror-error > min_improvement*error){
         lasterror = error;
         iter = iter + 1;
         k = k + 1;
