@@ -381,6 +381,7 @@ function loadGLBFile() {
         if(load_data!= null){
             let params = {};
             params.data = load_data;
+            tools.renderer.removeMesh("default_avatar");
             let m = tools.API.call("setModel", params, new Serializer()) ;
         }
     }

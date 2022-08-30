@@ -234,7 +234,19 @@ class AvatarMode extends ExecutionMode{
                 if(xr_input[k].handedness == "right"){
                     right = k ;
                 }
+                console.log(xr_input[k]);
             }
+            
+            // If handedness not fully defined, try your best.
+            if(left == -1 && right == -1){
+                left = 0 ;
+                right = 1 ;
+            }else if(left == -1){
+                left = 1-right;
+            }else if(right == -1){
+                right = 1-left;
+            }
+
 
             
             let initial_matrices = tools.API.call("createVRMPins", {}, new Serializer()); 
@@ -251,6 +263,9 @@ class AvatarMode extends ExecutionMode{
                                                 0,0,1,0,
                                                 0,0,0,1]);
             this.hand_pins[right].push({name:"right_hand", initial_matrix : initial_matrices["right_hand"], initial_grip: right_grip});
+            
+            
+            
             console.log(this.hand_pins);
             
         }

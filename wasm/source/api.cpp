@@ -180,12 +180,8 @@ void setPacketPointer(byte* p){
 // Expects an object with vertices and faces
 byte* setModel(byte* ptr){
     string select = MY_AVATAR;
-    std::shared_ptr<GLTF> model = meshes[select];
-
-    if(model == nullptr){
-        model = std::make_shared<GLTF>() ;
-        meshes.meshes.insert(select, model); // TODO add function for this so meshes.meshes an be private
-    }
+    std::shared_ptr<GLTF> model = std::make_shared<GLTF>() ;
+    meshes.meshes.insert(select, model); // TODO add function for this so meshes.meshes can be private
 
     auto start_time = now();
     auto obj = Variant::deserializeObject(ptr);
