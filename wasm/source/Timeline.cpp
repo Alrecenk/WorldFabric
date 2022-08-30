@@ -804,7 +804,7 @@ Variant Timeline::popQuickSends(){
 // Send all pending notications to subscribers and clear the notification list
 void Timeline::sendNotifications(){
     for(auto& [trigger,data] : pending_notifications){
-        std::map<std::string, NotificationReceiever>& receivers = subscribers[trigger];
+        std::map<std::string, NotificationReceiver>& receivers = subscribers[trigger];
         for(auto& [subscriber, receiver] : receivers){
             receiver(trigger,subscriber, data);
         }
@@ -813,7 +813,7 @@ void Timeline::sendNotifications(){
 }
 
 // Subscribe an external function to a given trigger (i.e. catch data sent out by TEvent::notify);
-void Timeline::subscribe(const std::string& subscriber,const std::string& trigger, NotificationReceiever receiver){
+void Timeline::subscribe(const std::string& subscriber,const std::string& trigger, NotificationReceiver receiver){
     subscribers[trigger][subscriber] = receiver ;
 }
 

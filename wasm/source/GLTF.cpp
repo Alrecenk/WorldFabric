@@ -529,9 +529,8 @@ void GLTF::receiveTableData(std::string key, const Variant& data){
             size = fmax(size , abs(min[k]-center[k]));
             
         }
-
-        transform  = glm::scale(mat4(1), {(1.0f/size),(1.0f/size),(1.0f/size)});
-        transform  = glm::translate(transform, center*-1.0f);
+        transform = mat4(1);
+        printf("size: %f, center %f,%f,%f\n", size, center[0], center[1], center[2]);
         
         computeNodeMatrices();
         applyTransforms();

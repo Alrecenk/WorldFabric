@@ -179,6 +179,7 @@ void setPacketPointer(byte* p){
 // Wrappers to model functions applied to model global are made available to callers
 // Expects an object with vertices and faces
 byte* setModel(byte* ptr){
+    selected_animation = -1; // stop animating while editing the model
     string select = MY_AVATAR;
     std::shared_ptr<GLTF> model = std::make_shared<GLTF>() ;
     meshes.meshes.insert(select, model); // TODO add function for this so meshes.meshes can be private
@@ -199,8 +200,11 @@ byte* setModel(byte* ptr){
         
     }
 
-    model->transform  = glm::scale(mat4(1), {(1.0f/size),(1.0f/size),(1.0f/size)});
-    model->transform  = glm::translate(model->transform, center*-1.0f);
+    model->transform = mat4(1);
+    if(size < 0.5 || size > 3){
+        model->transform  = glm::scale(mat4(1), {(1.0f/size),(1.0f/size),(1.0f/size)});
+        model->transform  = glm::translate(model->transform, center*-1.0f);
+    }
     
     model->computeNodeMatrices();
     model->applyTransforms();

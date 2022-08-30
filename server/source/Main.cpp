@@ -39,21 +39,36 @@ void loadModels(unordered_map<string, Variant>& table){
 }
 
 void addRoom(Timeline* timeline){
-    glm::mat4 pose(1);
-    pose[0][0] = 2 ;
-    pose[1][1] = 2 ;
-    pose[2][2] = 2 ;
+    float size = 14.087057 ;
+    vec3 center( -0.197625,10.558842,1.469670);
+    glm::mat4 pose(0);
+    pose[0][0] = 2/size ;
+    pose[1][2] = -2/size  ;
+    pose[2][1] = 2/size  ;
+    
+    pose[3][0] = 0 ;
+    pose[3][1] = -1 ;
+    pose[3][2] = -1.75;
+    pose[3][3] = 1;
+    
     Variant bones;
     std::unique_ptr<MeshInstance> o = std::make_unique<MeshInstance>(glm::vec3(0,0,0), 2, "server", "eroom", pose, bones, false) ;
     timeline->createObject(std::move(o), std::unique_ptr<TEvent>(nullptr) , 0.01234);
     // Room models as a 3 wall diorama so mirror it and to make a complete room
-    pose[0][0] = 2 ;
-    pose[1][1] = 2 ;
-    pose[2][2] = -2 ;
-    pose[3][2] = 3.5;
+    
+    pose = mat4(0);
+    pose[0][0] = 2/size  ;
+    pose[1][2] = 2/size  ;
+    pose[2][1] = 2/size  ;
+
     pose[3][0] = 0.0001; // tiny x offset prevents z fighting on overlap
+    pose[3][1] = -1 ;
+    pose[3][2] = 1.75;
+    pose[3][3] = 1;
+    
     o = std::make_unique<MeshInstance>(glm::vec3(0,0,0), 2, "server", "eroom", pose, bones, false) ;
     timeline->createObject(std::move(o), std::unique_ptr<TEvent>(nullptr) , 0.01235);
+    
 }
 
 void addTestShapes(Timeline* timeline){
@@ -70,7 +85,7 @@ void addTestShapes(Timeline* timeline){
         for(float x = -1.5; x < 1.5; x+=0.65f){
         for(float y = 0; y < 1; y+=0.65f){
             std::unique_ptr<ConvexSolid> solid = std::make_unique<ConvexSolid>(
-                ConvexSolid(shape_id, mass, glm::vec3(x,y,0.75), glm::quat(0,0,0,1)));
+                ConvexSolid(shape_id, mass, glm::vec3(x,y,-0.75f), glm::quat(0,0,0,1)));
             timeline->createObject(std::move(solid), std::make_unique<MoveSimpleSolid>(1.0/90), st+ 1.1 + 0.01*randomFloat() );
         }}
     });
@@ -85,7 +100,7 @@ void addTestShapes(Timeline* timeline){
         for(float x = -1.5; x < 1.5; x+=0.65f){
         for(float y = 0; y < 1; y+=0.65f){
             std::unique_ptr<ConvexSolid> solid = std::make_unique<ConvexSolid>(
-                ConvexSolid(shape_id, mass, glm::vec3(x,y,1.25), glm::quat(0,0,0,1)));
+                ConvexSolid(shape_id, mass, glm::vec3(x,y,-0.25), glm::quat(0,0,0,1)));
             timeline->createObject(std::move(solid), std::make_unique<MoveSimpleSolid>(1.0/90), st+ 1.1 + 0.01*randomFloat() );
         }}
     });
@@ -100,7 +115,7 @@ void addTestShapes(Timeline* timeline){
         for(float x = -1.5; x < 1.5; x+=0.65f){
         for(float y = 0; y < 1; y+=0.65f){
             std::unique_ptr<ConvexSolid> solid = std::make_unique<ConvexSolid>(
-                ConvexSolid(shape_id, mass, glm::vec3(x,y,1.75), glm::quat(0,0,0,1)));
+                ConvexSolid(shape_id, mass, glm::vec3(x,y,0.25), glm::quat(0,0,0,1)));
             timeline->createObject(std::move(solid), std::make_unique<MoveSimpleSolid>(1.0/90), st+ 1.1 + 0.01*randomFloat() );
         }}
     });
@@ -114,7 +129,7 @@ void addTestShapes(Timeline* timeline){
         for(float x = -1.5; x < 1.5; x+=0.65f){
         for(float y = 0; y < 1; y+=0.65f){
             std::unique_ptr<ConvexSolid> solid = std::make_unique<ConvexSolid>(
-                ConvexSolid(shape_id, mass, glm::vec3(x,y,2.25), glm::quat(0,0,0,1)));
+                ConvexSolid(shape_id, mass, glm::vec3(x,y,0.75), glm::quat(0,0,0,1)));
             timeline->createObject(std::move(solid), std::make_unique<MoveSimpleSolid>(1.0/90), st+ 1.1+ 0.01*randomFloat() );
         }}
     });
