@@ -517,6 +517,18 @@ class Renderer{
         }
     }
 
+    removeMesh(mesh_name){
+        let to_delete = [];
+        for(let buffer_name in this.buffers){
+            if(buffer_name.substring(0,mesh_name.length) == mesh_name){
+                to_delete.push(buffer_name);
+            }
+        }
+        for(let d of to_delete){
+            delete this.buffers[d] ;
+        }
+    }
+
     setMeshDoubleSided(mesh_name, double_sided){
         for(let buffer_name in this.buffers){
             if(buffer_name.substring(0,mesh_name.length) == mesh_name){
@@ -528,7 +540,7 @@ class Renderer{
     startXRSession(){
         if(tools.renderer.xr_session == null && !this.started_vr){
             this.started_vr = true ;
-            navigator.xr.requestSession('immersive-vr',{optionalFeatures: ['high-fixed-foveation-level', 'high-refresh-rate']})
+            navigator.xr.requestSession('immersive-vr',{optionalFeatures: ['low-fixed-foveation-level', 'high-refresh-rate']})
                 .then(tools.renderer.onXRSessionStarted);
         }
     }

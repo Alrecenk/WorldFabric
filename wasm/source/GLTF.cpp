@@ -450,7 +450,24 @@ void GLTF::setModel(const byte* data, int data_length){
                         for(int k=0;k<skin_nodes.size();k++){
                             joint_to_node[s][k] = (int)(skin_nodes[k].getNumberAsFloat());
                         }
+
+                        if(skins[s]["inverseBindMatrices"].defined()){
+                            GLTF::Accessor ma = GLTF::access(skins[s]["inverseBindMatrices"].getInt(), json, bin);
+                            if(ma.type != "MAT4" || ma.component_type != 5126){
+                                printf("expected mat4 floats for inverse bind matrices, skipping.\n");
+                                continue ;
+                            }
+                            int num_matrices= ma.data.getArrayLength()/16;
+                            float* data = ma.data.getFloatArray(); // still held by Variant, not a memory leak
+
+                            for(int k=0;k<num_matrices;k++){
+                                glm::mat4 &m = joint_inverse_bind_matrix[joint_to_node[s][k]];
+                                memcpy(&m, data + 16*k, 64);
+                            }
+                        }
+
                     }
+
                 }
 
                 nodes.resize(json["nodes"].getArrayLength());
@@ -504,8 +521,6 @@ void GLTF::receiveTableData(std::string key, const Variant& data){
         
         setModel(data.getByteArray(), data.getArrayLength());
 
-
-        
         float size = 0 ;
         vec3 center(0,0,0);
         for(int k=0;k<3;k++){
@@ -582,7 +597,7 @@ GLTF::Accessor GLTF::access(int accessor_id, vector<Variant>& accessors, vector<
     }else if(c_type == 5125){ // unsigned int
         result.data.type_ = Variant::INT_ARRAY ;
     }else{
-        //printf("unrecognized accessor component type, behavior undefined!\n");
+        printf("unrecognized accessor component type, behavior undefined!\n");
         result.data.type_ = Variant::BYTE_ARRAY ;
     }
 
@@ -770,18 +785,11 @@ void GLTF::addPrimitive(std::vector<Vertex>& vertices, std::vector<Triangle>& tr
     }
     
     for(int k=0;k<num_vertices;k++){
-        
-        //printf("vertex: %f , %f , %f\n", point_data[3*k], point_data[3*k+1],point_data[3*k+2]);
-        vec3 v_local = vec3(point_data[3*k], point_data[3*k+1],point_data[3*k+2]) ;
-        vec4 v_global = transform*vec4(v_local,1);
-        //printf("global: %f , %f , %f\n", v_global.x, v_global.y, v_global.z);
         Vertex v ;
-        v.position = vec3(v_global);
+        v.position = vec3(point_data[3*k], point_data[3*k+1],point_data[3*k+2]) ;
         v.color_mult = mat_color;
         if(has_normals){
-            vec3 n_local = vec3(normal_data[3*k], normal_data[3*k+1], normal_data[3*k+2]) ;
-            vec4 n_global = transform*vec4(n_local,0);
-            v.normal = vec3(n_global);
+            v.normal = vec3(normal_data[3*k], normal_data[3*k+1], normal_data[3*k+2]) ;
         }
         if(has_texcoords){
             v.tex_coord = vec2(texcoords_data[2*k], texcoords_data[2*k+1]) ;
@@ -983,8 +991,8 @@ void GLTF::addScene(std::vector<Vertex>& vertices, std::vector<Triangle>& triang
 
 
 void GLTF::addAnimation(Variant& animation_json, Variant& json, const Variant& bin){
-    //animation.printFormatted();
-    
+    //animation_json.printFormatted();
+
     Animation animation ;
     animation.name = animation_json["name"].getString();
     printf("Adding animation %d: %s!\n", (int)this->animations.size(), animation.name.c_str());
@@ -1093,11 +1101,20 @@ void GLTF::setModel(const std::vector<Vertex>& vertices, const std::vector<Trian
     }
     this->vertices = new_vertices ;
     
-    //update AABB
+    
+    computeInvMatrices();
+    setStiffnessByDepth();
+    this->model_changed = true;
+    this->position_changed = true;
+
+    // caslculate AABB on transformed data
+    applyTransforms();
     this->min = {9999999,9999999,9999999};
     this->max = {-9999999,-9999999,-9999999};
+    //update AABB
+    
     for(int k=0;k<this->vertices.size(); k++){
-        auto &v = this->vertices[k].position;
+        auto &v = this->vertices[k].transformed_position;
         if(v.x < this->min.x)this->min.x = v.x;
         if(v.y < this->min.y)this->min.y = v.y;
         if(v.z < this->min.z)this->min.z = v.z;
@@ -1105,10 +1122,6 @@ void GLTF::setModel(const std::vector<Vertex>& vertices, const std::vector<Trian
         if(v.y > this->max.y)this->max.y = v.y;
         if(v.z > this->max.z)this->max.z = v.z;
     }
-    computeInvMatrices();
-    setStiffnessByDepth();
-    this->model_changed = true;
-    this->position_changed = true;
 
     //printf("Total vertices: %d\n",(int) this->vertices.size());
     //printf("Total triangles: %d\n",(int) this->triangles.size());
@@ -1301,8 +1314,13 @@ void GLTF::computeInvMatrices(){
     } 
     for(int node_id=0; node_id<nodes.size(); node_id++){   
         Node& node = nodes[node_id];
-        node.bone_to_mesh = node.transform ;
-        node.mesh_to_bone = glm::inverse(node.transform) ;
+        if(joint_inverse_bind_matrix.find(node_id) != joint_inverse_bind_matrix.end()){
+            node.mesh_to_bone = joint_inverse_bind_matrix[node_id];
+            node.bone_to_mesh = glm::inverse(node.mesh_to_bone);
+        }else{
+            node.bone_to_mesh = node.transform ;
+            node.mesh_to_bone = glm::inverse(node.transform) ;
+        }
     }
 }
 
@@ -1416,6 +1434,8 @@ void GLTF::animate(Animation& animation, float time){
             }
             //nodes[channel.node].rotation = glm::mix(start_quat, end_quat, t);
             nodes[channel.node].rotation = GLTF::slerp(start_quat, end_quat, t);
+            //nodes[channel.node].rotation = start_quat;
+            //printf("start_quet: %f, %f, %f, %f norm = %f\n", start_quat.w, start_quat.x, start_quat.y, start_quat.z, glm::length(start_quat));
         }
     }
     computeNodeMatrices();

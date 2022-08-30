@@ -112,6 +112,7 @@ class GLTF : public OptimizationProblem, public TableInterface {
         Variant json;
         Variant bin;
         std::map<int,std::map<int,int>> joint_to_node ; // joint_to_node[skin_id][joint_index] -> node_id
+        std::map<int, glm::mat4> joint_inverse_bind_matrix; // maps from node id but may not be defined for all nodes
         std::vector<Node> nodes ;
         std::vector<int> root_nodes ;
         glm::mat4 transform;
