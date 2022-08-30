@@ -45,7 +45,7 @@ class Timeline{
         double max_time_warp = 0.05 ;
         bool auto_clear_history = false; // when true history will be cleared to timekept on event running when it reaches 2*time kept
         bool observable_interpolation = false; // whether we're calling getObserved on objects or just returning their current value
-        int object_updates_to_trigger_reset = 4; // if a nonempty timeline receieves this many object updates in a sync packet, reset the whole timeline
+        int object_updates_to_trigger_reset = 4; // if a nonempty timeline receives this many object updates in a sync packet, reset the whole timeline
 
         std::recursive_mutex lock ;
 
@@ -70,8 +70,8 @@ class Timeline{
         std::map<int, Variant> pending_quick_sends ; // Externally created events to be sent ASAP
 
         // subscribers["trigger"]["subscriber_name"] = function pointer (trigger,  subscriber, data);
-        typedef std::function<void(const std::string&, const std::string&,const Variant&)> NotificationReceiever; 
-        std::map<std::string,std::map<std::string, NotificationReceiever>> subscribers;
+        typedef std::function<void(const std::string&, const std::string&,const Variant&)> NotificationReceiver; 
+        std::map<std::string,std::map<std::string, NotificationReceiver>> subscribers;
         std::vector<std::pair<std::string, Variant>> pending_notifications;
 
         // Set the functions to be used for generating typed timeline events and objects from serialized data
@@ -170,7 +170,7 @@ class Timeline{
         void sendNotifications();
 
         // Subscribe an external function to a given trigger (i.e. catch data sent out by TEvent::notify);
-        void subscribe(const std::string& subscriber,const std::string& trigger, NotificationReceiever receiver);
+        void subscribe(const std::string& subscriber,const std::string& trigger, NotificationReceiver receiver);
 
         // Remove a subcription created with subscribe
         void unsubscribe(const std::string& subscriber,const std::string& trigger) ;
