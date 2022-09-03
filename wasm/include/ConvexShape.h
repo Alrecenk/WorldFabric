@@ -2,11 +2,13 @@
 #define _CONVEX_SHAPE_H_ 1
 
 #include "TObject.h"
+#include "Polygon.h"
 #include "glm/glm.hpp"
 #include "glm/gtx/transform.hpp"
 #include "glm/gtc/quaternion.hpp"
 #include "glm/ext.hpp"
 #include <vector>
+
 
 
 class ConvexShape : public TObject{
@@ -18,7 +20,9 @@ class ConvexShape : public TObject{
 
     ConvexShape();
 
-    ConvexShape(const std::vector<glm::vec3> &vertices, const std::vector<std::vector<int>> &faces);
+    ConvexShape(const std::vector<glm::vec3>& vertices, const std::vector<std::vector<int>>& faces);
+
+    ConvexShape(std::vector<Polygon>& polygons);
 
     ~ConvexShape() override;
 
@@ -74,6 +78,18 @@ class ConvexShape : public TObject{
 
     // Returns a shape for a Tetrahedron with the given points
     static ConvexShape makeTetra(glm::vec3 A, glm::vec3 B, glm::vec3 C, glm::vec3 D);
+
+    // Splits this shape on a plane 
+    std::pair<ConvexShape, ConvexShape> splitOnPlane(const std::pair<glm::dvec3, double>& plane) const;
+
+    struct SortablePoint{
+            double x;
+            double y;
+            glm::dvec3 p ;
+        };
+
+    // A Comparator to sort points into a clean winding order 
+    static bool radialSort(const ConvexShape::SortablePoint& a, const ConvexShape::SortablePoint& b);
 
 };
 #endif // #ifndef _CONVEX_SHAPE_H_

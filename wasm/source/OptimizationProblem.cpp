@@ -133,7 +133,7 @@ double OptimizationProblem::stepSize(const std::vector<float> x0, const std::vec
             alpha = (alphaL + alphaR)/2.0;
         }else{//if error is sufficiently decreased 
             double slopealpha = dot(this->gradient(xp), d); // then get slope along search direction
-            if (slopealpha <= c2 * abs(gx0)){ // if slope sufficiently closer to 0
+            if (slopealpha <= c2 * fabs(gx0)){ // if slope sufficiently closer to 0
                 return alpha;//then this is an acceptable point
             }else if ( slopealpha >= c2 * gx0) { // if slope is too steep and positive then go to the left
                 alphaR = alpha;//move halfway between current alpha and lower alpha

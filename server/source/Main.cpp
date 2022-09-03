@@ -120,7 +120,12 @@ void addTestShapes(Timeline* timeline){
         }}
     });
     
-    std::unique_ptr<ConvexShape> shape3 = std::make_unique<ConvexShape>(ConvexShape::makeSphere(glm::vec3(0,0,0), 0.15, 2));
+
+    ConvexShape sphere = ConvexShape::makeSphere(glm::vec3(0,0,0), 0.15, 2) ;
+    auto cut_sphere = sphere.splitOnPlane(std::make_pair(glm::dvec3(0,1,0), 0.05)) ;
+    cut_sphere.first.centerOnCentroid();
+    std::unique_ptr<ConvexShape> shape3 = std::make_unique<ConvexShape>(cut_sphere.first);
+    //std::unique_ptr<ConvexShape> shape3 = std::make_unique<ConvexShape>(ConvexShape::makeSphere(glm::vec3(0,0,0), 0.15, 2));
     mass = 1;
     timeline->createObject(std::move(shape3), std::unique_ptr<TEvent>(nullptr), "sphere_shape_created", st+ 0.01*randomFloat() );
     timeline->subscribe("sphere_solid_maker", "sphere_shape_created",

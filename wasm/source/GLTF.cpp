@@ -525,8 +525,8 @@ void GLTF::receiveTableData(std::string key, const Variant& data){
         vec3 center(0,0,0);
         for(int k=0;k<3;k++){
             center[k] = (max[k]+ min[k])*0.5f ;
-            size = fmax(size , abs(max[k]-center[k]));
-            size = fmax(size , abs(min[k]-center[k]));
+            size = fmax(size , fabs(max[k]-center[k]));
+            size = fmax(size , fabs(min[k]-center[k]));
             
         }
         transform = mat4(1);
