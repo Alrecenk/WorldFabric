@@ -3,8 +3,10 @@
 
 using std::vector;
 using glm::vec3 ;
+using glm::dvec3;
 using std::map;
 using std::string;
+using std::pair;
 
 
 ConvexShape::ConvexShape(const std::vector<glm::vec3> &vertices, const std::vector<std::vector<int>> &faces) {
@@ -27,6 +29,62 @@ ConvexShape::ConvexShape(const std::vector<glm::vec3> &vertices, const std::vect
 ConvexShape::ConvexShape(){
     position = vec3(0,0,0);
     radius = 0;
+    type = 3;
+}
+
+ConvexShape::ConvexShape(std::vector<Polygon>& polygons){
+    //deduplicate the points to match reduced shape format
+    position = vec3(0,0,0);
+    for(int k=0;k<polygons.size();k++){
+        Polygon& poly = polygons[k];
+        vector<int> f ;
+        for(int j=0;j<poly.p.size();j++){
+            int index = -1;
+            for(int i=0;i<vertex.size();i++){ // TODO could make this much faster
+                if(glm::length(poly.p[j]-dvec3(vertex[i])) < Polygon::EPSILON){
+                    index = i;
+                    break;
+                }
+            }
+            if(index == -1){
+                vec3 v = vec3(poly.p[j]) ;
+                vertex.push_back(v);
+                position += v;
+                index = vertex.size()-1;
+            }
+            f.push_back(index);
+        }
+        face.push_back(f);
+    }
+
+
+    position /= vertex.size();
+    
+     // Calculate radius
+    radius = 0 ;
+    for(int k=0;k<vertex.size();k++){
+        float r = glm::length(vertex[k] - position);
+        if(r > radius){
+            radius = r ;
+        }
+    }
+
+    //flip any faces pointing inward (Polygon doesn't have a winding oder gurantee)
+    for(int k=0;k<face.size();k++){
+        vec3& A = vertex[face[k][0]] ;
+        vec3& B = vertex[face[k][1]] ;
+        vec3& C = vertex[face[k][2]] ;
+        vec3 normal = glm::normalize(glm::cross(B - A, C - A));
+        if(glm::dot(normal,A-position) < 0){
+            vector<int> new_face ;
+            for(int j=face[k].size()-1; j >=0; j--){
+                new_face.push_back(face[k][j]);
+            }
+            face[k] = new_face ;
+        }
+    }
+
+
     type = 3;
 }
 
@@ -144,6 +202,7 @@ glm::vec3 ConvexShape::centerOnCentroid(){
     for(vec3& v : vertex){
         v-=centroid;
     }
+    position = vec3(0,0,0);
     return -centroid;
 }
 
@@ -380,4 +439,105 @@ ConvexShape ConvexShape::makeTetra(glm::vec3 A, glm::vec3 B, glm::vec3 C, glm::v
         }
     }
     return ConvexShape(vertices, faces);
+}
+
+std::pair<ConvexShape, ConvexShape> ConvexShape::splitOnPlane(const std::pair<glm::dvec3, double>& plane) const{
+
+    // First convert to direct Polygons to simplify calculation
+    vector<Polygon> surface ;
+    for(int k=0;k<face.size();k++){
+        vector<dvec3> points;
+        for(int j=0;j<face[k].size();j++){
+            points.push_back(vertex[face[k][j]]);
+        }
+        surface.emplace_back(points);
+    }
+
+    vector<Polygon> left_surface;
+    vector<Polygon> right_surface;
+    vector<dvec3> plane_points;
+    dvec3 plane_center(0,0,0);
+    int center_amount = 0 ;
+    for(int k=0;k<surface.size();k++){
+        // Split the existing surfaces on the split plane.
+        pair<Polygon, Polygon> split_surface = surface[k].splitOnPlane(plane);
+        //printf("split: %d -> %d + %d\n", (int)surface[k].p.size(),(int)split_surface.first.p.size(),(int)split_surface.second.p.size());
+
+        if(split_surface.first.p.size() != 0){
+            left_surface.push_back(split_surface.first);
+        }
+        if(split_surface.second.p.size() != 0){
+            right_surface.push_back(split_surface.second);
+        }
+        // face actually crosses plane
+        if(split_surface.first.p.size() != 0 && split_surface.second.p.size() != 0){
+            // Collect the points of the boundary that intersect the split plane
+            vector<dvec3> plane_hits = surface[k].getPlaneIntersections(plane);
+            for(dvec3& p : plane_hits){
+                plane_points.push_back(p);
+                plane_center += p;
+                center_amount++;
+            }
+        }
+    }
+
+    if(right_surface.size() == 0){
+        return pair<ConvexShape, ConvexShape>(ConvexShape(left_surface), ConvexShape());
+    }
+    if(left_surface.size() == 0){
+        return pair<ConvexShape, ConvexShape>(ConvexShape(), ConvexShape(right_surface));
+    }
+    // If it has both surfaces then make polygon for surface intersection
+
+    // Create a center and axis around which to sort plane points
+    plane_center /= center_amount;
+    dvec3 x_axis(0.2,0.3,0.4);
+    dvec3 y_axis = glm::normalize(glm::cross(x_axis, plane.first));
+    x_axis = glm::normalize(glm::cross(y_axis, plane.first)) ;
+
+    vector<SortablePoint> sp ;
+    for(dvec3& p : plane_points){
+        dvec3 d = p-plane_center;
+        double x = glm::dot(x_axis, d);
+        double y = glm::dot(y_axis, d);
+        sp.push_back(ConvexShape::SortablePoint{x, y, p});
+    }
+
+    std::sort(sp.begin(), sp.end(), ConvexShape::radialSort);
+    plane_points = vector<dvec3>();
+    plane_points.push_back(sp[0].p);
+    for(int k=1;k<sp.size();k++){
+        dvec3 d = sp[k].p-sp[k-1].p;
+        if(glm::dot(d,d) > Polygon::EPSILON*Polygon::EPSILON){ // skip duplicates
+            plane_points.push_back(sp[k].p);
+        }
+    }
+
+    left_surface.emplace_back(plane_points);
+    right_surface.emplace_back(plane_points);
+
+    return std::pair<ConvexShape, ConvexShape>(ConvexShape(left_surface), ConvexShape(right_surface));
+}
+
+
+// A Comparator to sort points into a clean winding order 
+bool ConvexShape::radialSort(const ConvexShape::SortablePoint& a, const ConvexShape::SortablePoint& b){
+    if (a.x >= 0 && b.x< 0){
+        return true;
+    }
+    if (a.x < 0 && b.x >= 0){
+        return false;
+    }
+    if (a.x == 0 && b.x  == 0) {
+        if (a.y >= 0 || b.y  >= 0){
+            return a.y > b.y ? true: false;
+        }
+        return b.y > a.y ? true :false;
+    }
+
+    // compute the cross product of the relative vectors 
+    double det = a.x  * b.y  - b.x * a.y;
+    if (det < 0)
+        return true;
+    return false;
 }
