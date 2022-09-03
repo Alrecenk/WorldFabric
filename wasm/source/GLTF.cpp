@@ -1179,25 +1179,28 @@ void GLTF::setTetraModel(glm::vec3 center, float size){
 
 // Sets the model to a polyhedron of the given color (Can be used to generate visuals for ConvexShape objects)
 void GLTF::setPolyhedronModel(std::vector<glm::vec3>& vertices, std::vector<std::vector<int>>& faces, glm::vec3 color){
-
-
-    //TODO color_mult seems tor be g,b,alpha,r for some reason, what's up with that
-
-
     vector<Vertex> v ;
-    for(int k=0;k<vertices.size();k++){
-        Vertex p;
-        p.position = vertices[k];
-        p.weights = vec4(1,0,0,0);
-        p.color_mult = vec4(color, 1);
-        v.push_back(p);
-    }
-
     vector<Triangle> t;
     for(vector<int>& face : faces){
-        for(int k=1; k < face.size()-1;k++){
-            t.push_back({face[0], face[k], face[k+1], 0});
+        vec3& A = vertices[face[0]] ;
+        vec3& B = vertices[face[1]] ;
+        vec3& C = vertices[face[2]] ;
+        vec3 normal = glm::normalize(glm::cross(B - A, C - A));
+        vector<int> new_face ;
+        for(int k=0;k<face.size();k++){ // duplicate vertices by face so as not to smooth normals
+            Vertex p;
+            p.position = vertices[face[k]];
+            p.weights = vec4(1,0,0,0);
+            p.color_mult = vec4(color, 1);
+            p.normal = normal ;
+            new_face.push_back(v.size());
+            v.push_back(p);
         }
+
+        for(int k=1; k < new_face.size()-1;k++){
+            t.push_back({new_face[0], new_face[k], new_face[k+1], 0});
+        }
+        
     }
 
     Material m ;
