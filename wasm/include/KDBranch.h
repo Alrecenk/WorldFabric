@@ -28,7 +28,7 @@ class KDBranch : public KDNode {
     KDNode* add(KDNode::BoundingSphere& m) override;
 
     // Accumulates the ids for collisions of objects in this node into the collision set passed
-    void getCollisionCandidates(const KDNode::BoundingSphere& m, std::set<int>& candidates) override;
+    void getCollisionCandidates(const KDNode::BoundingSphere& m, std::unordered_set<int>& candidates) override;
 
     // Clears all bounding sphre references from the tree older than clear_time if it's not their newest reference
     KDNode* clearHistory(double clear_time, std::unordered_map<int,double>& last_edit_time) override;  

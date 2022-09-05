@@ -11,6 +11,8 @@
 #include <chrono>
 #include <fstream>
 #include <iterator>
+#include <string>
+#include <stack>
 
 using glm::vec3;
 using glm::mat4;
@@ -19,6 +21,8 @@ using std::cout;
 using std::endl;
 using std::unordered_map ;
 using std::map ;
+using std::stack ;
+using std::string ;
 
 void runUnitTests(){
     bool g = UnitTests::runAll();
@@ -29,6 +33,8 @@ void loadModels(unordered_map<string, Variant>& table){
     models["default_avatar"] = "./models/default_avatar.vrm";
     models["eroom"] = "./models/room.glb";
     models["dragon"] = "./models/dragon.glb";
+    models["bunny"] = "./models/bunny350.glb";
+    models["sylveon"] = "./models/sylveon7k.glb";
     //models["sample"] = "./models/Rin.glb";
     for(auto& [key, path] : models){
         std::ifstream input( path.c_str(), std::ios::binary );
@@ -121,11 +127,7 @@ void addTestShapes(Timeline* timeline){
     });
     
 
-    ConvexShape sphere = ConvexShape::makeSphere(glm::vec3(0,0,0), 0.15, 2) ;
-    auto cut_sphere = sphere.splitOnPlane(std::make_pair(glm::dvec3(0,1,0), 0.05)) ;
-    cut_sphere.first.centerOnCentroid();
-    std::unique_ptr<ConvexShape> shape3 = std::make_unique<ConvexShape>(cut_sphere.first);
-    //std::unique_ptr<ConvexShape> shape3 = std::make_unique<ConvexShape>(ConvexShape::makeSphere(glm::vec3(0,0,0), 0.15, 2));
+    std::unique_ptr<ConvexShape> shape3 = std::make_unique<ConvexShape>(ConvexShape::makeSphere(glm::vec3(0,0,0), 0.15, 2));
     mass = 1;
     timeline->createObject(std::move(shape3), std::unique_ptr<TEvent>(nullptr), "sphere_shape_created", st+ 0.01*randomFloat() );
     timeline->subscribe("sphere_solid_maker", "sphere_shape_created",
@@ -194,6 +196,107 @@ void animateDragon(Timeline* timeline){
         timeline->addEvent(std::make_unique<SetMeshInstance>(dragon_id, glm::vec3(0,3,0), 2, "dragon", pose, bones),  timeline->current_time+action_delay) ;
     }    
 }
+
+
+void addBreakable(Timeline* timeline, unordered_map<string, Variant>& table, string mesh_name, mat4 transform){
+    double st = timeline->current_time ;
+    std::shared_ptr<GLTF> mesh = meshes[mesh_name];
+    if(mesh == nullptr){
+         meshes.receiveTableData(mesh_name,table[mesh_name]);
+         mesh = meshes[mesh_name];
+    }
+
+    
+    mesh->transform = transform ;
+    mesh->computeNodeMatrices();
+    mesh->applyTransforms();
+
+    std::unique_ptr<BSPNode> root = make_unique<BSPNode>(mesh);
+    root->computeVolumeInside();
+    //root->print("  ");
+    map<string,vec3> part_position ;
+    map<string,vec3>* part_ptr = &part_position ;
+
+    std::stack<BSPNode*> nodes ;
+    nodes.push(root.get());
+    int n = 0 ;
+    while(!nodes.empty()){
+        BSPNode* node = nodes.top();
+        nodes.pop();
+        bool generate = false;
+        if(node == nullptr){
+            generate = false;
+        }else if(!node->leaf){
+            
+            if(node->volume_outside < 0.000001){
+                generate = true ;
+            }else if(node->volume_inside < 0.000001){
+                generate = false;
+            }else{
+                nodes.push(node->inner.get());
+                nodes.push(node->outer.get());
+            }
+        }else if(node->leaf_inside){
+            generate = true;
+        }
+        if(generate){
+            
+            //bool valid = Polygon::checkConvex(node->shape);
+            std::unique_ptr<ConvexShape> shape = std::make_unique<ConvexShape>(node->shape);
+            /*
+            vector<Polygon> convert_back = shape->getPolygons();
+            bool still_valid = Polygon::checkConvex(convert_back);
+            if(valid && !still_valid){
+                printf("Error in poly shape conversion!\n");
+            }
+
+            auto serial = shape->serialize();
+            ConvexShape deserial;
+            deserial.set(serial);
+            convert_back = deserial.getPolygons();
+            bool serial_valid = Polygon::checkConvex(convert_back);
+            if(valid && !serial_valid){
+                printf("broken by serialization!\n");
+            }
+            */
+            
+            vec3 part_position = -(shape->centerOnCentroid());
+            if(shape->vertex.size() > 3){
+                string trigger = mesh_name + " " + std::to_string(n) ;
+                n++;
+                
+                //printf("position: %f, %f, %f \n", part_position[trigger][0], part_position[trigger][1], part_position[trigger][2]);
+                float mass = shape->getVolume();
+                
+                //Variant(shape->serialize()).printFormatted();
+                timeline->createObject(std::move(shape), std::unique_ptr<TEvent>(nullptr), trigger,st+ 0.01 + 0.01*randomFloat());
+                
+                timeline->subscribe(trigger, trigger,
+                [timeline,st,mass, part_position](const string& subscriber, const string& trigger, const Variant& data){
+                    int shape_id = data.getInt();
+                    //printf("Trigger : %s \n", trigger.c_str());                   
+                    
+                    std::unique_ptr<ConvexSolid> solid = std::make_unique<ConvexSolid>(
+                        ConvexSolid(shape_id, mass, part_position, glm::quat(1,0,0,0)));
+                        solid->moveable = false;
+
+                    //printf("id: %d  position : %f, %f, %f   radius: %f\n", shape_id, position[0], position[1], position[2], solid->radius);   
+                    timeline->createObject(std::move(solid), std::unique_ptr<TEvent>(nullptr)/*std::make_unique<MoveSimpleSolid>(1.0/30)*/, st+ 1.1 + 0.01*randomFloat() );
+                    
+                });
+                
+            }
+            
+        }
+    }
+  
+    printf("A1\n");
+    timeline->run(st+ 1.0) ;// notifications go out after a call to run completes
+    printf("A2\n");
+    timeline->run(st+ 2.0) ; // run some more to get the solid made
+    printf("A3\n");
+
+}
     
 bool running = true;
 
@@ -250,6 +353,31 @@ int main(int argc, const char** argv) {
 
     addRoom(timeline);
     addTestShapes(timeline);
+  
+    /*
+    string mesh_name = "sylveon" ;
+    std::shared_ptr<GLTF> mesh = meshes[mesh_name];
+    if(mesh == nullptr){
+         meshes.receiveTableData(mesh_name,table[mesh_name]);
+         mesh = meshes[mesh_name];
+    }
+
+    float size = 0 ;
+    vec3 center(0,0,0);
+    for(int k=0;k<3;k++){
+        center[k] = (mesh->max[k]+ mesh->min[k])*0.5f ;
+        size = fmax(size , fabs(mesh->max[k]-center[k]));
+        size = fmax(size , fabs(mesh->min[k]-center[k]));
+        
+    }
+
+    mat4 bt = mat4(1);
+    bt = glm::scale(mat4(1), {(1.0f/size),(1.0f/size),(1.0f/size)});
+    bt = glm::translate(bt, center*-1.0f);
+
+
+    addBreakable(timeline, table, mesh_name, bt);
+*/
     //addDragon(timeline, table);
 
 

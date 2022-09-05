@@ -12,7 +12,7 @@ using glm::vec3 ;
 using std::vector;
 using std::weak_ptr ;
 using std::unique_ptr ;
-using std::set ;
+using std::unordered_set ;
 
 
 CollisionSystem::CollisionSystem(){
@@ -27,8 +27,12 @@ vector<int> CollisionSystem::getCollisions(TEvent* event){
     weak_ptr<TObject> vow = timeline->getObjectInstant(event->anchor_id, event->time);
 
     if(auto vo = vow.lock()){
+        if(!vo->has_collision){
+            return vector<int>();
+        }
         vec3 vantage = vo->position;
-        set<int> candidates = getCandidates(vantage, vo->radius);
+        unordered_set<int> candidates = getCandidates(vantage, vo->radius);
+        collisions.reserve(candidates.size());
         for(int id : candidates){
             if(id != event->anchor_id){
                 weak_ptr<TObject> ow = timeline->getObjectInstant(vantage, id, event->time);
@@ -59,6 +63,9 @@ void CollisionSystem::onDataChanged(TEvent* event){
 
     weak_ptr<TObject> eo = timeline->getObjectInstant(event->anchor_id, event->time);
     if(auto e = eo.lock()){
+        if(!e->has_collision){
+            return ;
+        }
        addObject(event->anchor_id, e->position, e->radius, event->time);
     }
 
@@ -125,7 +132,7 @@ void CollisionSystem::clearHistory(double clear_time){
     
 }
 
-std::set<int> CollisionSystem::getCandidates(glm::vec3 x, float radius){
+std::unordered_set<int> CollisionSystem::getCandidates(glm::vec3 x, float radius){
     KDNode::BoundingSphere bound = {-1, x, radius, 0.0} ;
     return root->getCollisionCandidates(bound);
 }

@@ -1,12 +1,13 @@
 #include "KDNode.h"
 
-using std::set;
+using std::unordered_set;
 using glm::vec3;
 #include <algorithm>
 
 // Convenience method for calling get collisions externally on the root node
-set<int> KDNode::getCollisionCandidates(const KDNode::BoundingSphere& m) {
-    set<int> candidates;
+unordered_set<int> KDNode::getCollisionCandidates(const KDNode::BoundingSphere& m) {
+    unordered_set<int> candidates;
+    candidates.reserve(30);
     getCollisionCandidates(m, candidates);
     return candidates;
 }

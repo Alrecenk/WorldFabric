@@ -4,6 +4,7 @@
 #include "KDNode.h"
 #include <vector>
 #include <unordered_map>
+#include <unordered_set>
 
 class TObject;
 class TEvent;
@@ -33,7 +34,7 @@ class CollisionSystem{
         // Clean up entries in the collision structure that are older than clear_time and no longer present
         void clearHistory(double clear_time);
 
-        std::set<int> getCandidates(glm::vec3 x, float radius);
+        std::unordered_set<int> getCandidates(glm::vec3 x, float radius);
 
     private:
         std::unordered_map<TEvent*, std::vector<int>> requests ;

@@ -88,7 +88,9 @@ void CreateObject::run(){
     timeline->objects[id] = new_object->deepCopy() ;
     timeline->objects[id]->timeline = timeline;
     timeline->objects[id]->write_time = make_time ;
-    timeline->collisions.addObject(id, new_object->position, new_object->radius, make_time);
+    if(timeline->objects[id]->has_collision){
+        timeline->collisions.addObject(id, new_object->position, new_object->radius, make_time);
+    }
 
     if(on_created.get() != nullptr){
         std::unique_ptr<TEvent> new_event = on_created->deepCopy();

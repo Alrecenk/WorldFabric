@@ -21,6 +21,7 @@ class TObject{
         glm::vec3 position;
         float radius;
         short type = -1 ; // a numerical type you can check when you ned to cast (if the overriders use it!)
+        bool has_collision = true; // if false object cannot use getCollisions andwill not show up in others' calls
 
         double write_time ;
         bool deleted = false;
