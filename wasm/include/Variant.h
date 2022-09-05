@@ -235,6 +235,8 @@ This function detects what type came in and converts it to a 32 bit float */
     void makeFillableIntArray(int size);
 
     void makeFillableFloatArray(int size);
+
+    void makeFillableDoubleArray(int size);
 };
 
 #endif // #ifndef _VARIANT_H_

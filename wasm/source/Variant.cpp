@@ -1143,3 +1143,12 @@ void Variant::makeFillableFloatArray(int size){
     ptr = (byte*) malloc(4 * ( 1 + size)) ;
     *(int*)(ptr) = size ;
 }
+
+void Variant::makeFillableDoubleArray(int size){
+    if(type_ != NULL_VARIANT){
+        free(ptr);
+    }
+    type_ = Variant::DOUBLE_ARRAY ;
+    ptr = (byte*) malloc(4 + 8 * size) ;
+    *(int*)(ptr) = size ;
+}

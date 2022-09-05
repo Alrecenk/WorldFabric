@@ -619,7 +619,9 @@ void Timeline::applyUpdate(const Variant& update, bool server){
                             //printf("Object exists in timeline, but not at the time it's being overwritten!? time : %f, current_time: %f, last_clear_time : %f\n", time, current_time, last_clear_time);
                         }  
                     }
-                    collisions.addObject(id, objects[id]->position, objects[id]->radius, objects[id]->write_time);
+                    if(objects[id]->has_collision){
+                        collisions.addObject(id, objects[id]->position, objects[id]->radius, objects[id]->write_time);
+                    }
                 }
             }
         }

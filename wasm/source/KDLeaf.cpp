@@ -52,11 +52,25 @@ KDNode* KDLeaf::split() {
             axis = k;
         }
     }
-    if (axis >= 0) {
+
+    if(axis > 0){
         float value = (box_max[axis] + box_min[axis]) * .5f;
-        return new KDBranch(axis, value, objects);
-    } else {
-        return this;
+        //check if it helps at all
+        bool has_less = false;
+        bool has_more = false;
+        for(auto& [id, sphere] : objects){
+            has_less |= sphere.center[axis] + sphere.radius < value ;
+            has_more |= sphere.center[axis] - sphere.radius  > value ;
+        }
+        if (has_less && has_more) {
+            return new KDBranch(axis, value, objects);
+        } else {
+            split_delay = 10; // if split fails don't try again for 10 adds  (we readd a lot of the same things)
+            //printf("Reached collision leaf limit but split unsuccessful. Performance will be bad. Are you stacking a bunch of timeline objects in one place?\n");
+            return this;
+        }
+    }else{
+        return this ;
     }
 }
 
@@ -64,13 +78,18 @@ KDNode* KDLeaf::add(KDNode::BoundingSphere& m) {
     objects[m.id] = m;
 
     if (objects.size() >= KDLeaf::amount_to_split) {
-        return split();
+        split_delay--;
+        if(split_delay <=0){
+            return split();
+        }else{
+            return this ;
+        }
     } else {
         return this;
     }
 }
 
-void KDLeaf::getCollisionCandidates(const KDNode::BoundingSphere& m, set<int>& candidates) {
+void KDLeaf::getCollisionCandidates(const KDNode::BoundingSphere& m, std::unordered_set<int>& candidates) {
     for (auto& [id, sphere] : objects) {
         candidates.insert(id);
     }

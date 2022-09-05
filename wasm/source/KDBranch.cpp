@@ -7,6 +7,7 @@ using std::set;
 using glm::vec3;
 using std::vector;
 using std::unique_ptr;
+using std::unordered_set;
 
 KDBranch::KDBranch(int axs, float val, std::map<int, KDNode::BoundingSphere>& objects) {
     axis = axs;
@@ -53,7 +54,7 @@ KDNode* KDBranch::add(KDNode::BoundingSphere& m) {
 }
 
 //TODO we only use the front item, fetching ste is inefficient
-void KDBranch::getCollisionCandidates(const KDNode::BoundingSphere& m, set<int>& candidates) {
+void KDBranch::getCollisionCandidates(const KDNode::BoundingSphere& m, std::unordered_set<int>& candidates) {
     int side = getSplitSide(m);
     if (side <= 0) {
         less_child->getCollisionCandidates(m, candidates);

@@ -28,6 +28,8 @@ class Renderer{
     xr_input = [];
     has_new_xr_input = false;
 
+    buffer_lookup = {};
+
     
     // Performs the set-up for openGL canvas and shaders on construction
     constructor(webgl_canvas_id, ui_canvas_id , fragment_shader_id, vertex_shader_id, space_underneath_app){
@@ -508,11 +510,19 @@ class Renderer{
         let M = mat4.create();
         mat4.multiply(M,this.mvMatrix, transform);
         this.gl.uniformMatrix4fv(this.shaderProgram.mvMatrixUniform, false, M);
-        for(let buffer_name in this.buffers){
-            //console.log(buffer_name);
-            //console.log(buffer_name.substring(0,mesh_name.length));
-            if(buffer_name.substring(0,mesh_name.length) == mesh_name){
+        if(mesh_name in this.buffer_lookup){ // cache mesh_name to material buffers mapping
+            for(let buffer_name of this.buffer_lookup[mesh_name]){
                 this.drawModel(this.buffers[buffer_name],bones);
+            }
+        }else{
+            this.buffer_lookup[mesh_name] = [];
+            for(let buffer_name in this.buffers){
+                //console.log(buffer_name);
+                //console.log(buffer_name.substring(0,mesh_name.length));
+                if(buffer_name.substring(0,mesh_name.length+3) == mesh_name+"-m="){
+                    this.drawModel(this.buffers[buffer_name],bones);
+                    this.buffer_lookup[mesh_name].push(buffer_name);
+                }
             }
         }
     }

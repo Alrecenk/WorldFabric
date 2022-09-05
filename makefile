@@ -84,7 +84,8 @@ API_SRC    =${API_DIR}source/Variant.cpp\
 			${API_DIR}source/MoveSimpleSolid.cpp\
 			${API_DIR}source/SetConvexSolid.cpp\
 			${API_DIR}source/ApplySolidImpulse.cpp\
-			${API_DIR}source/Polygon.cpp
+			${API_DIR}source/Polygon.cpp\
+			${API_DIR}source/BSPNode.cpp
 
 			
 default: all

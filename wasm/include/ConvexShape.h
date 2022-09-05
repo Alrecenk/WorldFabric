@@ -14,13 +14,14 @@
 class ConvexShape : public TObject{
   public:
 
-    std::vector<glm::vec3> vertex ;
+    std::vector<glm::dvec3> vertex ;
     std::vector<std::vector<int>> face ;
 
 
     ConvexShape();
 
     ConvexShape(const std::vector<glm::vec3>& vertices, const std::vector<std::vector<int>>& faces);
+    ConvexShape(const std::vector<glm::dvec3>& vertices, const std::vector<std::vector<int>>& faces);
 
     ConvexShape(std::vector<Polygon>& polygons);
 
@@ -41,10 +42,10 @@ class ConvexShape : public TObject{
     std::unique_ptr<TObject> getObserved(double time, const std::weak_ptr<TObject> last_observed, double last_time) override;
 
     // Return the center of mass of this shape
-    glm::vec3 getCentroid();
+    glm::dvec3 getCentroid();
 
     // Moves this shape so the origin aligns with the centroid and returns the move that was made
-    glm::vec3 centerOnCentroid();
+    glm::dvec3 centerOnCentroid();
 
     float getVolume();
 
@@ -52,13 +53,13 @@ class ConvexShape : public TObject{
     glm::mat3 getInertia(const float mass);
 
     // return the volume of the given tetrahedron
-    static float computeTetraVolume(const glm::vec3& a, const glm::vec3& b, const glm::vec3& c, const glm::vec3& d);
+    static float computeTetraVolume(const glm::dvec3& a, const glm::dvec3& b, const glm::dvec3& c, const glm::dvec3& d);
 
     // Returns the center of mass of the given tetrahedron
-    static glm::vec3 computeTetraCentroid(const glm::vec3& a, const glm::vec3& b, const glm::vec3& c, const glm::vec3& d);
+    static glm::dvec3 computeTetraCentroid(const glm::dvec3& a, const glm::dvec3& b, const glm::dvec3& c, const glm::dvec3& d);
 
     // Returns the inertia tensor of the given tetrahedron about the origin assuming a uniform density of 1
-    static glm::mat3 computeTetraInertia(const float mass, const glm::vec3& a, const glm::vec3& b, const glm::vec3& c, const glm::vec3& d);
+    static glm::mat3 computeTetraInertia(const float mass, const glm::dvec3& a, const glm::dvec3& b, const glm::dvec3& c, const glm::dvec3& d);
 
     // Returns a shaoe for an axis aligned bounding box
     static ConvexShape makeAxisAlignedBox(glm::vec3 min, glm::vec3 max);
@@ -79,17 +80,8 @@ class ConvexShape : public TObject{
     // Returns a shape for a Tetrahedron with the given points
     static ConvexShape makeTetra(glm::vec3 A, glm::vec3 B, glm::vec3 C, glm::vec3 D);
 
-    // Splits this shape on a plane 
-    std::pair<ConvexShape, ConvexShape> splitOnPlane(const std::pair<glm::dvec3, double>& plane) const;
 
-    struct SortablePoint{
-            double x;
-            double y;
-            glm::dvec3 p ;
-        };
-
-    // A Comparator to sort points into a clean winding order 
-    static bool radialSort(const ConvexShape::SortablePoint& a, const ConvexShape::SortablePoint& b);
+    std::vector<Polygon> getPolygons();
 
 };
 #endif // #ifndef _CONVEX_SHAPE_H_

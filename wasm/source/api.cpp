@@ -28,6 +28,7 @@
 #include "ConvexSolid.h"
 #include "MoveSimpleSolid.h"
 #include "SetConvexSolid.h"
+#include "BSPNode.h"
 
 
 using std::vector;
@@ -195,8 +196,8 @@ byte* setModel(byte* ptr){
     vec3 center(0,0,0);
     for(int k=0;k<3;k++){
         center[k] = (model->max[k]+ model->min[k])*0.5f ;
-        size = fmax(size , abs(model->max[k]-center[k]));
-        size = fmax(size , abs(model->min[k]-center[k]));
+        size = fmax(size , fabs(model->max[k]-center[k]));
+        size = fmax(size , fabs(model->min[k]-center[k]));
         
     }
 
@@ -254,7 +255,7 @@ byte* getUpdatedBuffers(byte* ptr){
         if(mesh->position_changed || mesh->model_changed || mesh->bones_changed){
             for(auto const & [material_id, mat]: mesh->materials){
                 std::stringstream ss;
-                ss << name << material_id;
+                ss << name << "-m=" << material_id;
                 string s_id = ss.str();
                 buffers[s_id] = mesh->getChangedBuffer(material_id) ;
             }
@@ -599,7 +600,7 @@ byte* getMeshInstances(byte* ptr){
                 std::shared_ptr<GLTF> mesh_asset = meshes[mesh_name] ;
                 if(mesh_asset == nullptr){
                     shared_ptr<ConvexShape> shape = std::static_pointer_cast<ConvexShape>(o);
-                    meshes.addLocalShapeMesh(mesh_name, shape, vec3(0.85, 0.85, 1.0)); // blue for good
+                    meshes.addLocalShapeMesh(mesh_name, shape, vec3(0.85, 0.85, 1.0)); // blue tint for contrast with grey background
                     //meshes.addLocalShapeMesh(mesh_name + "1", shape, vec3(1.0, 1.0, 0.65)); // yellow for sphere collision
                     //meshes.addLocalShapeMesh(mesh_name + "2", shape, vec3(1.0, 0.8, 0.8)); // red for true collision
                 }
