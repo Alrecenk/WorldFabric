@@ -2,10 +2,18 @@
 
 #include <stdio.h>
 #include <algorithm>
+#include <stack>
+#include <map>
+#include <unordered_map>
+#include <unordered_set>
 #include <functional>
 
 using glm::dvec3 ;
 using std::vector ;
+using std::stack ;
+using std::map ;
+using std::unordered_map;
+using std::unordered_set;
 
 Polygon::Polygon(){}
 
@@ -274,9 +282,209 @@ bool Polygon::checkConvex(std::vector<Polygon>& surface){
 
 
 // Returns all closed surfaces as separate polygon lists so BSP trees can be built from them
-// Mesh is assumed toi be made of traingles with correct winding order
+// Mesh is assumed to be made of traingles with correct winding order
 //triangles not in closed surfaces will be discarded
 std::vector<std::vector<Polygon>> Polygon::collectClosedSurfaces(std::shared_ptr<GLTF> mesh){
-    //TODO
-    return vector<vector<Polygon>>();
+
+    // First we need a quick way to collapse matching vertices into single indices
+    std::unordered_map<int,int> v ; // maps each vertex index to its lowest indixed matching point
+    std::unordered_map<int,int> hash_vertex; // map hash to lowest index
+    for(int k=0;k<mesh->vertices.size();k++){ 
+        int hash = Variant(mesh->vertices[k].transformed_position).hash();
+        if(hash_vertex.find(hash) == hash_vertex.end()){
+            hash_vertex[hash] = hash_vertex.size()  ;
+        }
+        v[k] = hash_vertex[hash] ;
+    }
+
+    printf("Starting Vertices: %d, Unique vertices: %d\n", (int)mesh->vertices.size(), (int)hash_vertex.size());
+            
+    // create map from edges to triangles containing them
+    std::map<std::pair<int,int>,vector<int>> edge_to_triangles ;
+    for(int k=0;k<mesh->triangles.size();k++){ 
+        GLTF::Triangle& t = mesh->triangles[k]; 
+        edge_to_triangles[sortpair(v[t.A],v[t.B])].push_back(k) ;
+        edge_to_triangles[sortpair(v[t.B],v[t.C])].push_back(k) ;
+        edge_to_triangles[sortpair(v[t.C],v[t.A])].push_back(k) ;
+
+        //printf("T %d: %d, %d, %d\n", k, v[t.A], v[t.B], v[t.C]);
+    }
+    // Use edge map to create map from triangles to their neighbors
+    // Also collect a list of all triangles with an open edge (any connected triangles are on an open surface)
+    std::unordered_map<int,vector<int>> triangle_graph ;
+    std::unordered_set<int> broken ;
+    for(int k=0;k<mesh->triangles.size();k++){ 
+        GLTF::Triangle& t = mesh->triangles[k];
+        triangle_graph[k] = vector<int>();;
+        vector<int> nt = edge_to_triangles[sortpair(v[t.A],v[t.B])];
+        if(nt.size() != 2){
+            broken.insert(k) ;
+        }else{
+            triangle_graph[k].push_back(nt[0] + nt[1] - k);
+        }
+
+        nt = edge_to_triangles[sortpair(v[t.B], v[t.C])];
+        if(nt.size() != 2){
+            broken.insert(k) ;
+        }else{
+            triangle_graph[k].push_back(nt[0] + nt[1] - k);
+        }
+
+        nt = edge_to_triangles[sortpair(v[t.C], v[t.A])];
+        if(nt.size() != 2){
+            broken.insert(k) ;
+        }else{
+            triangle_graph[k].push_back(nt[0] + nt[1] - k);
+        }
+    }
+    printf("edge triangles found: %d\n", (int)broken.size());
+    //Remove all triangles on an open surface from the map
+    while(!broken.empty()){
+        stack<int> to_remove;
+        to_remove.push(*broken.begin()) ; // start from arbitrary broken triangle
+        unordered_map<int,bool> visited ;
+        while(!to_remove.empty()){ // flood fill to fnd all triangle on its open surface
+            int t = to_remove.top();
+            to_remove.pop();
+            vector<int> neighbors = triangle_graph[t];
+            for(int k=0;k<neighbors.size();k++){
+                if(!visited[neighbors[k]]){
+                    visited[neighbors[k]] = true;
+                    to_remove.push(neighbors[k]);
+                }
+            }
+            triangle_graph.erase(t);
+            broken.erase(t);
+        }
+    }
+
+    printf("closed surface triangles found: %d\n", (int)triangle_graph.size());
+    vector<vector<Polygon>> surfaces ;
+    while(!triangle_graph.empty()){
+        stack<int> to_add;
+        to_add.push((*triangle_graph.begin()).first); // start from arbitrary first triangle
+        vector<Polygon> surface ;
+        unordered_map<int,bool> visited ;
+        while(!to_add.empty()){ // flood fill to collect surface
+            int t = to_add.top();
+            to_add.pop();
+            vector<int> neighbors = triangle_graph[t];
+            for(int k=0;k<neighbors.size();k++){
+                if(!visited[neighbors[k]]){
+                    visited[neighbors[k]] = true;
+                    to_add.push(neighbors[k]);
+                }
+            }
+            triangle_graph.erase(t);
+
+            vector<dvec3> p ;
+            p.push_back(mesh->vertices[mesh->triangles[t].A].transformed_position);
+            p.push_back(mesh->vertices[mesh->triangles[t].B].transformed_position);
+            p.push_back(mesh->vertices[mesh->triangles[t].C].transformed_position);
+            surface.emplace_back(p);
+            surface[surface.size()-1].setPlane();
+        }
+        surfaces.push_back(surface);
+    }
+    printf("Collected %d surfaces.\n", (int)surfaces.size());
+    return surfaces ;
+
+}
+
+std::pair<int,int> Polygon::sortpair(int a, int b){
+    if(a <= b){
+        return std::pair<int,int>(a, b);
+    }else{
+        return std::pair<int,int>(b, a);
+    }
+}
+
+
+std::vector<Polygon> Polygon::reduce(std::vector<Polygon> surface, int triangle_budget){
+    // First we need to collapse matching vertices into single indices
+    std::unordered_map<int,int> hash_vertex; // map hash to index
+    std::vector<dvec3> vertices ; // map index back to vec3
+    vector<vector<int>> faces ;
+    vector<bool> removed ;
+    for(Polygon& poly: surface){ 
+        vector<int> face ;
+        for(dvec3& x: poly.p){
+
+            int hash = Variant(x).hash();
+            if(hash_vertex.find(hash) == hash_vertex.end()){
+                hash_vertex[hash] = vertices.size()  ;
+                vertices.push_back(x);
+            }
+            face.push_back(hash_vertex[hash]);
+        }
+        faces.push_back(face);
+        removed.push_back(false);
+    }
+
+    hash_vertex.clear(); // don't need this anymore once we've indexed everything
+    int total_removed = 0 ;
+    while(faces.size()-total_removed > triangle_budget){
+        // Find shortest edge on surface
+        int a=-1, b=-1;
+        double best_length = 1E30f ;
+        for(int j=0;j<faces.size();j++){
+            vector<int>& face = faces[j] ;
+            if(!removed[j]){
+                for(int k=0; k < face.size();k++){
+                    int ta = face[k];
+                    int tb = face[(k+1)%face.size()];
+                    double length = glm::dot(vertices[ta]-vertices[tb], vertices[ta]-vertices[tb]);
+                    if(length < best_length){
+                        best_length = length;
+                        a = ta ;
+                        b = tb ;
+                    }
+                }
+            }
+        }
+        // Make new point on middle of edge
+        dvec3 cx = (vertices[a]+vertices[b])*0.5;
+        int c = vertices.size();
+        vertices.push_back(cx);
+
+        for(int j=0;j<faces.size();j++){
+            vector<int>& face = faces[j] ;
+            if(!removed[j]){
+                bool found_a = false;
+                bool found_b = false;
+                //replace instances of A and B both with the new midpoint
+                for(int k=0; k < face.size();k++){
+                    if(face[k] == a){
+                        face[k] = c ;
+                        found_a = true;
+                    }
+                    if(face[k] == b){
+                        face[k] = c ;
+                        found_b = true;
+                    }
+                }
+                // if found both, triangle had the edge and is now a line
+                if(found_a && found_b){
+                    removed[j] = true;
+                    total_removed++;
+                }
+            }
+        }
+    }// end while too many truiangles
+
+
+    //Convert indexed faces back to flat polygons
+    std::vector<Polygon> new_surface ;
+    for(int j=0;j<faces.size();j++){
+        if(!removed[j]){
+            vector<int>& face = faces[j] ;
+            vector<dvec3> points;
+            for(int k=0; k < face.size();k++){
+                points.push_back(vertices[face[k]]);
+            }
+            new_surface.emplace_back(points);
+            new_surface[new_surface.size()-1].setPlane();
+        }
+    }
+    return new_surface ;
 }

@@ -203,16 +203,26 @@ std::vector<glm::vec3> ConvexSolid::checkCollision(std::shared_ptr<ConvexSolid> 
 glm::vec3 ConvexSolid::getCollisionImpulse(std::shared_ptr<ConvexSolid> other, const vec3& collision_point, const vec3& collision_normal, double elasticity){
     // Formula from Game Physics by David H Eberly, Chapter 5 pg 248
     vec3 rA = collision_point - position;
-    vec3 rB = collision_point - other->position;
     vec3 kA = glm::cross(rA,collision_normal);
-    vec3 kB = glm::cross(rB,collision_normal);
     vec3 uA = inverse_inertia * kA;
-    vec3 uB = other->inverse_inertia * kB;
-    double f_num = -(1.0+elasticity)* (glm::dot(collision_normal, velocity - other->velocity) + glm::dot(angular_velocity,kA) - glm::dot(other->angular_velocity,kB));
-    double f_den = 1.0/mass + 1.0/other->mass + glm::dot(kA, uA) + glm::dot(kB, uB) ;
-    double f = f_num/f_den;
-    vec3 impulse = collision_normal*(float)f;
-    return impulse;
+    
+    if(other->moveable){
+        vec3 rB = collision_point - other->position;
+        vec3 kB = glm::cross(rB,collision_normal);
+        vec3 uB = other->inverse_inertia * kB;
+        double f_num = -(1.0+elasticity)* (glm::dot(collision_normal, velocity - other->velocity) + glm::dot(angular_velocity,kA) - glm::dot(other->angular_velocity,kB));
+        double f_den = 1.0/mass + 1.0/other->mass + glm::dot(kA, uA) + glm::dot(kB, uB) ;
+        double f = f_num/f_den;
+        vec3 impulse = collision_normal*(float)f;
+        return impulse;
+    }else{
+        double f_num = -(1.0+elasticity)* (glm::dot(collision_normal, velocity - other->velocity) + glm::dot(angular_velocity,kA) );
+        double f_den = 1.0/mass + glm::dot(kA, uA) ;
+        double f = f_num/f_den;
+        vec3 impulse = collision_normal*(float)f;
+        return impulse;
+    }
+    
 }
 
 // apply an impulse (momentum change) at the given point in world cooredinates

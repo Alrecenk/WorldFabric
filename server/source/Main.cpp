@@ -34,8 +34,7 @@ void loadModels(unordered_map<string, Variant>& table){
     models["eroom"] = "./models/room.glb";
     models["dragon"] = "./models/dragon.glb";
     models["bunny"] = "./models/bunny350.glb";
-    models["sylveon"] = "./models/sylveon7k.glb";
-    //models["sample"] = "./models/Rin.glb";
+    models["sylveon"] = "./models/pokemon/sylveon.glb";
     for(auto& [key, path] : models){
         std::ifstream input( path.c_str(), std::ios::binary );
         std::vector<unsigned char> buffer(std::istreambuf_iterator<char>(input), {});
@@ -44,7 +43,144 @@ void loadModels(unordered_map<string, Variant>& table){
     }
 }
 
-void addRoom(Timeline* timeline){
+
+
+void addScenery(Timeline* timeline, unordered_map<string, Variant>& table, string mesh_name, mat4 transform, int box_cutoff){
+    double st = timeline->current_time ;
+    std::shared_ptr<GLTF> mesh = meshes[mesh_name];
+    if(mesh == nullptr){
+         meshes.receiveTableData(mesh_name,table[mesh_name]);
+         mesh = meshes[mesh_name];
+    }
+
+
+    mesh->transform = transform ;
+    mesh->computeNodeMatrices();
+    mesh->applyTransforms();
+
+    Variant bones;
+    std::unique_ptr<MeshInstance> o = std::make_unique<MeshInstance>(glm::vec3(0,0,0), 2, "server", mesh_name, transform , bones, false) ;
+    timeline->createObject(std::move(o), std::unique_ptr<TEvent>(nullptr) , st + 0.01234);
+    
+    vector<vector<Polygon>> surfaces = Polygon::collectClosedSurfaces(mesh);
+    map<string,vec3> part_position ;
+    map<string,vec3>* part_ptr = &part_position ;
+    map<string,float> part_radius ;
+    map<string,float>* radius_ptr = &part_radius ;
+    int total_solids = 0 ;
+    int sn = 0 ;
+    for(auto& surface : surfaces){
+        
+        std::unique_ptr<BSPNode> root ;
+        if(surface.size() > box_cutoff){
+
+            vec3 max(-std::numeric_limits<float>::max(),-std::numeric_limits<float>::max(),-std::numeric_limits<float>::max());
+            vec3 min(std::numeric_limits<float>::max(),std::numeric_limits<float>::max(),std::numeric_limits<float>::max());
+            for(auto& poly : surface){
+                for(auto& x : poly.p){
+                    max.x = fmax(max.x,x.x);
+                    min.x = fmin(min.x,x.x);
+                    max.y = fmax(max.y,x.y);
+                    min.y = fmin(min.y,x.y);
+                    max.z = fmax(max.z,x.z);
+                    min.z = fmin(min.z,x.z);
+                }
+            }
+            std::vector<Polygon> shape = ConvexShape::makeAxisAlignedBox(min, max).getPolygons();
+            root = make_unique<BSPNode>(vector<Polygon>(), shape);
+            root->leaf_inside = true;
+        }else{
+            root = make_unique<BSPNode>(surface);
+        }
+            
+        sn++;
+        
+        root->computeVolumeInside();
+
+        std::stack<BSPNode*> nodes ;
+        nodes.push(root.get());
+        int n = 0 ;
+        while(!nodes.empty()){
+            BSPNode* node = nodes.top();
+            nodes.pop();
+            bool generate = false;
+            if(node == nullptr){
+                generate = false;
+            }else if(!node->leaf){
+                
+                if(node->volume_outside < 0.00001){
+                    generate = true ;
+                }else if(node->volume_inside < 0.00001){
+                    generate = false;
+                }else{
+                    nodes.push(node->inner.get());
+                    nodes.push(node->outer.get());
+                }
+            }else if(node->leaf_inside){
+                generate = true;
+            }
+            if(generate){
+                
+                //bool valid = Polygon::checkConvex(node->shape);
+                std::unique_ptr<ConvexShape> shape = std::make_unique<ConvexShape>(node->shape);
+                /*
+                vector<Polygon> convert_back = shape->getPolygons();
+                bool still_valid = Polygon::checkConvex(convert_back);
+                if(valid && !still_valid){
+                    printf("Error in poly shape conversion!\n");
+                }
+
+                auto serial = shape->serialize();
+                ConvexShape deserial;
+                deserial.set(serial);
+                convert_back = deserial.getPolygons();
+                bool serial_valid = Polygon::checkConvex(convert_back);
+                if(valid && !serial_valid){
+                    printf("broken by serialization!\n");
+                }
+                */
+                
+                if(shape->vertex.size() > 3){
+                    total_solids++;
+                    string trigger = mesh_name + " " + std::to_string(n) +"-" + std::to_string(sn) ;
+                    part_position[trigger]= -(shape->centerOnCentroid());
+                    part_radius[trigger] = shape->radius ;
+                    n++;
+                    //shape->debug_display = true;
+                    //printf("position: %f, %f, %f \n", part_position[trigger][0], part_position[trigger][1], part_position[trigger][2]);
+                    float mass = shape->getVolume();
+                    
+                    //Variant(shape->serialize()).printFormatted();
+                    timeline->createObject(std::move(shape), std::unique_ptr<TEvent>(nullptr), trigger,st+ 0.01 + 0.01*randomFloat());
+                    
+                    timeline->subscribe(trigger, trigger,
+                    [timeline,st,mass, part_ptr, radius_ptr](const string& subscriber, const string& trigger, const Variant& data){
+                        int shape_id = data.getInt();
+                        //printf("Trigger : %s \n", trigger.c_str());                   
+                        
+                        std::unique_ptr<ConvexSolid> solid = std::make_unique<ConvexSolid>(
+                            ConvexSolid(shape_id, mass, (*part_ptr)[trigger], glm::quat(1,0,0,0)));
+                            solid->moveable = false;
+                            solid->radius = (*radius_ptr)[trigger] ;
+
+                        //printf("id: %d  position : %f, %f, %f   radius: %f\n", shape_id, position[0], position[1], position[2], solid->radius);   
+                        timeline->createObject(std::move(solid), std::unique_ptr<TEvent>(nullptr)/*std::make_unique<MoveSimpleSolid>(1.0/30)*/, st+ 1.1 + 0.01*randomFloat() );
+                        
+                    });
+                    
+                }
+                
+            }
+        }
+    }
+  
+    timeline->run(st+ 1.0) ;// notifications go out after a call to run completes
+    timeline->run(st+ 2.0) ; // run some more to get the solid made
+    printf("Total solids added to scenery: %d\n", total_solids);
+
+}
+
+void addRoom(Timeline* timeline, unordered_map<string, Variant>& table){
     float size = 14.087057 ;
     vec3 center( -0.197625,10.558842,1.469670);
     glm::mat4 pose(0);
@@ -57,24 +193,32 @@ void addRoom(Timeline* timeline){
     pose[3][2] = -1.75;
     pose[3][3] = 1;
     
+    /*
     Variant bones;
     std::unique_ptr<MeshInstance> o = std::make_unique<MeshInstance>(glm::vec3(0,0,0), 2, "server", "eroom", pose, bones, false) ;
-    timeline->createObject(std::move(o), std::unique_ptr<TEvent>(nullptr) , 0.01234);
+    timeline->createObject(std::move(o), std::unique_ptr<TEvent>(nullptr) , timeline->current_time + 0.01234);
+    */
+
+    addScenery(timeline, table, "eroom", pose, 300);
+    
     // Room models as a 3 wall diorama so mirror it and to make a complete room
     
     pose = mat4(0);
-    pose[0][0] = 2/size  ;
+    pose[0][0] = -2/size  ;
     pose[1][2] = 2/size  ;
     pose[2][1] = 2/size  ;
 
     pose[3][0] = 0.0001; // tiny x offset prevents z fighting on overlap
-    pose[3][1] = -1 ;
+    pose[3][1] = -1.0001 ;
     pose[3][2] = 1.75;
     pose[3][3] = 1;
     
+    /*
     o = std::make_unique<MeshInstance>(glm::vec3(0,0,0), 2, "server", "eroom", pose, bones, false) ;
-    timeline->createObject(std::move(o), std::unique_ptr<TEvent>(nullptr) , 0.01235);
-    
+    timeline->createObject(std::move(o), std::unique_ptr<TEvent>(nullptr) , timeline->current_time +0.01235);
+    */
+
+    addScenery(timeline, table, "eroom", pose, 300);
 }
 
 void addTestShapes(Timeline* timeline){
@@ -83,13 +227,14 @@ void addTestShapes(Timeline* timeline){
     
     std::unique_ptr<ConvexShape> shape0 = std::make_unique<ConvexShape>(ConvexShape::makeTetra(
         vec3(-.1,.1,0),vec3(-.1,-.1,0),vec3(.1,0,-.1),vec3(.1,0,.1)));
+    shape0->debug_display = true;
     float mass = 1;    
     timeline->createObject(std::move(shape0), std::unique_ptr<TEvent>(nullptr), "tetra_shape_created",st+ 0.01 + 0.01*randomFloat());
     timeline->subscribe("tetra_solid_maker", "tetra_shape_created",
     [timeline,st,mass](const string& subscriber, const string& trigger, const Variant& data){
         int shape_id = data.getInt();
-        for(float x = -1.5; x < 1.5; x+=0.65f){
-        for(float y = 0; y < 1; y+=0.65f){
+        for(float x = -1.5; x < 1.5; x+=0.75f){
+        for(float y = 0; y < 1.5; y+=0.75f){
             std::unique_ptr<ConvexSolid> solid = std::make_unique<ConvexSolid>(
                 ConvexSolid(shape_id, mass, glm::vec3(x,y,-0.75f), glm::quat(0,0,0,1)));
             timeline->createObject(std::move(solid), std::make_unique<MoveSimpleSolid>(1.0/90), st+ 1.1 + 0.01*randomFloat() );
@@ -98,13 +243,14 @@ void addTestShapes(Timeline* timeline){
 
 
     std::unique_ptr<ConvexShape> shape = std::make_unique<ConvexShape>(ConvexShape::makeAxisAlignedBox(vec3(0.25,0.25,0.25)));
+    shape->debug_display = true;
     mass = 1;
     timeline->createObject(std::move(shape), std::unique_ptr<TEvent>(nullptr), "box_shape_created", st+ + 0.01*randomFloat());
     timeline->subscribe("box_solid_maker", "box_shape_created",
     [timeline,st,mass](const string& subscriber, const string& trigger, const Variant& data){
         int shape_id = data.getInt();
-        for(float x = -1.5; x < 1.5; x+=0.65f){
-        for(float y = 0; y < 1; y+=0.65f){
+        for(float x = -1.5; x < 1.5; x+=0.75f){
+        for(float y = 0; y < 1.5; y+=0.75f){
             std::unique_ptr<ConvexSolid> solid = std::make_unique<ConvexSolid>(
                 ConvexSolid(shape_id, mass, glm::vec3(x,y,-0.25), glm::quat(0,0,0,1)));
             timeline->createObject(std::move(solid), std::make_unique<MoveSimpleSolid>(1.0/90), st+ 1.1 + 0.01*randomFloat() );
@@ -113,13 +259,14 @@ void addTestShapes(Timeline* timeline){
 
 
     std::unique_ptr<ConvexShape> shape2 = std::make_unique<ConvexShape>(ConvexShape::makeCylinder(glm::vec3(0,0.2,0), glm::vec3(0,-0.2,0), 0.05, 16));
+    shape2->debug_display = true;
     mass = 1 ;
     timeline->createObject(std::move(shape2), std::unique_ptr<TEvent>(nullptr), "cylinder_shape_created", st+ + 0.01*randomFloat() );
     timeline->subscribe("cylinder_solid_maker", "cylinder_shape_created",
     [timeline,st,mass](const string& subscriber, const string& trigger, const Variant& data){
         int shape_id = data.getInt();
-        for(float x = -1.5; x < 1.5; x+=0.65f){
-        for(float y = 0; y < 1; y+=0.65f){
+        for(float x = -1.5; x < 1.5; x+=0.75f){
+        for(float y = 0; y < 1.5; y+=0.75f){
             std::unique_ptr<ConvexSolid> solid = std::make_unique<ConvexSolid>(
                 ConvexSolid(shape_id, mass, glm::vec3(x,y,0.25), glm::quat(0,0,0,1)));
             timeline->createObject(std::move(solid), std::make_unique<MoveSimpleSolid>(1.0/90), st+ 1.1 + 0.01*randomFloat() );
@@ -128,13 +275,14 @@ void addTestShapes(Timeline* timeline){
     
 
     std::unique_ptr<ConvexShape> shape3 = std::make_unique<ConvexShape>(ConvexShape::makeSphere(glm::vec3(0,0,0), 0.15, 2));
+    shape3->debug_display = true;
     mass = 1;
     timeline->createObject(std::move(shape3), std::unique_ptr<TEvent>(nullptr), "sphere_shape_created", st+ 0.01*randomFloat() );
     timeline->subscribe("sphere_solid_maker", "sphere_shape_created",
     [timeline,st, mass](const string& subscriber, const string& trigger, const Variant& data){
         int shape_id = data.getInt();
-        for(float x = -1.5; x < 1.5; x+=0.65f){
-        for(float y = 0; y < 1; y+=0.65f){
+        for(float x = -1.5; x < 1.5; x+=0.75f){
+        for(float y = 0; y < 1.5; y+=0.75f){
             std::unique_ptr<ConvexSolid> solid = std::make_unique<ConvexSolid>(
                 ConvexSolid(shape_id, mass, glm::vec3(x,y,0.75), glm::quat(0,0,0,1)));
             timeline->createObject(std::move(solid), std::make_unique<MoveSimpleSolid>(1.0/90), st+ 1.1+ 0.01*randomFloat() );
@@ -198,105 +346,6 @@ void animateDragon(Timeline* timeline){
 }
 
 
-void addBreakable(Timeline* timeline, unordered_map<string, Variant>& table, string mesh_name, mat4 transform){
-    double st = timeline->current_time ;
-    std::shared_ptr<GLTF> mesh = meshes[mesh_name];
-    if(mesh == nullptr){
-         meshes.receiveTableData(mesh_name,table[mesh_name]);
-         mesh = meshes[mesh_name];
-    }
-
-    
-    mesh->transform = transform ;
-    mesh->computeNodeMatrices();
-    mesh->applyTransforms();
-
-    std::unique_ptr<BSPNode> root = make_unique<BSPNode>(mesh);
-    root->computeVolumeInside();
-    //root->print("  ");
-    map<string,vec3> part_position ;
-    map<string,vec3>* part_ptr = &part_position ;
-
-    std::stack<BSPNode*> nodes ;
-    nodes.push(root.get());
-    int n = 0 ;
-    while(!nodes.empty()){
-        BSPNode* node = nodes.top();
-        nodes.pop();
-        bool generate = false;
-        if(node == nullptr){
-            generate = false;
-        }else if(!node->leaf){
-            
-            if(node->volume_outside < 0.000001){
-                generate = true ;
-            }else if(node->volume_inside < 0.000001){
-                generate = false;
-            }else{
-                nodes.push(node->inner.get());
-                nodes.push(node->outer.get());
-            }
-        }else if(node->leaf_inside){
-            generate = true;
-        }
-        if(generate){
-            
-            //bool valid = Polygon::checkConvex(node->shape);
-            std::unique_ptr<ConvexShape> shape = std::make_unique<ConvexShape>(node->shape);
-            /*
-            vector<Polygon> convert_back = shape->getPolygons();
-            bool still_valid = Polygon::checkConvex(convert_back);
-            if(valid && !still_valid){
-                printf("Error in poly shape conversion!\n");
-            }
-
-            auto serial = shape->serialize();
-            ConvexShape deserial;
-            deserial.set(serial);
-            convert_back = deserial.getPolygons();
-            bool serial_valid = Polygon::checkConvex(convert_back);
-            if(valid && !serial_valid){
-                printf("broken by serialization!\n");
-            }
-            */
-            
-            vec3 part_position = -(shape->centerOnCentroid());
-            if(shape->vertex.size() > 3){
-                string trigger = mesh_name + " " + std::to_string(n) ;
-                n++;
-                
-                //printf("position: %f, %f, %f \n", part_position[trigger][0], part_position[trigger][1], part_position[trigger][2]);
-                float mass = shape->getVolume();
-                
-                //Variant(shape->serialize()).printFormatted();
-                timeline->createObject(std::move(shape), std::unique_ptr<TEvent>(nullptr), trigger,st+ 0.01 + 0.01*randomFloat());
-                
-                timeline->subscribe(trigger, trigger,
-                [timeline,st,mass, part_position](const string& subscriber, const string& trigger, const Variant& data){
-                    int shape_id = data.getInt();
-                    //printf("Trigger : %s \n", trigger.c_str());                   
-                    
-                    std::unique_ptr<ConvexSolid> solid = std::make_unique<ConvexSolid>(
-                        ConvexSolid(shape_id, mass, part_position, glm::quat(1,0,0,0)));
-                        solid->moveable = false;
-
-                    //printf("id: %d  position : %f, %f, %f   radius: %f\n", shape_id, position[0], position[1], position[2], solid->radius);   
-                    timeline->createObject(std::move(solid), std::unique_ptr<TEvent>(nullptr)/*std::make_unique<MoveSimpleSolid>(1.0/30)*/, st+ 1.1 + 0.01*randomFloat() );
-                    
-                });
-                
-            }
-            
-        }
-    }
-  
-    printf("A1\n");
-    timeline->run(st+ 1.0) ;// notifications go out after a call to run completes
-    printf("A2\n");
-    timeline->run(st+ 2.0) ; // run some more to get the solid made
-    printf("A3\n");
-
-}
     
 bool running = true;
 
@@ -351,7 +400,7 @@ int main(int argc, const char** argv) {
     //Timeline* timeline = generateBallTimeline() ;
     Timeline* timeline = initializeChatTimeline() ;
 
-    addRoom(timeline);
+    addRoom(timeline, table);
     addTestShapes(timeline);
   
     /*
@@ -374,10 +423,24 @@ int main(int argc, const char** argv) {
     mat4 bt = mat4(1);
     bt = glm::scale(mat4(1), {(1.0f/size),(1.0f/size),(1.0f/size)});
     bt = glm::translate(bt, center*-1.0f);
+    */
+    /*
+    string mesh_name = "eroom";
+    float size = 14.087057 ;
+    vec3 center( -0.197625,10.558842,1.469670);
+    glm::mat4 pose(0);
+    pose[0][0] = 2/size ;
+    pose[1][2] = -2/size  ;
+    pose[2][1] = 2/size  ;
+    
+    pose[3][0] = 0 ;
+    pose[3][1] = -1 ;
+    pose[3][2] = -1.75;
+    pose[3][3] = 1;
+    
 
-
-    addBreakable(timeline, table, mesh_name, bt);
-*/
+    addScenery(timeline, table, mesh_name, pose, 300);
+    */
     //addDragon(timeline, table);
 
 

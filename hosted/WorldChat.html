@@ -158,6 +158,8 @@ var imports = url_params.get("import") ? url_params.get("import").split(',') : [
 
 var tools  ; // a map containing several things above so execution modes can access them
 
+var preload_meshes = ["default_avatar", "eroom"] ;
+
 function canvasApp() {
     //The canvas this app is running on.
 	var theCanvas = document.getElementById("ui");
@@ -192,8 +194,17 @@ function canvasApp() {
 
     function timeListener(){
 
+
+
         if(tools.sync_link != null && tools.sync_link.ready() && !tools.sync_link.active){
-            tools.sync_link.sendInitialRequest();
+            // Don't attempt to connect to timeline until preload meshes are processed
+            let meshes_loaded = true;
+            for(let key of preload_meshes){
+                meshes_loaded &= tools.renderer.hasMesh(key);
+            }
+            if(meshes_loaded){
+                tools.sync_link.sendInitialRequest();
+            }
         }
 
         if(tools.table_link != null && tools.table_link.ready() && !tools.table_link.active){
@@ -368,7 +379,9 @@ function onBodyLoad(){
         setMainMenuButtons();
         
         
-        tools.API.call("requestModel", {key:"default_avatar"}, new Serializer()) ;
+        for(let key of preload_meshes){
+            tools.API.call("requestModel", {key:key}, new Serializer()) ;
+        }
     });
 }
 

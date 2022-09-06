@@ -16,7 +16,7 @@ ConvexShape::ConvexShape(const std::vector<glm::vec3> &vertices, const std::vect
         vertex.emplace_back(v);
     }
     face = faces;
-    position = dvec3(0,0,0);
+    position = vec3(0,0,0);
     
      // Calculate radius
     radius = 0 ;
@@ -33,7 +33,7 @@ ConvexShape::ConvexShape(const std::vector<glm::vec3> &vertices, const std::vect
 ConvexShape::ConvexShape(const std::vector<glm::dvec3> &vertices, const std::vector<std::vector<int>> &faces) {
     vertex = vertices;
     face = faces;
-    position = dvec3(0,0,0);
+    position = vec3(0,0,0);
     
      // Calculate radius
     radius = 0 ;
@@ -48,7 +48,7 @@ ConvexShape::ConvexShape(const std::vector<glm::dvec3> &vertices, const std::vec
 }
 
 ConvexShape::ConvexShape(){
-    position = dvec3(0,0,0);
+    position = vec3(0,0,0);
     radius = 0;
     has_collision = false;
     type = 3;
@@ -143,6 +143,7 @@ std::map<std::string,Variant> ConvexShape::serialize() const{
             j++;
         }
     }
+    serial["d"] = Variant(debug_display ? 1 : 0);
     serial["type"] = Variant(type);
     return serial;
 }
@@ -171,6 +172,8 @@ void ConvexShape::set(std::map<std::string,Variant>& serialized){
         face.push_back(f);
     }
 
+    debug_display = serialized["d"].getInt() == 1 ;
+
     // Calculate radius
     radius = 0 ;
     for(int k=0;k<vertex.size();k++){
@@ -184,7 +187,9 @@ void ConvexShape::set(std::map<std::string,Variant>& serialized){
 // Override this to provide an efficient deep copy of this object
 // If not overridden serialize and set will be used to copy your object (which will be inefficent)
 std::unique_ptr<TObject> ConvexShape::deepCopy(){
-    return std::make_unique<ConvexShape>(vertex, face);
+    auto cpy =std::make_unique<ConvexShape>(vertex, face);
+    cpy->debug_display = debug_display ;
+    return cpy;
 }
 
 // Override this function to provide logic for interpolation after rollback or extrapolation for slowly updating objects

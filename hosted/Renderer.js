@@ -527,6 +527,17 @@ class Renderer{
         }
     }
 
+    hasMesh(mesh_name){
+        for(let buffer_name in this.buffers){
+            //console.log(buffer_name);
+            //console.log(buffer_name.substring(0,mesh_name.length));
+            if(buffer_name.substring(0,mesh_name.length+3) == mesh_name+"-m="){
+                return true ;
+            }
+        }
+        return false;
+    }
+
     removeMesh(mesh_name){
         let to_delete = [];
         for(let buffer_name in this.buffers){
@@ -542,7 +553,7 @@ class Renderer{
     setMeshDoubleSided(mesh_name, double_sided){
         for(let buffer_name in this.buffers){
             if(buffer_name.substring(0,mesh_name.length) == mesh_name){
-                this.buffers[buffer_name].double_sided = double_sided
+                this.buffers[buffer_name].double_sided = double_sided ;
             }
         }
     }
