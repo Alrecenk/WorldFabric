@@ -719,7 +719,7 @@ std::vector<int> Timeline::updateObservables(){
     vector<int> observed_ids;
     for(auto& [id, object_history] : objects){
 
-        weak_ptr<TObject> eo = getObjectInstant(id, current_time) ;
+        //weak_ptr<TObject> eo = getObjectInstant(id, current_time) ;
         weak_ptr<TObject> read ;
         
         if(has_vantage){

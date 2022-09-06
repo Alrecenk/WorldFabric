@@ -47,5 +47,9 @@ class Polygon{
         //triangles not in closed surfaces will be discarded
         static std::vector<std::vector<Polygon>> collectClosedSurfaces(std::shared_ptr<GLTF> mesh);
 
+        static std::pair<int,int> sortpair(int a, int b);
+
+        static std::vector<Polygon> reduce(std::vector<Polygon> surface, int triangle_budget);
+
 };
 #endif // #ifndef _POLYGON_H_

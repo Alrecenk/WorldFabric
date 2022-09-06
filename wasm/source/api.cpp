@@ -45,7 +45,7 @@ using std::shared_ptr;
 
 // Outermost API holds a global reference to the core data model
 //map<string,GLTF> meshes;
-MeshLibrary meshes(50) ;
+MeshLibrary meshes(2000) ;
 
 const string MY_AVATAR = "default_avatar" ;
 
@@ -596,13 +596,16 @@ byte* getMeshInstances(byte* ptr){
                 }
             
             }else if(o->type == 3){ // convex shape
-                string mesh_name = "shape-" + std::to_string(ob[k]) ;
-                std::shared_ptr<GLTF> mesh_asset = meshes[mesh_name] ;
-                if(mesh_asset == nullptr){
-                    shared_ptr<ConvexShape> shape = std::static_pointer_cast<ConvexShape>(o);
-                    meshes.addLocalShapeMesh(mesh_name, shape, vec3(0.85, 0.85, 1.0)); // blue tint for contrast with grey background
-                    //meshes.addLocalShapeMesh(mesh_name + "1", shape, vec3(1.0, 1.0, 0.65)); // yellow for sphere collision
-                    //meshes.addLocalShapeMesh(mesh_name + "2", shape, vec3(1.0, 0.8, 0.8)); // red for true collision
+                shared_ptr<ConvexShape> shape = std::static_pointer_cast<ConvexShape>(o);
+                if(shape->debug_display){
+                    string mesh_name = "shape-" + std::to_string(ob[k]) ;
+                    std::shared_ptr<GLTF> mesh_asset = meshes[mesh_name] ;
+                    if(mesh_asset == nullptr){
+                        
+                        meshes.addLocalShapeMesh(mesh_name, shape, vec3(0.85, 0.85, 1.0)); // blue tint for contrast with grey background
+                        //meshes.addLocalShapeMesh(mesh_name + "1", shape, vec3(1.0, 1.0, 0.65)); // yellow for sphere collision
+                        //meshes.addLocalShapeMesh(mesh_name + "2", shape, vec3(1.0, 0.8, 0.8)); // red for true collision
+                    }
                 }
             }else{
                 printf("Got an unrecognized object in the timeline:\n");

@@ -111,8 +111,10 @@ class WorldChatMode extends ExecutionMode{
                 if(this.instances[k].owner != this.my_name){
                         mat4.multiply(m,this.inv_player_space, this.instances[k].pose);
                         if(this.instances[k].mesh.substr(0,5) === "shape"){ // shapes don't need to push bone data
+                            tools.renderer.setMeshDoubleSided(this.my_avatar, false);
                             tools.renderer.drawMesh(this.instances[k].mesh, m);
                         }else{
+                            tools.renderer.setMeshDoubleSided(this.my_avatar, false);
                             tools.renderer.drawMesh(this.instances[k].mesh, m , this.instances[k].bones);
                         }
                 }else{
