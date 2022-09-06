@@ -14,7 +14,7 @@
 class ConvexShape : public TObject{
   public:
 
-    std::vector<glm::dvec3> vertex ;
+    std::vector<glm::vec3> vertex ;
     std::vector<std::vector<int>> face ;
     bool debug_display = false;
 
@@ -43,10 +43,10 @@ class ConvexShape : public TObject{
     std::unique_ptr<TObject> getObserved(double time, const std::weak_ptr<TObject> last_observed, double last_time) override;
 
     // Return the center of mass of this shape
-    glm::dvec3 getCentroid();
+    glm::vec3 getCentroid();
 
     // Moves this shape so the origin aligns with the centroid and returns the move that was made
-    glm::dvec3 centerOnCentroid();
+    glm::vec3 centerOnCentroid();
 
     float getVolume();
 
@@ -54,13 +54,13 @@ class ConvexShape : public TObject{
     glm::mat3 getInertia(const float mass);
 
     // return the volume of the given tetrahedron
-    static float computeTetraVolume(const glm::dvec3& a, const glm::dvec3& b, const glm::dvec3& c, const glm::dvec3& d);
+    static float computeTetraVolume(const glm::vec3& a, const glm::vec3& b, const glm::vec3& c, const glm::vec3& d);
 
     // Returns the center of mass of the given tetrahedron
-    static glm::dvec3 computeTetraCentroid(const glm::dvec3& a, const glm::dvec3& b, const glm::dvec3& c, const glm::dvec3& d);
+    static glm::vec3 computeTetraCentroid(const glm::vec3& a, const glm::vec3& b, const glm::vec3& c, const glm::vec3& d);
 
     // Returns the inertia tensor of the given tetrahedron about the origin assuming a uniform density of 1
-    static glm::mat3 computeTetraInertia(const float mass, const glm::dvec3& a, const glm::dvec3& b, const glm::dvec3& c, const glm::dvec3& d);
+    static glm::mat3 computeTetraInertia(const float mass, const glm::vec3& a, const glm::vec3& b, const glm::vec3& c, const glm::vec3& d);
 
     // Returns a shaoe for an axis aligned bounding box
     static ConvexShape makeAxisAlignedBox(glm::vec3 min, glm::vec3 max);
