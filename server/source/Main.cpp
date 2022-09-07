@@ -168,7 +168,7 @@ void addRoom(Timeline* timeline, unordered_map<string, Variant>& table){
     pose[3][2] = -1.75;
     pose[3][3] = 1;
 
-    addScenery(timeline, table, "eroom", pose, 300,30);
+    addScenery(timeline, table, "eroom", pose, 256,30);
     
     // Room models as a 3 wall diorama so rotate it and to make a complete room
     pose = mat4(0);
@@ -181,7 +181,7 @@ void addRoom(Timeline* timeline, unordered_map<string, Variant>& table){
     pose[3][2] = 1.75;
     pose[3][3] = 1;
 
-    addScenery(timeline, table, "eroom", pose, 300, 30);
+    addScenery(timeline, table, "eroom", pose, 256, 30);
 }
 
 void addTestShapes(Timeline* timeline){

@@ -585,14 +585,20 @@ byte* getMeshInstances(byte* ptr){
                 }
             }else if(o->type == 2){ // convex solid
                 shared_ptr<ConvexSolid> solid= std::static_pointer_cast<ConvexSolid>(o);
-                map<string, Variant> inst_map ;
-                string mesh_name = "shape-" + std::to_string(solid->shape_id);
-                std::shared_ptr<GLTF> mesh_asset = meshes[mesh_name];
-                if(mesh_asset != nullptr){
-                    inst_map["mesh"] = Variant(mesh_name) ;
-                    inst_map["owner"] = Variant("physics") ;
-                    inst_map["pose"] = Variant(solid->getTransform());
-                    ret_map[std::to_string(ob[k])] = Variant(inst_map);
+                
+                weak_ptr<TObject> os = timeline->getLastObserved(solid->shape_id);
+                auto s = os.lock() ;
+                shared_ptr<ConvexShape> shape = std::static_pointer_cast<ConvexShape>(s);
+                if(shape->debug_display){ // only send display data for shapes in debug mode
+                    string mesh_name = "shape-" + std::to_string(solid->shape_id);
+                    std::shared_ptr<GLTF> mesh_asset = meshes[mesh_name];
+                    if(mesh_asset != nullptr){
+                        map<string, Variant> inst_map ;
+                        inst_map["mesh"] = Variant(mesh_name) ;
+                        inst_map["owner"] = Variant("physics") ;
+                        inst_map["pose"] = Variant(solid->getTransform());
+                        ret_map[std::to_string(ob[k])] = Variant(inst_map);
+                    }
                 }
             
             }else if(o->type == 3){ // convex shape
