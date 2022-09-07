@@ -49,7 +49,12 @@ class Polygon{
 
         static std::pair<int,int> sortpair(int a, int b);
 
+        // Reduce the polygons in a closed triangle surface by repeatedly collapsin the shortest edge
         static std::vector<Polygon> reduce(std::vector<Polygon> surface, int triangle_budget);
+
+        // Builds an approximate convex hull of the given point with the up to the given number of faces
+        // Detail level is sphere extrapolation used, it improves the quality but also increases the time taken exponentially
+        static std::vector<Polygon> buildApproximateHull(std::vector<glm::dvec3> points, int hull_faces, int detail_level);
 
 };
 #endif // #ifndef _POLYGON_H_
