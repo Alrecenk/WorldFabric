@@ -105,43 +105,38 @@ void MoveSimpleSolid::run(){
                         if(cg->type == 2 ) { //other is also a solid
                             shared_ptr<ConvexSolid> other = std::static_pointer_cast<ConvexSolid>(cg);
                             if(collisions[j] > anchor_id || !other->moveable){ // only handle each collision once if both objects could trigger it
-                                weak_ptr<TObject> qsw = get(other->shape_id) ; 
-                                if(auto qsg = qsw.lock()){ // if has a shape
-                                    shared_ptr<ConvexShape> other_shape = std::static_pointer_cast<ConvexShape>(qsg);
-                                    
-                                    // Compute other's world planes if required (and it might be since they aren't serialized)
-                                    if(other->world_plane.size() == 0){
+                                if(other->world_plane.size() == 0 || other->moveable){
+                                    weak_ptr<TObject> qsw = get(other->shape_id) ; 
+                                    if(auto qsg = qsw.lock()){ // if has a shape
+                                        shared_ptr<ConvexShape> other_shape = std::static_pointer_cast<ConvexShape>(qsg);
                                         other->computeWorldPlanes(other_shape);// TODO don't modify other shapes (even cache) when not anchored
+                                        other->computeInertia(other_shape); // TODO don't modify other shapes (even cache) when not anchored
                                     }
-                                    
-                                    vector<vec3> collision = self->checkCollision(other) ;
-                                    if(collision.size()>0){
-                                        if(!computed_inertia){
-                                            self->computeInertia(shape);
-                                            computed_inertia = true;
-                                        }
-                                        if(other->moveable){
-                                            other->computeInertia(other_shape); // TODO don't modify other shapes (even cache) when not anchored
-                                        }
-                                        vec3& move = collision[0] ;
-                                        vec3& point = collision[1] ;
-                                        vec3& normal = collision[2] ;
-                                        vec3 impulse = self->getCollisionImpulse(other, point,normal, 1.0);
-                                        if(other->moveable){
-                                            self->position += move*0.5f;
-                                            self->applyImpulse(impulse, point);
-                                            addEvent(std::make_unique<ApplySolidImpulse>(collisions[j], impulse*-1.0f, point, move*-0.5f));
-                                        }else{
-                                            self->position += move;
-                                            self->applyImpulse(impulse, point);
-                                        }
-
-                                        self->computeWorldPlanes(shape);
-                                    }
-                                    
-                                }else{
-                                    printf("Error: solid without shape!\n");
                                 }
+                                    
+                                vector<vec3> collision = self->checkCollision(other) ;
+                                if(collision.size()>0){
+                                    if(!computed_inertia){
+                                        self->computeInertia(shape);
+                                        computed_inertia = true;
+                                    }
+                                    
+                                    vec3& move = collision[0] ;
+                                    vec3& point = collision[1] ;
+                                    vec3& normal = collision[2] ;
+                                    vec3 impulse = self->getCollisionImpulse(other, point,normal, 1.0);
+                                    if(other->moveable){
+                                        self->position += move*0.5f;
+                                        self->applyImpulse(impulse, point);
+                                        addEvent(std::make_unique<ApplySolidImpulse>(collisions[j], impulse*-1.0f, point, move*-0.5f));
+                                    }else{
+                                        self->position += move;
+                                        self->applyImpulse(impulse, point);
+                                    }
+
+                                    self->computeWorldPlanes(shape);
+                                }
+                            
                             }//end check if not a duplicate collision check
 
                             
