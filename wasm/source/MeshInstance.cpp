@@ -59,15 +59,15 @@ void MeshInstance::set(std::map<std::string,Variant>& serial){
 // Override this to provide an efficient deep copy of this object
 // If not overridden serialize and set will be used to copy your object (which will be inefficent)
 std::unique_ptr<TObject> MeshInstance::deepCopy(){
-    return std::make_unique<MeshInstance>(position, radius, owner, mesh_name, pose, bone_data, bones_compressed);
+    auto c = std::make_unique<MeshInstance>(position, radius, owner, mesh_name, pose, bone_data, bones_compressed);
+    c->write_time = write_time ; // TODO write time should not be used for timeouts in this way
+    return c ;
 }
 
 // Override this function to provide logic for interpolation after rollback or extrapolation for slowly updating objects
 // If not overridden getObserved returns the raw value of the object
 std::unique_ptr<TObject> MeshInstance::getObserved(double time, const std::weak_ptr<TObject> last_observed, double last_time){
-    auto c = deepCopy();
-    c->write_time = write_time ;
-    return c ;
+    return deepCopy() ;
 }
 
 std::unique_ptr<TObject> MeshInstance::createObject(const Variant& serialized){

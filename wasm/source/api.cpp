@@ -146,7 +146,7 @@ Timeline* initialize2DBallTimeline(int width, int height, int amount, float min_
 Timeline* initializeChatTimeline(){
     timeline = make_unique<Timeline>(&MeshInstance::createEvent, &MeshInstance::createObject);
     timeline->auto_clear_history=true;
-    timeline->observable_interpolation = true;
+    timeline->observable_interpolation = false;
     return timeline.get() ;
 }
 
@@ -504,7 +504,6 @@ byte* runTimelineUnitTests(byte* ptr) {
 
 byte* runTimeline(byte* ptr){
     timeline->auto_clear_history=true;
-    timeline->observable_interpolation = true;
     MoveBouncingBall::friction = 2 ;
     auto obj = Variant::deserializeObject(ptr);
     if(obj.find("time") == obj.end()){

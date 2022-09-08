@@ -60,6 +60,7 @@ class Timeline{
         std::unordered_map<int, std::shared_ptr<TObject>> objects ;
         std::unordered_map<int, std::shared_ptr<TObject>> last_observed ;
         std::unordered_map<int, double> last_observed_time ;
+        std::unordered_map<int, TObject*> last_observed_ptr ;
         CollisionSystem collisions;
         std::vector<std::weak_ptr<TEvent>> recent_unruns ; // tracker for rolbacks so we can reinstert into run sequence without recomuting it entirely
 

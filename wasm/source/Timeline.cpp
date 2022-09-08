@@ -341,6 +341,7 @@ void Timeline::deleteAfter(int id, double time){
     }
     // find the last instant we're going to keep
     shared_ptr<TObject> last_instant = objects[id];
+    bool rolled_back = false;
     while(last_instant->write_time >= time && last_instant->prev){
         // unrun all events that read data we're gonna wipe
         vector<std::weak_ptr<TEvent>> initial_readers;
@@ -356,8 +357,12 @@ void Timeline::deleteAfter(int id, double time){
             }
         }
         last_instant = last_instant->prev ;
+        rolled_back = true;
     }
 
+    if(rolled_back){
+        last_observed_ptr[id] = nullptr ;
+    }
 
     if(last_instant->write_time > time){
         printf("WTF: deleting data at time (%f) before the earliest available instant (%f)!\n", time, last_instant->write_time);
@@ -732,10 +737,14 @@ std::vector<int> Timeline::updateObservables(){
             if(has_vantage){
                 o_time += fmin(max_time_warp, glm::length(read2->position-vantage)/info_speed);
             }
-            if(observable_interpolation){
+            if(observable_interpolation){ // TODO set interpolation per object so as not to lose optimization for static objects
                 last_observed[id] = std::move(read2->getObserved(o_time, last_observed[id], last_observed_time[id]));
             }else{
-                last_observed[id] = read2->deepCopy();
+                TObject* read_ptr = read2.get();
+                if(last_observed_ptr[id] != read_ptr){ // object has changed
+                    last_observed[id] = read2->deepCopy();
+                    last_observed_ptr[id] = read_ptr ;
+                }
             }
             last_observed_time[id] = o_time ;
             observed_ids.push_back(id);

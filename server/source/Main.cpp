@@ -142,7 +142,7 @@ void addScenery(Timeline* timeline, unordered_map<string, Variant>& table, strin
                             solid->radius = (*radius_ptr)[trigger] ;
 
                         //printf("id: %d  position : %f, %f, %f   radius: %f\n", shape_id, position[0], position[1], position[2], solid->radius);   
-                        timeline->createObject(std::move(solid), std::unique_ptr<TEvent>(nullptr)/*std::make_unique<MoveSimpleSolid>(1.0/30)*/, st+ 1.1 + 0.01*randomFloat() );     
+                        timeline->createObject(std::move(solid), std::unique_ptr<TEvent>(nullptr), st+ 1.1 + 0.01*randomFloat() );     
                     });
                 }
             }
