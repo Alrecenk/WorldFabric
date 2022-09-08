@@ -13,16 +13,19 @@ std::unique_ptr<TEvent>(*TEvent::generateTypedTEvent)(const Variant& serialized)
 
 // Returns the latest data for the given object available to this event
 const std::weak_ptr<TObject> TEvent::get(int id){
-    weak_ptr<TObject> vo = timeline->getObjectInstant(anchor_id, time) ;
-    vec3 vantage(0,0,0) ;
-    if(auto vo2 = vo.lock()){ // if position data available
-        vantage = vo2->position ;
+    if(!cached_vantage){
+        weak_ptr<TObject> vo = timeline->getObjectInstant(anchor_id, time) ;
+        vantage = vec3(0,0,0) ;
+        if(auto vo2 = vo.lock()){ // if position data available
+            vantage = vo2->position ;
+        }
+        cached_vantage = true;
     }
 
     weak_ptr<TObject> g = timeline->getObjectInstant(vantage, id, time) ;
     if(auto g2 = g.lock()){
         double read_time = time - fmin(timeline->max_time_warp,glm::length(g2->position-vantage)/timeline->info_speed) ;
-        g2->readers[weak_this] = read_time ;
+        g2->readers[this] = read_time ;
         read.push_back(g);
     }
     return g ;
@@ -42,6 +45,8 @@ std::weak_ptr<TObject> TEvent::getMutable(){
         timeline->objects[anchor_id]->timeline = timeline;
         timeline->objects[anchor_id]->write_time = time ;
         wrote_anchor = true;
+        vantage = timeline->objects[anchor_id]->position ;
+        cached_vantage = true;
         return timeline->objects[anchor_id] ;
     }
     return weak_ptr<TObject>() ; // tried to get mutable of a nonexisting item
@@ -98,6 +103,7 @@ void TEvent::unrun(){
             s2->disabled = true;
         }
     }
+    cached_vantage = false ;
     spawned_events.clear();
     timeline->recent_unruns.push_back(weak_this);
     timeline->queueRun(weak_this.lock());
@@ -122,7 +128,7 @@ void TEvent::print() const{
 void TEvent::clearReaderPointers(){
     for(int k=0;k<read.size();k++){
         if(auto rk = read[k].lock()){
-            rk->readers.erase(weak_this);
+            rk->readers.erase(this);
         }
     }
     read.clear();

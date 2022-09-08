@@ -344,16 +344,14 @@ void Timeline::deleteAfter(int id, double time){
     bool rolled_back = false;
     while(last_instant->write_time >= time && last_instant->prev){
         // unrun all events that read data we're gonna wipe
-        vector<std::weak_ptr<TEvent>> initial_readers;
+        vector<TEvent*> initial_readers;
         for(auto& [reader, time] : last_instant->readers){
             initial_readers.push_back(reader);
         }
         // unrun changes the reader list, so we need can't iterate over it and unrun directly
         for(auto& reader : initial_readers){
-            if(auto rk = reader.lock()){
-                if(!rk->disabled && rk->has_run){
-                    rk->unrun();
-                }
+            if(!reader->disabled && reader->has_run){
+                reader->unrun();
             }
         }
         last_instant = last_instant->prev ;
@@ -370,17 +368,15 @@ void Timeline::deleteAfter(int id, double time){
 
     }
     // unrun all events that read data we're gonna wipe
-    vector<std::weak_ptr<TEvent>> initial_readers;
+    vector<TEvent*> initial_readers;
     for(auto& [reader, time] : last_instant->readers){
         initial_readers.push_back(reader);
     }
     // unrun changes the reader list, so we need can't iterate over it and unrun directly
     for(auto& reader : initial_readers){
-        if(auto rk = reader.lock()){
-            if(!rk->disabled && rk->has_run && rk->time > time){
-                rk->unrun();
+            if(!reader->disabled && reader->has_run && reader->time > time){
+                reader->unrun();
             }
-        }
     }
 
     objects[id] = last_instant ; //since backward links are the only shared_pt this should cause proper deletion
