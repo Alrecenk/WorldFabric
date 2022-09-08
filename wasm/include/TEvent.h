@@ -34,6 +34,9 @@ class TEvent{
         Timeline* timeline ; // a link to the timeline hois event is in
         std::weak_ptr<TEvent> weak_this ; // a weak pointer to the timeline shared pointer to use for safe links
 
+        glm::vec3 vantage; // cached vantage point speeds up events that fetch many objects
+        bool cached_vantage = false;
+
         virtual ~TEvent() = default;
 
         // pointer to user defined function to generated typed TEvents for their app
