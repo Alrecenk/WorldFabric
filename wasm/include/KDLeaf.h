@@ -11,7 +11,7 @@
 class KDLeaf : public KDNode {
   public:
 
-    static const int amount_to_split = 15;
+    static const int amount_to_split = 30;
     std::map<int, KDNode::BoundingSphere> objects;
     int split_delay = 0 ;
 
