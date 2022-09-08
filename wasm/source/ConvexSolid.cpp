@@ -143,51 +143,67 @@ std::vector<glm::vec3> ConvexSolid::checkCollision(std::shared_ptr<ConvexSolid> 
     float best_move = std::numeric_limits<float>::max();
     vec3 best_normal = vec3(0,0,0);
     vec3 best_point = vec3(0,0,0);
-    // Check our faces for a separating axis_
-    for (int k = 0; k < world_plane.size(); k++) {
-        const vec3 &N = world_plane[k].first;
-        const float d = world_plane[k].second;
-        //TODO there's an early out trick per face if the face points away from the other mesh, but I forgot how it works
-        float correction = std::numeric_limits<float>::max();
-        // Get the most intersecting point on the other polygon (most behind plane)
-        vec3 cp = vec3(0,0,0);
-        for (auto& j : other->world_vertex) {
-            float nd = glm::dot(j, N) + d ;
-            if(nd < correction){
-                correction = nd ;
-                cp = j ;
-            }
-        }
-        if (correction >= 0) { // worst collision is no collision
-            return vector<vec3>();  // no collision, we're done
-        } else if (-correction < best_move) {
-            // keep track of smallest correction
-            best_move = -correction;
-            best_normal = N * -1.0f;
-            best_point = cp + N*(best_move*0.5f); // collision point halfway between plane and point
-        }
-    }
+
+    vec3 to_other = other->position - position ;
+
     //Check their faces for a separating axis
     for (int k = 0; k < other->world_plane.size(); k++) {
         const vec3 &N = other->world_plane[k].first;
         const float d = other->world_plane[k].second;
-        float correction = std::numeric_limits<float>::max();
-        // Get the most intersecting point on the other polygon (most behind plane)
-        vec3 cp = vec3(0,0,0);
-        for (auto& vertex : world_vertex) {
-            float nd = glm::dot(vertex, N) + d ;
-            if(nd < correction){
-                correction = nd ;
-                cp = vertex ;
+        if(glm::dot(N, to_other) < 0 ){// early out trick per face if the face points away from the other mesh
+            float correction = std::numeric_limits<float>::max();
+            // Get the most intersecting point on the other polygon (most behind plane)
+            vec3 cp = vec3(0,0,0);
+            float nbm = -best_move ;
+            for (auto& vertex : world_vertex) {
+                float nd = glm::dot(vertex, N) + d ;
+                /*if(nd < nbm){ // plane is already worse than our best so we're done with this plane
+                    correction = nd ;
+                    break;
+                }else*/ if(nd < correction){
+                    correction = nd ;
+                    cp = vertex ;
+                }
+            }
+            if (correction >= 0) { // worst collision is no collision
+                return vector<vec3>();  // no collision, we're done
+            } else if (-correction < best_move) {
+                // keep track of smallest correction
+                best_move = -correction;
+                best_normal = N;
+                best_point = cp + N*(best_move*0.5f); // collision point halfway between plane and point
             }
         }
-        if (correction >= 0) { // worst collision is no collision
-            return vector<vec3>();  // no collision, we're done
-        } else if (-correction < best_move) {
-            // keep track of smallest correction
-            best_move = -correction;
-            best_normal = N;
-            best_point = cp + N*(best_move*0.5f); // collision point halfway between plane and point
+    }
+
+    // Check our faces for a separating axis
+    for (int k = 0; k < world_plane.size(); k++) {
+        const vec3 &N = world_plane[k].first;
+        const float d = world_plane[k].second;
+        
+        if(glm::dot(N, to_other) > 0 ){// early out trick per face if the face points away from the other mesh
+            float correction = std::numeric_limits<float>::max();
+            // Get the most intersecting point on the other polygon (most behind plane)
+            vec3 cp = vec3(0,0,0);
+            float nbm = -best_move ;
+            for (auto& j : other->world_vertex) {
+                float nd = glm::dot(j, N) + d ;
+                if(nd < nbm){ // plane is already worse than our best so we're done with this plane
+                    correction = nd ;
+                    break;
+                }else if(nd < correction){
+                    correction = nd ;
+                    cp = j ;
+                }
+            }
+            if (correction >= 0) { // worst collision is no collision
+                return vector<vec3>();  // no collision, we're done
+            } else if (-correction < best_move) {
+                // keep track of smallest correction
+                best_move = -correction;
+                best_normal = N * -1.0f;
+                best_point = cp + N*(best_move*0.5f); // collision point halfway between plane and point
+            }
         }
     }
 
