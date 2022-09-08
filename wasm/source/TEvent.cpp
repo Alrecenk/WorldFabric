@@ -44,6 +44,7 @@ std::weak_ptr<TObject> TEvent::getMutable(){
         prev_instant->next = timeline->objects[anchor_id];
         timeline->objects[anchor_id]->timeline = timeline;
         timeline->objects[anchor_id]->write_time = time ;
+        timeline->objects[anchor_id]->readers.reserve((prev_instant->readers.size()*11)/10) ;
         wrote_anchor = true;
         vantage = timeline->objects[anchor_id]->position ;
         cached_vantage = true;
@@ -58,6 +59,7 @@ void TEvent::addEvent(std::unique_ptr<TEvent> event){
     event->time = fmax(event->time, time+timeline->min_spawned_event_delay) ; //enforce minimum spawn delay on internal events
     event->spawner = weak_this ;
     event->spawner_time = time ;
+    event->read.reserve((read.size()*11)/10);
     std::weak_ptr<TEvent> e = timeline->insertEvent(std::move(event));
     spawned_events.push_back(e);
 }
