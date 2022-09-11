@@ -436,10 +436,15 @@ void GLTF::setModel(const byte* data, int data_length){
             uint second_chunk_type = *((uint*)(data+bin_chunk_start+4)) ;
             if(second_chunk_type == 0x004E4942){
                 bin = Variant(data+bin_chunk_start+8, bin_length);
-
-                int num_materials = json["materials"].getArrayLength();
-                for(int k=0;k<num_materials;k++){
-                    addMaterial(k, json, bin);
+                if(json["materials"].defined()){
+                    int num_materials = json["materials"].getArrayLength();
+                    for(int k=0;k<num_materials;k++){
+                        addMaterial(k, json, bin);
+                    }
+                }else{ // literally no materials
+                    printf("No materials present? Defaulting to white.\n");
+                    Material m ; // make a default white
+                    materials[0] = m;
                 }
 
                 if(json["skins"].defined()){
@@ -754,39 +759,17 @@ void GLTF::addPrimitive(std::vector<Vertex>& vertices, std::vector<Triangle>& tr
     int material = 0 ;
     if(primitive["material"].defined()){
         material = primitive["material"].getInt();
-        //printf("Need material %d !\n", material);
     }else{
         printf("Failed to get material property!\n");
     }
     if(!json["materials"][material].defined()){
         printf("Failed to find material %d for primitive \n",  material);
     }
-    //printf("Primitive material: %d\n", material);
-    
-    vec4 mat_color = vec4(1,1,1,1);
-    
-    Variant iv = json["materials"][material]["pbrMetallicRoughness"]["baseColorTexture"]["index"] ;
-    //int image = -1;
-    if(iv.defined()){
-        //printf("Found mesh primitive texture!\n");
-        //image = iv.getInt();
-        
-        //printf("texture in primitive  %d x%d \n ", img.width, img.height);
-    }else{
-        
-        Variant ic = json["materials"][material]["pbrMetallicRoughness"]["extensions"]["KHR_materials_pbrSpecularGlossiness"]["diffuseFactor"];
-        if(!ic.defined()){
-            ic = json["materials"][material]["pbrMetallicRoughness"]["baseColorFactor"];
-        }
-        if(ic.defined()){
-            mat_color = vec4(ic[0].getNumberAsFloat(), ic[1].getNumberAsFloat(), ic[2].getNumberAsFloat(),1.0);
-        }
-    }
-    
+
     for(int k=0;k<num_vertices;k++){
         Vertex v ;
         v.position = vec3(point_data[3*k], point_data[3*k+1],point_data[3*k+2]) ;
-        v.color_mult = mat_color;
+        v.color_mult = vec4(1,1,1,1);
         if(has_normals){
             v.normal = vec3(normal_data[3*k], normal_data[3*k+1], normal_data[3*k+2]) ;
         }
@@ -1320,8 +1303,13 @@ void GLTF::computeInvMatrices(){
             node.mesh_to_bone = joint_inverse_bind_matrix[node_id];
             node.bone_to_mesh = glm::inverse(node.mesh_to_bone);
         }else{
-            node.bone_to_mesh = node.transform ;
-            node.mesh_to_bone = glm::inverse(node.transform) ;
+            // Root transform should not be included in inverse bind
+            int root = node_id;
+            while(nodes[root].parent!=-1){
+                root = nodes[root].parent ;
+            }
+            node.bone_to_mesh = glm::inverse(nodes[root].transform) * node.transform ;
+            node.mesh_to_bone = glm::inverse(node.bone_to_mesh) ;
         }
     }
 }

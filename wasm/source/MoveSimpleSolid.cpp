@@ -82,11 +82,6 @@ void MoveSimpleSolid::run(){
 
             if(moving){
                 self->move(interval);
-                //clamp to local area for demo
-                if(glm::length(self->position)>7){
-                    self->velocity = self->velocity*0.1f ;
-                    self->position = self->velocity + vec3(0,0,1.75) ;
-                }
             }
             
             self->status = 0 ;

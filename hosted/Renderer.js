@@ -338,7 +338,7 @@ class Renderer{
             this.buffers[id].normal = gl.createBuffer();
             this.buffers[id].tex_coord = gl.createBuffer();
             this.buffers[id].texture_id = -1;
-            this.buffers[id].double_sided = 0 ;
+            this.buffers[id].double_sided = false ;
             this.buffers[id].joints = gl.createBuffer();
             this.buffers[id].weights= gl.createBuffer();
         }
@@ -548,12 +548,19 @@ class Renderer{
         for(let d of to_delete){
             delete this.buffers[d] ;
         }
+        delete this.buffer_lookup[mesh_name] ;
     }
 
     setMeshDoubleSided(mesh_name, double_sided){
-        for(let buffer_name in this.buffers){
-            if(buffer_name.substring(0,mesh_name.length) == mesh_name){
+        if(mesh_name in this.buffer_lookup){ // cache mesh_name to material buffers mapping
+            for(let buffer_name of this.buffer_lookup[mesh_name]){
                 this.buffers[buffer_name].double_sided = double_sided ;
+            }
+        }else{
+            for(let buffer_name in this.buffers){
+                if(buffer_name.substring(0,mesh_name.length) == mesh_name){
+                    this.buffers[buffer_name].double_sided = double_sided ;
+                }
             }
         }
     }
