@@ -43,18 +43,21 @@ class Polygon{
         static bool checkConvex(std::vector<Polygon>& surface);
 
         // Returns all closed surfaces as separate polygon lists so BSP trees can be built from them
-        // Mesh is assumed toi be made of traingles with correct winding order
-        //triangles not in closed surfaces will be discarded
+        // Mesh is assumed to be made of triangles with correct winding order
+        // triangles not in closed surfaces will be ignored
         static std::vector<std::vector<Polygon>> collectClosedSurfaces(std::shared_ptr<GLTF> mesh);
 
         static std::pair<int,int> sortpair(int a, int b);
 
-        // Reduce the polygons in a closed triangle surface by repeatedly collapsin the shortest edge
+        // Reduce the polygons in a closed triangle surface by repeatedly collapsing the shortest edge
         static std::vector<Polygon> reduce(std::vector<Polygon> surface, int triangle_budget);
 
-        // Builds an approximate convex hull of the given point with the up to the given number of faces
+        // Builds an approximate convex hull of the given point with up to the given number of faces
         // Detail level is sphere extrapolation used, it improves the quality but also increases the time taken exponentially
-        static std::vector<Polygon> buildApproximateHull(std::vector<glm::dvec3> points, int hull_faces, int detail_level);
+        static std::vector<Polygon> buildApproximateHull(std::vector<glm::dvec3>& points, int hull_faces, int detail_level);
+
+        // splits a polyhedron in half on each axis until bo piece is larger than the given extent in any axis
+        static std::vector<std::vector<Polygon>> splitToMaximumExtent(std::vector<Polygon> surface, float target_extent);
 
 };
 #endif // #ifndef _POLYGON_H_

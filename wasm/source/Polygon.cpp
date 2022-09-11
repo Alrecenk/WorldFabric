@@ -284,8 +284,8 @@ bool Polygon::checkConvex(std::vector<Polygon>& surface){
 
 
 // Returns all closed surfaces as separate polygon lists so BSP trees can be built from them
-// Mesh is assumed to be made of traingles with correct winding order
-//triangles not in closed surfaces will be discarded
+// Mesh is assumed to be made of triangles with correct winding order
+// triangles not in closed surfaces will be ignored
 std::vector<std::vector<Polygon>> Polygon::collectClosedSurfaces(std::shared_ptr<GLTF> mesh){
 
     // First we need a quick way to collapse matching vertices into single indices
@@ -401,7 +401,7 @@ std::pair<int,int> Polygon::sortpair(int a, int b){
     }
 }
 
-
+// Reduce the polygons in a closed triangle surface by repeatedly collapsing the shortest edge
 std::vector<Polygon> Polygon::reduce(std::vector<Polygon> surface, int triangle_budget){
     // First we need to collapse matching vertices into single indices
     std::unordered_map<int,int> hash_vertex; // map hash to index
@@ -492,9 +492,9 @@ std::vector<Polygon> Polygon::reduce(std::vector<Polygon> surface, int triangle_
 }
 
 
-// Builds an approximate convex hull of the given point with the up to the given number of faces
+// Builds an approximate convex hull of the given point with up to the given number of faces
 // Detail level is sphere extrapolation used, it improves the quality but also increases the time taken exponentially
-std::vector<Polygon> Polygon::buildApproximateHull(std::vector<dvec3> points, int hull_faces, int detail_level){
+std::vector<Polygon> Polygon::buildApproximateHull(std::vector<dvec3>& points, int hull_faces, int detail_level){
     RadialVolume optimal(points, detail_level);
     RadialVolume sphere(optimal.center, optimal.radius, detail_level);
     
@@ -527,4 +527,43 @@ std::vector<Polygon> Polygon::buildApproximateHull(std::vector<dvec3> points, in
         surface = Polygon::splitOnPlane(surface, plane).first;
     }
     return surface ;
+}
+
+// splits a polyhedron in half on each axis until bo piece is larger than the given extent in any axis
+std::vector<std::vector<Polygon>> Polygon::splitToMaximumExtent(std::vector<Polygon> surface, float target_extent){
+    // Get the bounding box
+    dvec3 min(std::numeric_limits<float>::max(),std::numeric_limits<float>::max(),std::numeric_limits<float>::max());
+    dvec3 max(-std::numeric_limits<float>::max(),-std::numeric_limits<float>::max(),-std::numeric_limits<float>::max());
+    for(auto& poly : surface){
+        for(auto& x : poly.p){
+            min.x = fmin(min.x, x.x);
+            min.y = fmin(min.y, x.y);
+            min.z = fmin(min.z, x.z);
+            max.x = fmax(max.x, x.x);
+            max.y = fmax(max.y, x.y);
+            max.z = fmax(max.z, x.z);
+        }
+    }
+
+    // split on any extent bigger than the allowed limit
+    std::vector<std::vector<Polygon>> result ;
+    std::pair<std::vector<Polygon>, std::vector<Polygon>> split ;
+    if(max.x - min.x > target_extent){
+        split = Polygon::splitOnPlane(surface, std::pair<glm::dvec3, double>(dvec3(1,0,0), (min.x+max.x)*-0.5));
+    }else if(max.y - min.y > target_extent){
+        split = Polygon::splitOnPlane(surface, std::pair<glm::dvec3, double>(dvec3(0,1,0), (min.y+max.y)*-0.5));
+    }else if(max.z - min.z > target_extent){
+        split = Polygon::splitOnPlane(surface, std::pair<glm::dvec3, double>(dvec3(0,0,1), (min.z+max.z)*-0.5));
+    }else{ // no splits, we're done
+        result.push_back(surface);
+        return result ;
+    }
+
+    // recurse and merge results
+    result = Polygon::splitToMaximumExtent(split.first, target_extent);
+    std::vector<std::vector<Polygon>> r2 = Polygon::splitToMaximumExtent(split.second, target_extent);
+    for(auto& s : r2){
+        result.push_back(s);
+    }
+    return result ;
 }
