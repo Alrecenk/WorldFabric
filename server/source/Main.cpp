@@ -134,7 +134,7 @@ void addScenery(Timeline* timeline, unordered_map<string, Variant>& table, strin
                     shape = std::make_unique<ConvexShape>(node->shape);
                 }
 
-                if(shape->vertex.size() > 3 && shape->getVolume() > 0.00001){
+                if(shape->vertex.size() > 3 && shape->getVolume() > 0.0001){
                     total_solids++;
                     string trigger = mesh_name + " " + std::to_string(n) +"-" + std::to_string(sn) ;
                     part_position[trigger]= -(shape->centerOnCentroid());
