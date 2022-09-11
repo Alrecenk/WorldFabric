@@ -12,7 +12,7 @@ Variant::Variant() {
     ptr = nullptr;
 }
 
-Variant::Variant(const map<string, Variant> &obj) {
+Variant::Variant(const map<string, Variant>& obj) {
     type_ = OBJECT;
     int total_size = Variant::getSize(obj);
     //printf("total size: %i\n", total_size);
@@ -23,9 +23,15 @@ Variant::Variant(const map<string, Variant> &obj) {
     map<string, int *> linker;
     // Write the list of keys and types
     for (auto const&[key, data]:obj) {
-        int key_size = Variant::getSize(key);
-        Variant keyvar(key);
-        memcpy(input_ptr, keyvar.ptr, key_size);
+        //int key_size = Variant::getSize(key);
+        //Variant keyvar(key);
+        //memcpy(input_ptr, keyvar.ptr, key_size);
+        // Build key variant in place for efficiency
+        int str_length = key.length();
+        ((int *) input_ptr)[0] = str_length;
+        memcpy(input_ptr + 4, key.c_str(), str_length);
+        int key_size = 4 + str_length ;
+
         input_ptr += key_size;
         input_ptr[0] = data.type_;
         input_ptr += 1;
@@ -40,8 +46,7 @@ Variant::Variant(const map<string, Variant> &obj) {
             memcpy(input_ptr, data.ptr, size);
         }
         // Link relative pointer into first array
-        *linker[key] = (int) (input_ptr -
-                              (ptr)); // Might throw a warning but should still work in 64 bit environment because it's relative
+        *linker[key] = (int) (input_ptr - (ptr)); // Might throw a warning but should still work in 64 bit environment because it's relative
         input_ptr += size;
     }
 }
