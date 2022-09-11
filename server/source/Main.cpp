@@ -46,7 +46,7 @@ void loadModels(unordered_map<string, Variant>& table){
 
 
 
-void addScenery(Timeline* timeline, unordered_map<string, Variant>& table, string mesh_name, mat4 transform, int convex_cutoff, int convex_detail, bool debug_mode){
+void addScenery(Timeline* timeline, unordered_map<string, Variant>& table, string mesh_name, mat4 transform, int convex_cutoff, int convex_detail, float max_extent, bool debug_mode){
     double st = timeline->current_time ;
     std::shared_ptr<GLTF> mesh = meshes[mesh_name];
     if(mesh == nullptr){
@@ -120,6 +120,7 @@ void addScenery(Timeline* timeline, unordered_map<string, Variant>& table, strin
                 generate = true;
             }
             if(generate){
+                /*
                 std::unique_ptr<ConvexShape> shape ;
                 if(node->shape.size() > convex_detail){
                     std::vector<dvec3> points ;
@@ -133,33 +134,39 @@ void addScenery(Timeline* timeline, unordered_map<string, Variant>& table, strin
                 }else{
                     shape = std::make_unique<ConvexShape>(node->shape);
                 }
+                */
 
-                if(shape->vertex.size() > 3 && shape->getVolume() > 0.0001){
-                    total_solids++;
-                    string trigger = mesh_name + " " + std::to_string(n) +"-" + std::to_string(sn) ;
-                    part_position[trigger]= -(shape->centerOnCentroid());
-                    part_radius[trigger] = shape->radius ;
-                    n++;
-                    shape->debug_display = debug_mode;
-                    //printf("position: %f, %f, %f \n", part_position[trigger][0], part_position[trigger][1], part_position[trigger][2]);
-                    float mass = shape->getVolume();
-                    
-                    //Variant(shape->serialize()).printFormatted();
-                    timeline->createObject(std::move(shape), std::unique_ptr<TEvent>(nullptr), trigger,st+ 0.01 + 0.01*randomFloat());
-                    
-                    timeline->subscribe(trigger, trigger,
-                    [timeline,st,mass, part_ptr, radius_ptr](const string& subscriber, const string& trigger, const Variant& data){
-                        int shape_id = data.getInt();
-                        //printf("Trigger : %s \n", trigger.c_str());                   
+                std::vector<std::vector<Polygon>> shapes = Polygon::splitToMaximumExtent(node->shape, max_extent) ;
+
+                for(auto&surface: shapes){
+                    std::unique_ptr<ConvexShape> shape = std::make_unique<ConvexShape>(surface);
+                    if(shape->vertex.size() > 3 && shape->getVolume() > 0.0001){
+                        total_solids++;
+                        string trigger = mesh_name + " " + std::to_string(n) +"-" + std::to_string(sn) ;
+                        part_position[trigger]= -(shape->centerOnCentroid());
+                        part_radius[trigger] = shape->radius ;
+                        n++;
+                        shape->debug_display = debug_mode;
+                        //printf("position: %f, %f, %f \n", part_position[trigger][0], part_position[trigger][1], part_position[trigger][2]);
+                        float mass = shape->getVolume();
                         
-                        std::unique_ptr<ConvexSolid> solid = std::make_unique<ConvexSolid>(
-                            ConvexSolid(shape_id, mass, (*part_ptr)[trigger], glm::quat(1,0,0,0)));
-                            solid->moveable = false;
-                            solid->radius = (*radius_ptr)[trigger] ;
+                        //Variant(shape->serialize()).printFormatted();
+                        timeline->createObject(std::move(shape), std::unique_ptr<TEvent>(nullptr), trigger,st+ 0.01 + 0.01*randomFloat());
+                        
+                        timeline->subscribe(trigger, trigger,
+                        [timeline,st,mass, part_ptr, radius_ptr](const string& subscriber, const string& trigger, const Variant& data){
+                            int shape_id = data.getInt();
+                            //printf("Trigger : %s \n", trigger.c_str());                   
+                            
+                            std::unique_ptr<ConvexSolid> solid = std::make_unique<ConvexSolid>(
+                                ConvexSolid(shape_id, mass, (*part_ptr)[trigger], glm::quat(1,0,0,0)));
+                                solid->moveable = false;
+                                solid->radius = (*radius_ptr)[trigger] ;
 
-                        //printf("id: %d  position : %f, %f, %f   radius: %f\n", shape_id, position[0], position[1], position[2], solid->radius);   
-                        timeline->createObject(std::move(solid), std::unique_ptr<TEvent>(nullptr), st+ 1.1 + 0.01*randomFloat() );     
-                    });
+                            //printf("id: %d  position : %f, %f, %f   radius: %f\n", shape_id, position[0], position[1], position[2], solid->radius);   
+                            timeline->createObject(std::move(solid), std::unique_ptr<TEvent>(nullptr), st+ 1.1 + 0.01*randomFloat() );     
+                        });
+                    }
                 }
             }
         }
@@ -184,7 +191,7 @@ void addRoom(Timeline* timeline, unordered_map<string, Variant>& table){
     pose[3][2] = -1.75;
     pose[3][3] = 1;
 
-    addScenery(timeline, table, "eroom", pose, 256,30, false);
+    addScenery(timeline, table, "eroom", pose, 256,30, 10000,false);
     
     // Room models as a 3 wall diorama so rotate it and to make a complete room
     pose = mat4(0);
@@ -197,7 +204,7 @@ void addRoom(Timeline* timeline, unordered_map<string, Variant>& table){
     pose[3][2] = 1.75;
     pose[3][3] = 1;
 
-    addScenery(timeline, table, "eroom", pose, 256, 30, false);
+    addScenery(timeline, table, "eroom", pose, 256, 30, 10000, false);
 }
 
 void addTestShapes(Timeline* timeline){
@@ -380,7 +387,7 @@ int main(int argc, const char** argv) {
 
     mat4 pose(1.0);
 
-    addScenery(timeline, table, "default_world", pose, 10000,20, false);
+    addScenery(timeline, table, "default_world", pose, 10000,20, 7, false);
 
     //addDragon(timeline, table);
 
