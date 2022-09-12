@@ -202,10 +202,11 @@ void addTestShapes(Timeline* timeline){
     timeline->subscribe("tetra_solid_maker", "tetra_shape_created",
     [timeline,st,mass](const string& subscriber, const string& trigger, const Variant& data){
         int shape_id = data.getInt();
-        for(float x = -1.5; x < 0.5; x+=0.75f){
+        for(float x = -1.5; x < 1.5; x+=0.75f){
         for(float y = 0; y < 0.5; y+=0.75f){
             std::unique_ptr<ConvexSolid> solid = std::make_unique<ConvexSolid>(
                 ConvexSolid(shape_id, mass, glm::vec3(x,y,-0.75f), glm::quat(0,0,0,1)));
+            //solid->velocity = vec3(10.0f*(randomFloat()-0.5f),10.0f*(randomFloat()-0.5f),10.0f*(randomFloat()-0.5f));
             timeline->createObject(std::move(solid), std::make_unique<MoveSimpleSolid>(1.0/90), st+ 1.1 + 0.01*randomFloat() );
         }}
     });
@@ -217,10 +218,11 @@ void addTestShapes(Timeline* timeline){
     timeline->subscribe("box_solid_maker", "box_shape_created",
     [timeline,st,mass](const string& subscriber, const string& trigger, const Variant& data){
         int shape_id = data.getInt();
-        for(float x = -1.5; x < 0.5; x+=0.75f){
+        for(float x = -1.5; x < 1.5; x+=0.75f){
         for(float y = 0; y < 0.5; y+=0.75f){
             std::unique_ptr<ConvexSolid> solid = std::make_unique<ConvexSolid>(
                 ConvexSolid(shape_id, mass, glm::vec3(x,y,-0.25), glm::quat(0,0,0,1)));
+            //solid->velocity = vec3(10.0f*(randomFloat()-0.5f),10.0f*(randomFloat()-0.5f),10.0f*(randomFloat()-0.5f));
             timeline->createObject(std::move(solid), std::make_unique<MoveSimpleSolid>(1.0/90), st+ 1.1 + 0.01*randomFloat() );
         }}
     });
@@ -233,10 +235,11 @@ void addTestShapes(Timeline* timeline){
     timeline->subscribe("cylinder_solid_maker", "cylinder_shape_created",
     [timeline,st,mass](const string& subscriber, const string& trigger, const Variant& data){
         int shape_id = data.getInt();
-        for(float x = -1.5; x < 0.5; x+=0.75f){
+        for(float x = -1.5; x < 1.5; x+=0.75f){
         for(float y = 0; y < 0.5; y+=0.75f){
             std::unique_ptr<ConvexSolid> solid = std::make_unique<ConvexSolid>(
                 ConvexSolid(shape_id, mass, glm::vec3(x,y,0.25), glm::quat(0,0,0,1)));
+            //solid->velocity = vec3(10.0f*(randomFloat()-0.5f),10.0f*(randomFloat()-0.5f),10.0f*(randomFloat()-0.5f));
             timeline->createObject(std::move(solid), std::make_unique<MoveSimpleSolid>(1.0/90), st+ 1.1 + 0.01*randomFloat() );
         }}
     });
@@ -249,10 +252,11 @@ void addTestShapes(Timeline* timeline){
     timeline->subscribe("sphere_solid_maker", "sphere_shape_created",
     [timeline,st, mass](const string& subscriber, const string& trigger, const Variant& data){
         int shape_id = data.getInt();
-        for(float x = -1.5; x < 0.5; x+=0.75f){
+        for(float x = -1.5; x < 1.5; x+=0.75f){
         for(float y = 0; y < 0.5; y+=0.75f){
             std::unique_ptr<ConvexSolid> solid = std::make_unique<ConvexSolid>(
                 ConvexSolid(shape_id, mass, glm::vec3(x,y,0.75), glm::quat(0,0,0,1)));
+            //solid->velocity = vec3(10.0f*(randomFloat()-0.5f),10.0f*(randomFloat()-0.5f),10.0f*(randomFloat()-0.5f));
             timeline->createObject(std::move(solid), std::make_unique<MoveSimpleSolid>(1.0/90), st+ 1.1+ 0.01*randomFloat() );
         }}
     });
@@ -349,13 +353,8 @@ int main(int argc, const char** argv) {
 
     //Timeline* timeline = generateBallTimeline() ;
     Timeline* timeline = initializeChatTimeline() ;
-
-    //addRoom(timeline, table);
+    addScenery(timeline, table, "default_world", mat4(1), 10000,20, 7, false);
     addTestShapes(timeline);
-
-    mat4 pose(1.0);
-
-    addScenery(timeline, table, "default_world", pose, 10000,20, 7, false);
 
     // Read the password from a file so we don't have to type it (and it's not included in the source repository)
     /*std::ifstream password_file("./cert/password.txt");

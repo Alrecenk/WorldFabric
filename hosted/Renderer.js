@@ -568,7 +568,7 @@ class Renderer{
     startXRSession(){
         if(tools.renderer.xr_session == null && !this.started_vr){
             this.started_vr = true ;
-            navigator.xr.requestSession('immersive-vr',{optionalFeatures: ['low-fixed-foveation-level', 'high-refresh-rate']})
+            navigator.xr.requestSession('immersive-vr',{optionalFeatures: ['high-fixed-foveation-level', 'high-refresh-rate']})
                 .then(tools.renderer.onXRSessionStarted);
         }
     }
