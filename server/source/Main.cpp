@@ -146,7 +146,7 @@ void addScenery(Timeline* timeline, unordered_map<string, Variant>& table, strin
                         part_position[trigger]= -(shape->centerOnCentroid());
                         part_radius[trigger] = shape->radius ;
                         n++;
-                        shape->debug_display = debug_mode;
+                        shape->is_observable = debug_mode;
                         //printf("position: %f, %f, %f \n", part_position[trigger][0], part_position[trigger][1], part_position[trigger][2]);
                         float mass = shape->getVolume();
                         
@@ -162,6 +162,7 @@ void addScenery(Timeline* timeline, unordered_map<string, Variant>& table, strin
                                 ConvexSolid(shape_id, mass, (*part_ptr)[trigger], glm::quat(1,0,0,0)));
                                 solid->moveable = false;
                                 solid->radius = (*radius_ptr)[trigger] ;
+                                solid->is_observable = false;
 
                             //printf("id: %d  position : %f, %f, %f   radius: %f\n", shape_id, position[0], position[1], position[2], solid->radius);   
                             timeline->createObject(std::move(solid), std::unique_ptr<TEvent>(nullptr), st+ 1.1 + 0.01*randomFloat() );     
@@ -212,7 +213,7 @@ void addTestShapes(Timeline* timeline){
 
     std::unique_ptr<ConvexShape> shape0 = std::make_unique<ConvexShape>(ConvexShape::makeTetra(
         vec3(-.1,.1,0),vec3(-.1,-.1,0),vec3(.1,0,-.1),vec3(.1,0,.1)));
-    shape0->debug_display = true;
+    shape0->is_observable = true;
     float mass = 1;    
     timeline->createObject(std::move(shape0), std::unique_ptr<TEvent>(nullptr), "tetra_shape_created",st+ 0.01 + 0.01*randomFloat());
     timeline->subscribe("tetra_solid_maker", "tetra_shape_created",
@@ -227,7 +228,7 @@ void addTestShapes(Timeline* timeline){
     });
 
     std::unique_ptr<ConvexShape> shape = std::make_unique<ConvexShape>(ConvexShape::makeAxisAlignedBox(vec3(0.25,0.25,0.25)));
-    shape->debug_display = true;
+    shape->is_observable = true;
     mass = 1;
     timeline->createObject(std::move(shape), std::unique_ptr<TEvent>(nullptr), "box_shape_created", st+ + 0.01*randomFloat());
     timeline->subscribe("box_solid_maker", "box_shape_created",
@@ -243,7 +244,7 @@ void addTestShapes(Timeline* timeline){
 
 
     std::unique_ptr<ConvexShape> shape2 = std::make_unique<ConvexShape>(ConvexShape::makeCylinder(glm::vec3(0,0.2,0), glm::vec3(0,-0.2,0), 0.05, 16));
-    shape2->debug_display = true;
+    shape2->is_observable = true;
     mass = 1 ;
     timeline->createObject(std::move(shape2), std::unique_ptr<TEvent>(nullptr), "cylinder_shape_created", st+ + 0.01*randomFloat() );
     timeline->subscribe("cylinder_solid_maker", "cylinder_shape_created",
@@ -259,7 +260,7 @@ void addTestShapes(Timeline* timeline){
     
 
     std::unique_ptr<ConvexShape> shape3 = std::make_unique<ConvexShape>(ConvexShape::makeSphere(glm::vec3(0,0,0), 0.15, 2));
-    shape3->debug_display = true;
+    shape3->is_observable = true;
     mass = 1;
     timeline->createObject(std::move(shape3), std::unique_ptr<TEvent>(nullptr), "sphere_shape_created", st+ 0.01*randomFloat() );
     timeline->subscribe("sphere_solid_maker", "sphere_shape_created",

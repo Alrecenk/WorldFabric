@@ -16,8 +16,6 @@ class ConvexShape : public TObject{
 
     std::vector<glm::vec3> vertex ;
     std::vector<std::vector<int>> face ;
-    bool debug_display = false;
-
 
     ConvexShape();
 

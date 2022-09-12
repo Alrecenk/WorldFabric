@@ -51,6 +51,7 @@ std::map<std::string,Variant> ConvexSolid::serialize() const {
     serial["w"] = Variant(angular_velocity);
     serial["m"] = Variant(mass);
     serial["z"] = Variant(moveable ? 1 : 0);
+    serial["d"] = Variant(is_observable ? 1 : 0);
     serial["type"] = Variant(type);
     return serial;
 }
@@ -65,6 +66,7 @@ void ConvexSolid::set(std::map<std::string,Variant>& serialized){
     angular_velocity = serialized["w"].getVec3();
     mass = serialized["m"].getFloat();
     moveable = serialized["z"].getInt() == 1;
+    is_observable = serialized["d"].getInt() == 1 ;
 }
 
 
@@ -73,6 +75,7 @@ void ConvexSolid::set(std::map<std::string,Variant>& serialized){
 std::unique_ptr<TObject> ConvexSolid::deepCopy(){
     std::unique_ptr<ConvexSolid> c = std::make_unique<ConvexSolid>(position, radius, mass, shape_id, velocity, orientation, angular_velocity);
     c->moveable = moveable ;
+    c->is_observable = is_observable ;
     c->status = status ; // copy status only locally, so getObservable can pick it up for debug visuals
     return c ;
 }
