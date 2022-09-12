@@ -133,7 +133,7 @@ class Timeline{
 
         std::unordered_map<int, std::shared_ptr<TObject>> getBaseObjects(double time);
 
-        // Returns a serialized descriptor of the state of the this Timeline at the goiven time 
+        // Returns a serialized descriptor of the state of this Timeline at the given time 
         // that can be used by another Timeline to generate a synchronization update
         Variant getDescriptor(double time,bool server);
 
@@ -141,13 +141,35 @@ class Timeline{
         Variant getUpdateFor(const Variant& descriptor, bool server);
 
         // applies a syncrhoniation update produced by another timeline's use of getUpdateFor
-        // returns the time of the update
-        void applyUpdate(const Variant& update, bool server);
+        // returns if we reset
+        bool applyUpdate(const Variant& update, bool server);
 
         // Given a packet with an update and optional descriptor
-        // applies the update, and if there was a descriptor returns an ypdate for it
+        // applies the update, and if there was a descriptor returns an update for it
         // and a new descriptor of itself at current_time-base_age
         std::map<std::string, Variant> synchronize(std::map<std::string, Variant>& packet, bool server);
+
+        // Returns a serialized descriptor of the state of this Timeline at the given time 
+        // that can be used by another Timeline to generate a synchronization update
+        // descriptor_cache is a map from id to a previously sent object and its hash
+        // all object returned here will be aded to it, and objects in it will not be returned
+        Variant getDescriptor(double time, bool server, std::unordered_map<int, TObject*>& descriptor_cache);
+
+        // Given another tree's descriptor, produces an update that would bring that tree into sync with this one
+        // receieved_cache is a map from ID to previously receieved hash
+        // any objects we return as part of this update will be aded to receieved cache
+        // hashes in receieve_cache will be considered as part of the descriptor
+        Variant getUpdateFor(const Variant& descriptor, bool server, std::unordered_map<int, TObject*>& descriptor_cache);
+
+        // Given a packet with an update and optional descriptor
+        // applies the update, and if there was a descriptor returns an update for it
+        // and a new descriptor of itself at current_time-base_age
+        // Uses the caching versions of getDescriptor and get update
+        // if used on a server, descriptor_cache is only used for getUpdateFor
+        // if used on a client descriptor_cache is only used for getDescriptor
+        // client and server must both use this version for it to work
+        std::map<std::string, Variant> synchronize(std::map<std::string, Variant>& packet, bool server, 
+            std::unordered_map<int, TObject*>& descriptor_cache);
 
         // Updates all observables to the current time, performing interpolation as required
         // and returnsa list of ID for all observables

@@ -573,9 +573,10 @@ Variant Timeline::getUpdateFor(const Variant& descriptor, bool server){
     return Variant(update_map);
 }
 
-// applies a syncrhoniation update produced by another timeline's use of getUpdateFor
-// returns the time of the update
-void Timeline::applyUpdate(const Variant& update, bool server){
+// applies a syncrhonization update produced by another timeline's use of getUpdateFor
+// returns whether we reset
+bool Timeline::applyUpdate(const Variant& update, bool server){
+    bool did_reset = false;
     map<string,Variant> update_map = update.getObject();
     if(update_map.find("time") != update_map.end()){ // quick send udates don't affect clock
         double time = update_map["time"].getDouble();
@@ -591,7 +592,7 @@ void Timeline::applyUpdate(const Variant& update, bool server){
 
         if(time <= last_clear_time || time > current_time){ // asked for an update outside our timeline
             //printf("Update received outside of time slice!\n");
-            return ; // return nothing, we don't know what's outside of our time slice
+            return false; // return, we don't know what's outside of our time slice
         }
 
         if(update_map.find("objects") != update_map.end()){
@@ -599,6 +600,7 @@ void Timeline::applyUpdate(const Variant& update, bool server){
             // if we're getting a lot of base objects then its better to restart than try to catch up
             if(objects.size() > 0 && object_updates.size() >= object_updates_to_trigger_reset){
                 reset();
+                did_reset = true;
             }else{
                 for(auto& [id,serial] : object_updates){
                     if(objects.find(id) == objects.end()){ // if not present
@@ -643,7 +645,7 @@ void Timeline::applyUpdate(const Variant& update, bool server){
             }
         }
     }
-
+    return did_reset ;
 }
 
 // Given a packet with an update and optional descriptor
@@ -698,6 +700,185 @@ std::map<std::string, Variant> Timeline::synchronize(std::map<std::string, Varia
             printf("Could not generate descriptor, synchronization lost!\n");
             ret_map.erase("descriptor");
         }*/
+        lock.unlock();
+        return ret_map;
+    }
+    lock.unlock();
+    return std::map<string, Variant>();
+}
+
+// Returns a serialized descriptor of the state of this Timeline at the given time 
+// that can be used by another Timeline to generate a synchronization update
+// descriptor_cache is a map from id to a previously sent object and its hash
+// all object returned here will be aded to it, and objects in it will not be returned
+Variant Timeline::getDescriptor(double time, bool server, std::unordered_map<int, TObject*>& descriptor_cache){
+    if(time < last_clear_time || time > current_time){ // asked for an update outside our timeline
+        printf("Descriptor requested outside of time slice!\n");
+        //return Variant();
+    }
+    long temp = last_run_time; // TODO maybe make a catch up function?
+    run(current_time) ; // make sure we're caught up on running since updates before generating descriptor could cause rollback
+    last_run_time = temp ;// don't change last run time though because we don't want this to move the clock
+
+    map<string,Variant> descriptor_map ;
+    time = fmax(time, last_clear_time);
+    descriptor_map["time"] = Variant(time);
+    
+    auto base_events = getBaseEvents(time);
+    int* base_event_hashes  = (int*)malloc(4 * base_events.size());
+    for(int k=0;k<base_events.size();k++){
+        base_event_hashes[k] = Variant(base_events[k]->serialize()).hash() ;
+    }
+    descriptor_map["events"] = Variant(base_event_hashes, base_events.size() );
+    free(base_event_hashes);
+
+    if(!server){
+        auto base_objects = getBaseObjects(time);
+        //remove any base objects sent previously
+        vector<int> to_remove ;
+        for(auto& [id,object] : base_objects){
+            auto cached = descriptor_cache.find(id);
+            if(cached != descriptor_cache.end()){ // if object in cache
+                if(object.get() == cached->second){ // if its the exact same pointer
+                    to_remove.push_back(id); // dont need to send it
+                }
+            }
+        }
+        for(int id : to_remove){
+            base_objects.erase(id);
+        }
+        int* base_object_hashes  = (int*)malloc(4 * 2 * base_objects.size());
+        int k=0;
+        for(auto& [id,object] : base_objects){
+            base_object_hashes[k*2] = id;
+            base_object_hashes[k*2+1] = Variant(object->serialize()).hash();
+            k++;
+            descriptor_cache[id] = object.get(); // cache what we're sending
+        }
+        descriptor_map["objects"] = Variant(base_object_hashes, 2 * base_objects.size());
+        free(base_object_hashes);
+    }
+    
+    return Variant(descriptor_map);
+}
+
+// Given another tree's descriptor, produces an update that would bring that tree into sync with this one
+// receieved_cache is a map from ID to previously receieved hash
+// any objects we return as part of this update will be aded to receieved cache
+// hashes in receieve_cache will be considered as part of the descriptor
+Variant Timeline::getUpdateFor(const Variant& descriptor, bool server, std::unordered_map<int, TObject*>& descriptor_cache){
+    map<string,Variant> descriptor_map  = descriptor.getObject();
+    double time = descriptor_map["time"].getDouble();
+    time = fmax(time, last_clear_time); // if requested an update older than cleared time, then send cleared time
+
+    // Correct client clock drift
+    if(!server){
+        double target_time = time+base_age ;
+        if(ping > 10 && ping < 500*base_age){
+            double target_ping_clock_adjustment = ping/2000.0 ; // descriptor time comes from server so only aged by one way ping
+            if(fabs(target_ping_clock_adjustment-ping_clock_adjustment) < ping_change_per_sync){
+                ping_clock_adjustment = target_ping_clock_adjustment ;
+            }else if(ping_clock_adjustment > target_ping_clock_adjustment){
+                ping_clock_adjustment -= ping_change_per_sync;
+            }else{
+                ping_clock_adjustment += ping_change_per_sync;
+            }
+        }
+        target_time += ping_clock_adjustment ;
+        if(fabs(current_time - target_time) > base_age*0.1 && (current_time < target_time || target_time > current_time-last_clear_time)){ 
+            //printf("Correcting clock in getupdateFor: update time:%f target:%f current:%f ping:%d\n", time, target_time, current_time, ping);
+            run(target_time); // catch up
+        }
+    }
+    if(time > current_time){ // asked for an update outside our timeline
+        printf("Update requested ahead of time slice!\n");
+        return Variant() ; // return nothing, we don't know what's outside of our time slice
+    }
+
+    
+    int* other_events = descriptor_map["events"].getIntArray();
+    int num_other_events = descriptor_map["events"].getArrayLength();
+    unordered_set<int> other_event_set ;
+    for(int k=0;k<num_other_events;k++){
+        other_event_set.insert(other_events[k]);
+    }
+    // If there arte no events in the receieved descriptor it must be a starter packet
+    if(num_other_events == 0){
+        descriptor_cache.clear(); // clear the cache in cadse this a reset so we send everything
+    }
+    
+    map<string,Variant> update_map ;
+    update_map["time"] = Variant(time);
+
+    auto base_events = getBaseEvents(time);
+    map<int,Variant> event_updates;
+    for(int k=0;k<base_events.size();k++){
+        Variant serial = Variant(base_events[k]->serialize());
+        //serial.printFormatted();
+        int hash = serial.hash();
+        if(other_event_set.find(hash) == other_event_set.end()){ // we have event other didn't have
+            event_updates[hash] = std::move(serial); 
+        }
+    }
+
+    update_map["events"] = Variant(event_updates);
+    if(server){ // only server can update objects
+        auto base_objects = getBaseObjects(time);
+        int* other_objects = descriptor_map["objects"].getIntArray();
+        int num_other_objects = descriptor_map["objects"].getArrayLength()/2;
+        unordered_map<int,int> other_object_map;
+        for(int k=0;k<num_other_objects ;k++){
+            other_object_map[other_objects[2*k]] = other_objects[2*k+1];
+            //printf("got hash %d for %d\n", other_objects[2*k+1], other_objects[2*k]);
+        }
+        map<int,Variant> object_updates ;
+        for(auto& [id,object] : base_objects){
+            if(descriptor_cache[id] != object.get()){ // don't send if we've sent this exact object before
+                Variant serial = Variant(object->serialize()) ;
+                int hash = serial.hash();
+                //printf("generated hash %d for %d\n", hash, id);
+                if(other_object_map[id] != hash){
+                    object_updates[id] = std::move(serial) ;
+                    descriptor_cache[id] = object.get() ; // cache that we sent this
+                }
+            }
+
+        }
+        update_map["objects"] = Variant(object_updates);
+    }
+
+    return Variant(update_map);
+}
+
+// Given a packet with an update and optional descriptor
+// applies the update, and if there was a descriptor returns an update for it
+// and a new descriptor of itself at current_time-base_age
+// Uses the caching versions of getDescriptor and get update
+// if used on a server, descriptor_cache is only used for getUpdateFor
+//if used on a client descriptor_cache is only used for getDescriptor
+// client and server must both use this version for it to work
+std::map<std::string, Variant> Timeline::synchronize(std::map<std::string, Variant>& packet, bool server, 
+    std::unordered_map<int, TObject*>& descriptor_cache){
+         lock.lock();
+    if(packet.find("update") != packet.end()){
+        auto update = packet["update"].getObject() ;
+        bool did_reset = applyUpdate(packet["update"], server);
+        if(did_reset){
+            descriptor_cache.clear();
+        }
+    }
+    if(packet.find("descriptor") != packet.end()){
+        if(!server){
+            long new_sync_time = timeMilliseconds() ;
+            ping = new_sync_time - last_sync_time ;
+            last_sync_time = new_sync_time;
+        }
+        map<string,Variant> ret_map;
+        ret_map["update"] = getUpdateFor(packet["descriptor"], server, descriptor_cache);
+        if(!ret_map["update"].defined()){
+            ret_map.erase("update");
+        }
+        ret_map["descriptor"] = getDescriptor(current_time-base_age, server, descriptor_cache);
         lock.unlock();
         return ret_map;
     }
@@ -777,7 +958,6 @@ long Timeline::timeMilliseconds() const{
 
 void Timeline::reset(){
     current_time = 0 ;
-
     lock.lock();
     printf("Resettin timeline!\n");
     objects.clear();

@@ -25,6 +25,8 @@ Timeline* TimelineServer::timeline;
 map<websocketpp::connection_hdl, long, std::owner_less<websocketpp::connection_hdl>> TimelineServer::connections ;
 SecureSocketServer TimelineServer::server;
 
+map<websocketpp::connection_hdl, std::unordered_map<int, TObject*>, std::owner_less<websocketpp::connection_hdl>> TimelineServer::descriptor_caches ;
+
 std::string TimelineServer::password ;
 std::string TimelineServer::cert_file;
 std::string TimelineServer::private_key_file;
@@ -78,7 +80,7 @@ void TimelineServer::onMessage(
     //printf("got packet:\n");
     //packet_variant.printFormatted();
     std::map<std::string, Variant> packet_map = packet_variant.getObject() ;
-    std::map<std::string, Variant> response_map = TimelineServer::timeline->synchronize(packet_map, true) ;
+    std::map<std::string, Variant> response_map = TimelineServer::timeline->synchronize(packet_map, true, TimelineServer::descriptor_caches[hdl]) ;
     if(response_map.size()>0){
         Variant response = Variant(response_map);
         int response_size = response.getSize();
