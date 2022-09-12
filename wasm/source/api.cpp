@@ -59,6 +59,8 @@ unique_ptr<Timeline> timeline ;
 
 float action_delay = 0.04;
 
+std::unordered_map<int, TObject*> descriptor_cache ;
+
 
 long timeMilliseconds() {
     return std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -657,7 +659,7 @@ byte* getInitialTimelineRequest(byte* ptr){
 
 byte* synchronizeTimeline(byte* ptr){
     map<string, Variant> sync_data = Variant::deserializeObject(ptr);
-    map<string, Variant> out_packet = timeline->synchronize(sync_data, false) ;
+    map<string, Variant> out_packet = timeline->synchronize(sync_data, false, descriptor_cache) ;
     return pack(out_packet);
 }
 

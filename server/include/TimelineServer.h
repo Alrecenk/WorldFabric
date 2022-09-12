@@ -26,13 +26,10 @@ typedef websocketpp::lib::shared_ptr<websocketpp::lib::asio::ssl::context> Conte
 
 
 class TimelineServer {
-
-    
-
-
     public:
         static Timeline* timeline; // TODO figure out how to make not static?
         static std::map<websocketpp::connection_hdl, long, std::owner_less<websocketpp::connection_hdl>> connections ; // map of open connections to the time of the last received packet
+        static std::map<websocketpp::connection_hdl, std::unordered_map<int, TObject*>, std::owner_less<websocketpp::connection_hdl>> descriptor_caches ;
 
         //Starts the server on creation
         TimelineServer(int socket_port, Timeline* tl,
