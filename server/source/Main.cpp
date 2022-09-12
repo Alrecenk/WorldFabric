@@ -120,21 +120,6 @@ void addScenery(Timeline* timeline, unordered_map<string, Variant>& table, strin
                 generate = true;
             }
             if(generate){
-                /*
-                std::unique_ptr<ConvexShape> shape ;
-                if(node->shape.size() > convex_detail){
-                    std::vector<dvec3> points ;
-                    for(auto& poly : node->shape){
-                        for(auto& x : poly.p){
-                            points.push_back(x);
-                        }
-                    }
-                    std::vector<Polygon> simplified_shape = Polygon::buildApproximateHull(points, convex_detail, 3);
-                    shape = std::make_unique<ConvexShape>(simplified_shape);
-                }else{
-                    shape = std::make_unique<ConvexShape>(node->shape);
-                }
-                */
 
                 std::vector<std::vector<Polygon>> shapes = Polygon::splitToMaximumExtent(node->shape, max_extent) ;
 
@@ -152,7 +137,6 @@ void addScenery(Timeline* timeline, unordered_map<string, Variant>& table, strin
                         
                         //Variant(shape->serialize()).printFormatted();
                         timeline->createObject(std::move(shape), std::unique_ptr<TEvent>(nullptr), trigger,st+ 0.01 + 0.01*randomFloat());
-                        
                         timeline->subscribe(trigger, trigger,
                         [timeline,st,mass, part_ptr, radius_ptr](const string& subscriber, const string& trigger, const Variant& data){
                             int shape_id = data.getInt();
@@ -172,7 +156,6 @@ void addScenery(Timeline* timeline, unordered_map<string, Variant>& table, strin
             }
         }
     }
-  
     timeline->run(st+ 1.0) ;// notifications go out after a call to run completes
     timeline->run(st+ 2.0) ; // run some more to get the solid made
     printf("Total solids added to scenery: %d\n", total_solids);
@@ -364,6 +347,16 @@ int main(int argc, const char** argv) {
     table["test"] = Variant("cactus") ;
     loadModels(table);
 
+    //Timeline* timeline = generateBallTimeline() ;
+    Timeline* timeline = initializeChatTimeline() ;
+
+    //addRoom(timeline, table);
+    addTestShapes(timeline);
+
+    mat4 pose(1.0);
+
+    addScenery(timeline, table, "default_world", pose, 10000,20, 7, false);
+
     // Read the password from a file so we don't have to type it (and it's not included in the source repository)
     /*std::ifstream password_file("./cert/password.txt");
     std::string password;
@@ -379,19 +372,7 @@ int main(int argc, const char** argv) {
     int timeline_port = 9017;
     cout << "Starting the timeline server on port " << timeline_port << "..." << endl;
     
-   
-    //Timeline* timeline = generateBallTimeline() ;
-    Timeline* timeline = initializeChatTimeline() ;
-
-    //addRoom(timeline, table);
-    addTestShapes(timeline);
-
-    mat4 pose(1.0);
-
-    addScenery(timeline, table, "default_world", pose, 10000,20, 7, false);
-
     //addDragon(timeline, table);
-
 
     TimelineServer timeline_server(timeline_port, timeline,
         "./cert/cert.pem", "./cert/key.pem", "./cert/dh.pem", "");

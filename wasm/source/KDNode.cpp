@@ -7,8 +7,9 @@ using glm::vec3;
 // Convenience method for calling get collisions externally on the root node
 unordered_set<int> KDNode::getCollisionCandidates(const KDNode::BoundingSphere& m) {
     unordered_set<int> candidates;
-    candidates.reserve(30);
+    candidates.reserve(200);
     getCollisionCandidates(m, candidates);
+    //printf("candidates:%d\n",(int)candidates.size());
     return candidates;
 }
 

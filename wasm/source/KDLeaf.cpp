@@ -7,14 +7,16 @@
 using std::set;
 using glm::vec3;
 using std::vector;
-using std::map ;
+using std::unordered_map ;
 
 KDLeaf::KDLeaf() {
     parent = nullptr;
+    objects.reserve(amount_to_split);
 }
 
 KDLeaf::KDLeaf(KDBranch* p) {
     parent = p;
+    objects.reserve(amount_to_split);
 }
 
 KDNode* KDLeaf::split() {
@@ -97,7 +99,7 @@ void KDLeaf::getCollisionCandidates(const KDNode::BoundingSphere& m, std::unorde
 
 // Clears all bounding sphre references from the tree older than clear_time if it's not their newest reference
 KDNode* KDLeaf::clearHistory(double clear_time, std::unordered_map<int,double>& last_edit_time){
-    map<int, KDNode::BoundingSphere> new_objects ;
+    unordered_map<int, KDNode::BoundingSphere> new_objects ;
     for (auto& [id, sphere] : objects) {
         if(sphere.time >= fmin(clear_time, last_edit_time[id])){
             new_objects[id] = sphere ;

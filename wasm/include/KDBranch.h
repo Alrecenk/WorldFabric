@@ -6,6 +6,7 @@
 #include <set>
 #include <vector>
 #include <map>
+#include <unordered_map>
 #include "KDNode.h"
 
 class KDBranch : public KDNode {
@@ -16,7 +17,7 @@ class KDBranch : public KDNode {
     std::unique_ptr<KDNode> more_child; // elements with p[axis] >= value_
 
     // Constructor makes children leaves
-    KDBranch(int axis, float value, std::map<int, KDNode::BoundingSphere>& objects);
+    KDBranch(int axis, float value, std::unordered_map<int, KDNode::BoundingSphere>& objects);
 
     // Returns -1 if mesh_ is on less side
     // Return +1 if on more side
