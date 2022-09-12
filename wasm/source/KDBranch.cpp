@@ -9,7 +9,7 @@ using std::vector;
 using std::unique_ptr;
 using std::unordered_set;
 
-KDBranch::KDBranch(int axs, float val, std::map<int, KDNode::BoundingSphere>& objects) {
+KDBranch::KDBranch(int axs, float val, std::unordered_map<int, KDNode::BoundingSphere>& objects) {
     axis = axs;
     value = val;
     less_child = unique_ptr<KDNode>(new KDLeaf(this));

@@ -64,26 +64,27 @@ ConvexShape::ConvexShape(std::vector<Polygon>& polygons){
     face = std::vector<std::vector<int>>();
     for(int k=0;k<polygons.size();k++){
         Polygon& poly = polygons[k];
-        vector<int> f ;
-        for(int j=0;j<poly.p.size();j++){
-            int index = -1;
-            for(int i=0;i<vertex.size();i++){ // TODO could make this much faster
-                if(glm::length(poly.p[j]-dvec3(vertex[i])) < Polygon::EPSILON){
-                    index = i;
-                    break;
+        if(poly.p.size() >=3){
+            vector<int> f ;
+            for(int j=0;j<poly.p.size();j++){
+                int index = -1;
+                for(int i=0;i<vertex.size();i++){ // TODO could make this much faster
+                    if(glm::length(poly.p[j]-dvec3(vertex[i])) < Polygon::EPSILON){
+                        index = i;
+                        break;
+                    }
                 }
+                if(index == -1){
+                    vec3 v = poly.p[j] ;
+                    vertex.push_back(v);
+                    position += v;
+                    index = vertex.size()-1;
+                }
+                f.push_back(index);
             }
-            if(index == -1){
-                vec3 v = poly.p[j] ;
-                vertex.push_back(v);
-                position += v;
-                index = vertex.size()-1;
-            }
-            f.push_back(index);
+            face.push_back(f);
         }
-        face.push_back(f);
     }
-
 
     position /= vertex.size();
     
@@ -95,12 +96,13 @@ ConvexShape::ConvexShape(std::vector<Polygon>& polygons){
             radius = r ;
         }
     }
-
     //flip any faces pointing inward (Polygon doesn't have a winding oder gurantee)
     for(int k=0;k<face.size();k++){
+        //printf("fs:%d\n",(int)face.size() );
         vec3& A = vertex[face[k][0]] ;
         vec3& B = vertex[face[k][1]] ;
         vec3& C = vertex[face[k][2]] ;
+        //printf("ABC:%d,%d,%d, size:%d\n",face[k][0],face[k][1],face[k][2], (int)vertex.size() );
         vec3 normal = glm::normalize(glm::cross(B - A, C - A));
         if(glm::dot(normal,A-position) < 0){
             vector<int> new_face ;
