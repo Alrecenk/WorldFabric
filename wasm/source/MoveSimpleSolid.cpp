@@ -13,8 +13,8 @@ using std::shared_ptr;
 using std::unique_ptr;
 
 
-float MoveSimpleSolid::friction = 0.035 ;
-float MoveSimpleSolid::angular_friction = 0.035 ;
+float MoveSimpleSolid::friction = 0.025 ;
+float MoveSimpleSolid::angular_friction = 0.025 ;
 float MoveSimpleSolid::max_speed = 10 ;
 float MoveSimpleSolid::max_angular_speed = 10 ;
 

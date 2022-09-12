@@ -57,17 +57,21 @@ KDNode* KDLeaf::split() {
 
     if(axis > 0){
         float value = (box_max[axis] + box_min[axis]) * .5f;
-        //check if it helps at all
-        bool has_less = false;
-        bool has_more = false;
+        //count number of objects not crossing boundary on each side
+        int num_less = 0;
+        int num_more = 0;
         for(auto& [id, sphere] : objects){
-            has_less |= sphere.center[axis] + sphere.radius < value ;
-            has_more |= sphere.center[axis] - sphere.radius  > value ;
+            if(sphere.center[axis] + sphere.radius < value){
+                num_less++;
+            }
+            if(sphere.center[axis] - sphere.radius  > value){
+                num_more++;
+            }
         }
-        if (has_less && has_more) {
+        if (num_less>=required_to_split && num_more>=required_to_split) {
             return new KDBranch(axis, value, objects);
         } else {
-            split_delay = 10; // if split fails don't try again for 10 adds  (we readd a lot of the same things)
+            split_delay = adds_before_retrying_split; // if split fails don't try again for 10 adds  (we readd a lot of the same things)
             //printf("Reached collision leaf limit but split unsuccessful. Performance will be bad. Are you stacking a bunch of timeline objects in one place?\n");
             return this;
         }
