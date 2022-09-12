@@ -27,6 +27,7 @@ ConvexShape::ConvexShape(const std::vector<glm::dvec3> &vertices, const std::vec
         }
     }
     has_collision = false;
+    is_observable = false;
     type = 3;
 }
 
@@ -44,6 +45,7 @@ ConvexShape::ConvexShape(const std::vector<glm::vec3> &vertices, const std::vect
         }
     }
     has_collision = false;
+    is_observable = false;
     type = 3;
 }
 
@@ -51,6 +53,7 @@ ConvexShape::ConvexShape(){
     position = vec3(0,0,0);
     radius = 0;
     has_collision = false;
+    is_observable = false;
     type = 3;
 }
 
@@ -109,6 +112,7 @@ ConvexShape::ConvexShape(std::vector<Polygon>& polygons){
     }
 
     has_collision = false;
+    is_observable = false;
     type = 3;
 }
 
@@ -143,7 +147,7 @@ std::map<std::string,Variant> ConvexShape::serialize() const{
             j++;
         }
     }
-    serial["d"] = Variant(debug_display ? 1 : 0);
+    serial["d"] = Variant(is_observable ? 1 : 0);
     serial["type"] = Variant(type);
     return serial;
 }
@@ -172,7 +176,7 @@ void ConvexShape::set(std::map<std::string,Variant>& serialized){
         face.push_back(f);
     }
 
-    debug_display = serialized["d"].getInt() == 1 ;
+    is_observable = serialized["d"].getInt() == 1 ;
 
     // Calculate radius
     radius = 0 ;
@@ -188,7 +192,7 @@ void ConvexShape::set(std::map<std::string,Variant>& serialized){
 // If not overridden serialize and set will be used to copy your object (which will be inefficent)
 std::unique_ptr<TObject> ConvexShape::deepCopy(){
     auto cpy =std::make_unique<ConvexShape>(vertex, face);
-    cpy->debug_display = debug_display ;
+    cpy->is_observable = is_observable ;
     return cpy;
 }
 

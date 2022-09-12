@@ -899,32 +899,32 @@ std::vector<int> Timeline::updateObservables(){
     }
 
     vector<int> observed_ids;
-    for(auto& [id, object_history] : objects){
-
-        //weak_ptr<TObject> eo = getObjectInstant(id, current_time) ;
-        weak_ptr<TObject> read ;
-        
-        if(has_vantage){
-            read = getObjectInstant(vantage, id, current_time) ;
-        }else{
-            read = getObjectInstant(id, current_time) ;
-        }
-        if(auto read2 = read.lock()){
-            double o_time = current_time ;
+    for(auto& [id, most_recent] : objects){
+        //observableness does not update with time delay because we don't want to waste time doing a proper fetch for unobservables
+        if(most_recent->is_observable){
+            weak_ptr<TObject> read ;
             if(has_vantage){
-                o_time += fmin(max_time_warp, glm::length(read2->position-vantage)/info_speed);
-            }
-            if(observable_interpolation){ // TODO set interpolation per object so as not to lose optimization for static objects
-                last_observed[id] = std::move(read2->getObserved(o_time, last_observed[id], last_observed_time[id]));
+                read = getObjectInstant(vantage, id, current_time) ;
             }else{
-                TObject* read_ptr = read2.get();
-                if(last_observed_ptr[id] != read_ptr){ // object has changed
-                    last_observed[id] = read2->deepCopy();
-                    last_observed_ptr[id] = read_ptr ;
-                }
+                read = getObjectInstant(id, current_time) ;
             }
-            last_observed_time[id] = o_time ;
-            observed_ids.push_back(id);
+            if(auto read2 = read.lock()){
+                double o_time = current_time ;
+                if(has_vantage){
+                    o_time += fmin(max_time_warp, glm::length(read2->position-vantage)/info_speed);
+                }
+                if(observable_interpolation){ // TODO set interpolation per object so as not to lose optimization for static objects
+                    last_observed[id] = std::move(read2->getObserved(o_time, last_observed[id], last_observed_time[id]));
+                }else{
+                    TObject* read_ptr = read2.get();
+                    if(last_observed_ptr[id] != read_ptr){ // object has changed
+                        last_observed[id] = read2->deepCopy();
+                        last_observed_ptr[id] = read_ptr ;
+                    }
+                }
+                last_observed_time[id] = o_time ;
+                observed_ids.push_back(id);
+            }
         }
     }
     lock.unlock();

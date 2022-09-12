@@ -588,9 +588,8 @@ byte* getMeshInstances(byte* ptr){
                 shared_ptr<ConvexSolid> solid= std::static_pointer_cast<ConvexSolid>(o);
                 
                 weak_ptr<TObject> os = timeline->getLastObserved(solid->shape_id);
-                auto s = os.lock() ;
-                shared_ptr<ConvexShape> shape = std::static_pointer_cast<ConvexShape>(s);
-                if(shape->debug_display){ // only send display data for shapes in debug mode
+                if(auto s = os.lock()){// only send display data for shapes in observable mode
+                    shared_ptr<ConvexShape> shape = std::static_pointer_cast<ConvexShape>(s);
                     string mesh_name = "shape-" + std::to_string(solid->shape_id);
                     std::shared_ptr<GLTF> mesh_asset = meshes[mesh_name];
                     if(mesh_asset != nullptr){
@@ -604,7 +603,6 @@ byte* getMeshInstances(byte* ptr){
             
             }else if(o->type == 3){ // convex shape
                 shared_ptr<ConvexShape> shape = std::static_pointer_cast<ConvexShape>(o);
-                if(shape->debug_display){
                     string mesh_name = "shape-" + std::to_string(ob[k]) ;
                     std::shared_ptr<GLTF> mesh_asset = meshes[mesh_name] ;
                     if(mesh_asset == nullptr){
@@ -613,7 +611,6 @@ byte* getMeshInstances(byte* ptr){
                         //meshes.addLocalShapeMesh(mesh_name + "1", shape, vec3(1.0, 1.0, 0.65)); // yellow for sphere collision
                         //meshes.addLocalShapeMesh(mesh_name + "2", shape, vec3(1.0, 0.8, 0.8)); // red for true collision
                     }
-                }
             }else{
                 printf("Got an unrecognized object in the timeline:\n");
                 Variant(o->serialize()).printFormatted();
