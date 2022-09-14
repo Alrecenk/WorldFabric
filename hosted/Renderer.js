@@ -23,8 +23,6 @@ class Renderer{
     last_time = new Date().getTime();
     framerate = 0 ;
 
-    next_texture_id=2 ;
-
     xr_input = [];
     has_new_xr_input = false;
 
@@ -337,10 +335,10 @@ class Renderer{
             this.buffers[id].color = gl.createBuffer();
             this.buffers[id].normal = gl.createBuffer();
             this.buffers[id].tex_coord = gl.createBuffer();
-            this.buffers[id].texture_id = -1;
             this.buffers[id].double_sided = false ;
             this.buffers[id].joints = gl.createBuffer();
             this.buffers[id].weights= gl.createBuffer();
+            this.buffers[id].has_texture = false;
         }
         let num_vertices = buffer_data.vertices ;
         if(num_vertices == 0){
@@ -415,14 +413,10 @@ class Renderer{
                     console.log("Failed to load texture because of number of channels (" + mat.image_channels +")");
                 }
 
-
-                //console.log(buffer_data.materials);
-                this.buffers[id].texture_id = this.next_texture_id; // TODO would conflict if more than one gltf at a time
-                this.next_texture_id++;
-                //console.log("binding Texture id: " + this.buffers[id].texture_id + " \n");
-                gl.activeTexture(gl.TEXTURE0 + this.buffers[id].texture_id );
+                this.buffers[id].has_texture = true;
+                gl.activeTexture(gl.TEXTURE0 + 2);
                 gl.bindTexture(gl.TEXTURE_2D, this.buffers[id].texture );
-                gl.uniform1i(this.shaderProgram.texture, this.buffers[id].texture_id );
+                gl.uniform1i(this.shaderProgram.texture, 2 );
                 
             }
         }
@@ -477,15 +471,13 @@ class Renderer{
                 
             }
 
-            if(buffer.texture_id >= 0){
-                //console.log("Drawing texture for index " + (buffer.texture_id) +"\n");
-                gl.activeTexture(gl.TEXTURE0 + buffer.texture_id );
+            if(buffer.has_texture){
+                gl.activeTexture(gl.TEXTURE0 + 2 );
                 gl.bindTexture(gl.TEXTURE_2D, buffer.texture );
-                gl.uniform1i(this.shaderProgram.texture, buffer.texture_id );
+                gl.uniform1i(this.shaderProgram.texture, 2 );
 
                 gl.uniform1i(this.shaderProgram.has_texture, 1 );
             }else{
-                //console.log("No texture for index " + (buffer.texture_id+2) +"\n");
                 gl.uniform1i(this.shaderProgram.has_texture, 0 );
             }
 
