@@ -32,7 +32,7 @@ class WorldChatMode extends ExecutionMode{
 
     my_name = "player " + Math.floor(Math.random() * 1000000000) ;
     my_avatar = "default_avatar" ;
-    avatars = ["default_avatar","alternate_avatar"];
+    avatars = ["default_avatar","alternate_avatar", "avatar_3", "avatar_4"];
     avatar_id = 0 ;
     my_mesh_id = -1;
     last_avatar_change = 0 ;
