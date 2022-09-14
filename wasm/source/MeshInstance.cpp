@@ -15,6 +15,7 @@ using glm::vec3;
 
 MeshInstance::MeshInstance(){
     type = 1 ;
+    has_collision = false;
 }
 
 MeshInstance::MeshInstance(glm::vec3 p, float r,const std::string& own,const std::string& name, const glm::mat4& m, const Variant& bones, bool compressed){
@@ -26,6 +27,7 @@ MeshInstance::MeshInstance(glm::vec3 p, float r,const std::string& own,const std
     bone_data = bones.clone();
     bones_compressed = compressed ;
     type = 1 ;
+    has_collision = false;
 }
 
 MeshInstance::~MeshInstance() {}

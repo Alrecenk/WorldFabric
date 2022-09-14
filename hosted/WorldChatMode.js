@@ -32,6 +32,10 @@ class WorldChatMode extends ExecutionMode{
 
     my_name = "player " + Math.floor(Math.random() * 1000000000) ;
     my_avatar = "default_avatar" ;
+    avatars = ["default_avatar","alternate_avatar"];
+    avatar_id = 0 ;
+    my_mesh_id = -1;
+    last_avatar_change = 0 ;
 
     frame = 0 ;
     last_time = new Date().getTime();
@@ -130,6 +134,18 @@ class WorldChatMode extends ExecutionMode{
         }
     }
 
+    cycleAvatar(){
+        var time = new Date().getTime() ;
+        if(time - this.last_avatar_change > 1000){ // speed limit avatar switching
+            this.avatar_id = (this.avatar_id+1)%this.avatars.length ;
+            this.my_avatar = this.avatars[this.avatar_id] ;
+            tools.API.call("setAvatar", {avatar:this.my_avatar}, new Serializer()); // sets the avatar in the wasm module for the IK 
+            this.head_pins = null ; // trigger a remake of the Ik pins
+            this.hand_pins = [null, null];
+            this.last_avatar_change = time ;
+        }
+    }
+
 
     pointerDown(pointers){
         if(this.mouse_down){ // ignore second mouse click while dragging
@@ -202,6 +218,7 @@ class WorldChatMode extends ExecutionMode{
     
     vrInputSourcesUpdated(xr_input){
         let GRIP = 1 ; //constant for grip button on controllers
+        let B_BUTTON = 5 ;
         //console.log("model pose start:" + JSON.stringify(this.model_pose));
 
         // Move entire model to line up with head
@@ -244,6 +261,23 @@ class WorldChatMode extends ExecutionMode{
         mat4.rotate(this.model_pose, this.model_pose, angle, [0,1,0]);
         //console.log("model pose end:" + JSON.stringify(this.model_pose));
 
+
+        // Check for change of avatar button pres before we do any avatar prosessing
+        for (let input_source of xr_input) {
+            if(!(input_source.grip_pose)){
+                continue ; // not a tracked hand
+            }
+            if(input_source.handedness == "right" && input_source.buttons[B_BUTTON].pressed){
+                this.cycleAvatar() ;
+            }
+            for( let b = 0 ; b < input_source.buttons.length; b++){
+                if(input_source.buttons[b].pressed){
+                    //console.log("Pressed " + b +" on " + input_source.handedness);
+                }
+            }
+        }
+
+
         if(this.head_pins == null){
             // determine which input is which hand
             let left = -1, right = -1;
@@ -275,7 +309,9 @@ class WorldChatMode extends ExecutionMode{
                                                 0,0,0,1]);
             this.hand_pins[right] = {name:"right_hand", initial_matrix : initial_matrices["right_hand"], initial_grip: right_grip};    
             
-            tools.API.call("createMeshInstance", {owner:this.my_name}, new Serializer());
+            if(this.my_mesh_id < 0){
+                tools.API.call("createMeshInstance", {owner:this.my_name}, new Serializer());
+            }
         }
 
         let which_hand = 0 ;
@@ -441,18 +477,18 @@ class WorldChatMode extends ExecutionMode{
  
         tools.API.call("applyPins", {}, new Serializer()); 
 
-        let id =-1;
+        this.my_mesh_id =-1;
         //console.log(this.instances);
         for(let k in this.instances){
             if(this.instances[k].owner == this.my_name){
-                id = parseInt(k); // k is a string
+                this.my_mesh_id = parseInt(k); // k is a string
                 break ;
             }
         }
-        if(id >= 0){
+        if(this.my_mesh_id >= 0){
             //console.log("Found my owned model: " + id);
             mat4.multiply(MP,this.player_space, this.model_pose);
-            tools.API.call("setMeshInstance", {id:id, pose:MP}, new Serializer());
+            tools.API.call("setMeshInstance", {id:this.my_mesh_id, pose:MP}, new Serializer());
             
         }
     }

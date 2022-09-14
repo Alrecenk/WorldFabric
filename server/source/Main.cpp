@@ -32,10 +32,14 @@ void runUnitTests(){
 void loadModels(unordered_map<string, Variant>& table){
     map<string,string> models ;
     models["default_avatar"] = "./models/default_avatar.vrm";
+    models["alternate_avatar"] = "./models/alternate_avatar.vrm";
+    models["avatar_3"] = "./models/avatar_3.vrm";
+    models["avatar_4"] = "./models/avatar_4.vrm";
     models["eroom"] = "./models/room.glb";
     models["dragon"] = "./models/dragon.glb";
     models["bunny"] = "./models/bunny350.glb";
     models["default_world"] = "./models/default_world.glb";
+    models["default_skybox"] = "./models/default_skybox.glb";
     for(auto& [key, path] : models){
         std::ifstream input( path.c_str(), std::ios::binary );
         std::vector<unsigned char> buffer(std::istreambuf_iterator<char>(input), {});
@@ -355,6 +359,13 @@ int main(int argc, const char** argv) {
     Timeline* timeline = initializeChatTimeline() ;
     addScenery(timeline, table, "default_world", mat4(1), 10000,20, 7, false);
     addTestShapes(timeline);
+    mat4 sky_mat(1.0);
+    sky_mat[0][0] = 0 ;
+    sky_mat[0][2] =1;
+    sky_mat[2][0] = -1;
+    sky_mat[2][2] = 0 ;
+    std::unique_ptr<MeshInstance> o = std::make_unique<MeshInstance>(glm::vec3(0,0,0), 100, "server", "default_skybox", sky_mat , Variant(), false) ;
+    timeline->createObject(std::move(o), std::unique_ptr<TEvent>(nullptr) , timeline->current_time + 0.01);
 
     // Read the password from a file so we don't have to type it (and it's not included in the source repository)
     /*std::ifstream password_file("./cert/password.txt");

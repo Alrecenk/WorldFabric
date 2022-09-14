@@ -158,7 +158,7 @@ var imports = url_params.get("import") ? url_params.get("import").split(',') : [
 
 var tools  ; // a map containing several things above so execution modes can access them
 
-var preload_meshes = ["default_avatar", "default_world"] ;
+var preload_meshes = ["default_avatar", "default_world","default_skybox","alternate_avatar"] ;
 
 function canvasApp() {
     //The canvas this app is running on.
@@ -357,8 +357,14 @@ function initializeModes(){
 
 function setMainMenuButtons(){
     tools.buttons = {};
-    tools.buttons["enter_vr"] = new InterfaceButton(10, 10, 400, 80, "Enter VR", 24, "#D0D0F0", "#606060", "#FFFFFF", 3, () => {tools.renderer.startXRSession();});
+    tools.buttons["enter_vr"] = new InterfaceButton(10, 10, 400, 80, "Enter VR", 24, "#D0D0F0", "#606060", "#FFFFFF", 3, tryStartXR);
 
+}
+
+function tryStartXR(){
+    if(tools.sync_link.active){
+        tools.renderer.startXRSession();
+    }
 }
 
 function onBodyLoad(){
