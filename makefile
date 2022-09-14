@@ -55,6 +55,7 @@ EXPORTED_FUNCTIONS =\
 	'_getNearestSolid',\
 	'_setSolidPose',\
 	'_setIKParams',\
+	'_setAvatar',\
 	'_free'
 EXTRA_EXPORTED_RUNTIME_METHODS=['ccall']
 API_MAIN = ${API_DIR}source/api.cpp

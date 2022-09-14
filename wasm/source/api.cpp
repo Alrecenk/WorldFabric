@@ -47,7 +47,7 @@ using std::shared_ptr;
 //map<string,GLTF> meshes;
 MeshLibrary meshes(2000) ;
 
-const string MY_AVATAR = "default_avatar" ;
+string my_avatar = "default_avatar" ;
 
 byte* packet_ptr ; // location ofr data passed as function parameters and returns
 int last_pack_size = 0 ;
@@ -183,7 +183,7 @@ void setPacketPointer(byte* p){
 // Expects an object with vertices and faces
 byte* setModel(byte* ptr){
     selected_animation = -1; // stop animating while editing the model
-    string select = MY_AVATAR;
+    string select = my_avatar;
     std::shared_ptr<GLTF> model = std::make_shared<GLTF>() ;
     meshes.meshes.insert(select, model); // TODO add function for this so meshes.meshes can be private
 
@@ -229,7 +229,7 @@ byte* requestModel(byte* ptr){
     meshes.requestRemoteMesh(key);
 
     /*
-    string select = MY_AVATAR;
+    string select = my_avatar;
 
     
     std::shared_ptr<GLTF> model = meshes[select];
@@ -282,7 +282,7 @@ byte* getUpdatedBuffers(byte* ptr){
 
 //expects an object with p and v, retruns a serialized single float for t
 byte* rayTrace(byte* ptr){
-    std::shared_ptr<GLTF> model = meshes[MY_AVATAR];
+    std::shared_ptr<GLTF> model = meshes[my_avatar];
     auto obj = Variant::deserializeObject(ptr);
     vec3 p = obj["p"].getVec3() ;
     vec3 v = obj["v"].getVec3();
@@ -295,7 +295,7 @@ byte* rayTrace(byte* ptr){
 }
 
 byte* scan(byte* ptr){
-    std::shared_ptr<GLTF> model = meshes[MY_AVATAR];
+    std::shared_ptr<GLTF> model = meshes[my_avatar];
     auto obj = Variant::deserializeObject(ptr);
     vec3 p = obj["p"].getVec3() ;
     vec3 v = obj["v"].getVec3();
@@ -336,7 +336,7 @@ byte* nextAnimation(byte* ptr){
     if(millisBetween(animation_start_time, now()) < 50){
         return emptyReturn();
     }
-    std::shared_ptr<GLTF> model = meshes[MY_AVATAR];
+    std::shared_ptr<GLTF> model = meshes[my_avatar];
     selected_animation = selected_animation+1;
     if(selected_animation >= model->animations.size()){
         selected_animation = -1;
@@ -381,7 +381,7 @@ byte* createPin(byte* ptr) {
     auto obj = Variant::deserializeObject(ptr);
     vec3 p = obj["p"].getVec3() ;
     string name = obj["name"].getString();
-    std::shared_ptr<GLTF> model = meshes[MY_AVATAR];
+    std::shared_ptr<GLTF> model = meshes[my_avatar];
     model->applyTransforms(); // Get current animated coordinates on CPU
     int vertex_index = -1 ;
     vec3 global ;
@@ -441,7 +441,7 @@ byte* createPin(byte* ptr) {
 byte* setPinTarget(byte* ptr) {
     auto obj = Variant::deserializeObject(ptr);
     string name = obj["name"].getString();
-    std::shared_ptr<GLTF> model = meshes[MY_AVATAR];
+    std::shared_ptr<GLTF> model = meshes[my_avatar];
     if(obj["p"].defined()){
         vec3 p = obj["p"].getVec3() ;
         vec3 target ;
@@ -473,14 +473,14 @@ byte* setPinTarget(byte* ptr) {
 }
 
 byte* applyPins(byte* ptr){
-    meshes[MY_AVATAR]->applyPins();
+    meshes[my_avatar]->applyPins();
     return emptyReturn();
 }
 
 byte* deletePin(byte* ptr) {
     auto obj = Variant::deserializeObject(ptr);
     string name = obj["name"].getString();
-    std::shared_ptr<GLTF> model = meshes[MY_AVATAR];
+    std::shared_ptr<GLTF> model = meshes[my_avatar];
     model->deletePin(name);
     //printf("Pin '%s' deleted.\n" , name.c_str());
     return emptyReturn();
@@ -489,7 +489,7 @@ byte* deletePin(byte* ptr) {
 byte* getNodeTransform(byte* ptr) {
     auto obj = Variant::deserializeObject(ptr);
     string name = obj["name"].getString();
-    glm::mat4 m = meshes[MY_AVATAR]->getNodeTransform(name);
+    glm::mat4 m = meshes[my_avatar]->getNodeTransform(name);
     map<string, Variant> ret_map ;
     ret_map["transform"].makeFillableFloatArray(16);
     float* vm = ret_map["transform"].getFloatArray();
@@ -625,8 +625,8 @@ byte* createMeshInstance(byte* ptr){
     auto obj = Variant::deserializeObject(ptr);
     string owner = obj["owner"].getString();
     glm::mat4 tm(1);
-    Variant bones = meshes[MY_AVATAR]->getCompressedBoneData();
-    std::unique_ptr<MeshInstance> o = std::make_unique<MeshInstance>(glm::vec3(0,0,0), 2, owner, "default_avatar", tm, bones, true) ;
+    Variant bones = meshes[my_avatar]->getCompressedBoneData();
+    std::unique_ptr<MeshInstance> o = std::make_unique<MeshInstance>(glm::vec3(0,0,0), 2, owner, my_avatar, tm, bones, true) ;
     timeline->createObject(std::move(o), std::unique_ptr<TEvent>(nullptr) , timeline->current_time + action_delay);
     return emptyReturn();
 }
@@ -637,9 +637,17 @@ byte* setMeshInstance(byte* ptr){
     //Variant(obj).printFormatted();
     int id = obj["id"].getInt();
     glm::mat4 pose = obj["pose"].getMat4();
-    Variant bones = meshes[MY_AVATAR]->getCompressedBoneData();
+    Variant bones = meshes[my_avatar]->getCompressedBoneData();
 
-    timeline->addEvent(std::make_unique<SetMeshInstance>(id, glm::vec3(0,0,0), 2, "default_avatar", pose, bones),  timeline->current_time+action_delay) ;
+
+    timeline->addEvent(std::make_unique<SetMeshInstance>(id, glm::vec3(0,0,0), 2, my_avatar, pose, bones),  timeline->current_time+action_delay) ;
+    return emptyReturn();
+}
+
+byte* setAvatar(byte* ptr){
+    auto obj = Variant::deserializeObject(ptr);
+    my_avatar = obj["avatar"].getString();
+    printf("Set avatar (API): %s\n", my_avatar.c_str());
     return emptyReturn();
 }
 
@@ -689,12 +697,13 @@ byte* popPendingQuickSends(byte* ptr){
 // Returns the position of the viewpoint of a VRM model in model space
 byte* getFirstPersonPosition(byte* ptr){
     map<string, Variant> ret_map ;
-    ret_map["position"] = Variant (meshes[MY_AVATAR]->getFirstPersonPosition());
+    ret_map["position"] = Variant (meshes[my_avatar]->getFirstPersonPosition());
     return pack(ret_map);
 }
 
 byte* createVRMPins(byte* ptr){
-    std::shared_ptr<GLTF> avatar = meshes[MY_AVATAR] ;
+    std::shared_ptr<GLTF> avatar = meshes[my_avatar] ;
+    meshes[my_avatar]->setBasePose();
     map<string, Variant> ret_map ;
     if(avatar == nullptr){
         ret_map["error"] = Variant("avatar not found on VRM IK bind!");
@@ -798,7 +807,7 @@ byte* setSolidPose(byte* ptr){
 
 byte* setIKParams(byte* ptr){
     auto obj = Variant::deserializeObject(ptr);
-    std::shared_ptr<GLTF> model = meshes[MY_AVATAR];
+    std::shared_ptr<GLTF> model = meshes[my_avatar];
 
     if(obj["barrier_strength"].defined()){
         model->barrier_strength = obj["barrier_strength"].getNumberAsFloat();
