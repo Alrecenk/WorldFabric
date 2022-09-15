@@ -278,6 +278,7 @@ void addDragon(Timeline* timeline, unordered_map<string, Variant>& table){
 
     pose[3][1] = 3;
 
+    meshes.receiveTableData("dragon",table["dragon"]);
     Variant bones;
     std::unique_ptr<MeshInstance> o = std::make_unique<MeshInstance>(glm::vec3(0,3,0), 2, "server", "dragon", pose, bones, true) ;
     timeline->createObject(std::move(o), std::unique_ptr<TEvent>(nullptr) , "dragon_created", timeline->current_time + 0.0017);
@@ -287,11 +288,12 @@ void addDragon(Timeline* timeline, unordered_map<string, Variant>& table){
         (*dptr) = data.getInt();
     });
 
-    meshes.receiveTableData("dragon",table["dragon"]);
+    timeline->run(timeline->current_time + 0.002);
+    
     animation_start_time = now();
 }
 
-void animateDragon(Timeline* timeline){
+void animateDragon(Timeline* timeline, float scale, vec3 center, float radius, float speed){
     double t= timeline->current_time;
     std::shared_ptr<GLTF> model = meshes["dragon"];
     int selected_animation = 2;
@@ -306,18 +308,15 @@ void animateDragon(Timeline* timeline){
 
         Variant bones = model->getCompressedBoneData();
         glm::mat4 pose(1);
-        float scale = 2.5 ;
-        float angle = timeline->current_time ;
-        float height = 4;
-        float r = 3 ;
+        float angle = timeline->current_time * speed ;
         float s = sin(angle);
         float c= cos(angle);
         pose[0] = vec4(s*scale, 0, c*scale, 0);
         pose[1] = vec4(0,scale,0, 0);
         pose[2] = vec4(c*scale, 0, -s*scale, 0);
-        pose[3] = vec4(r*s, height, r*c+1.75, 1);
+        pose[3] = vec4(radius*s + center.x, center.y, radius*c+center.z, 1);
 
-        timeline->addEvent(std::make_unique<SetMeshInstance>(dragon_id, glm::vec3(0,3,0), 2, "dragon", pose, bones),  timeline->current_time+action_delay) ;
+        timeline->addEvent(std::make_unique<SetMeshInstance>(dragon_id, glm::vec3(0,3,0), 2, "dragon", pose, bones),  timeline->current_time+action_delay*2) ;
     }    
 }
 
@@ -367,6 +366,9 @@ int main(int argc, const char** argv) {
     std::unique_ptr<MeshInstance> o = std::make_unique<MeshInstance>(glm::vec3(0,0,0), 100, "server", "default_skybox", sky_mat , Variant(), false) ;
     timeline->createObject(std::move(o), std::unique_ptr<TEvent>(nullptr) , timeline->current_time + 0.01);
 
+    addDragon(timeline, table);
+
+
     // Read the password from a file so we don't have to type it (and it's not included in the source repository)
     /*std::ifstream password_file("./cert/password.txt");
     std::string password;
@@ -381,8 +383,6 @@ int main(int argc, const char** argv) {
     // boot up the timeline server on a non-blocking thread
     int timeline_port = 9017;
     cout << "Starting the timeline server on port " << timeline_port << "..." << endl;
-    
-    //addDragon(timeline, table);
 
     TimelineServer timeline_server(timeline_port, timeline,
         "./cert/cert.pem", "./cert/key.pem", "./cert/dh.pem", "");
@@ -393,7 +393,7 @@ int main(int argc, const char** argv) {
     timeline->auto_clear_history = true;
     timeline->observable_interpolation = false;
     while (running) {
-        //animateDragon(timeline);
+        animateDragon(timeline, 20, vec3(0,15,0), 20, 0.7);
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
         timeline->run();
         TimelineServer::quickForwardEvents();

@@ -714,6 +714,7 @@ std::map<std::string, Variant> Timeline::synchronize(std::map<std::string, Varia
 Variant Timeline::getDescriptor(double time, bool server, std::unordered_map<int, TObject*>& descriptor_cache){
     if(time < last_clear_time || time > current_time){ // asked for an update outside our timeline
         printf("Descriptor requested outside of time slice!\n");
+        descriptor_cache.clear();
         //return Variant();
     }
     long temp = last_run_time; // TODO maybe make a catch up function?
@@ -792,6 +793,7 @@ Variant Timeline::getUpdateFor(const Variant& descriptor, bool server, std::unor
     }
     if(time > current_time){ // asked for an update outside our timeline
         printf("Update requested ahead of time slice!\n");
+        descriptor_cache.clear();
         return Variant() ; // return nothing, we don't know what's outside of our time slice
     }
 
@@ -802,7 +804,7 @@ Variant Timeline::getUpdateFor(const Variant& descriptor, bool server, std::unor
     for(int k=0;k<num_other_events;k++){
         other_event_set.insert(other_events[k]);
     }
-    // If there arte no events in the receieved descriptor it must be a starter packet
+    // If there are no events in the receieved descriptor it must be a starter packet
     if(num_other_events == 0){
         descriptor_cache.clear(); // clear the cache in cadse this a reset so we send everything
     }

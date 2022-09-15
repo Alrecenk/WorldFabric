@@ -132,7 +132,6 @@ body {
                             getBone(aJoints[2]) * n * aWeights[2] + 
                             getBone(aJoints[3]) * n * aWeights[3] );
 
-            v_normal = normalize(v_normal); 
         }              
         v_color = aVertexColor;
         if(length(v_position) < 0.01f){
@@ -147,6 +146,7 @@ body {
         gl_Position = uPMatrix * uMVMatrix * vec4(v_position, 1.0);
         v_position = vec3(uMVMatrix * vec4(v_position, 1.0));
         v_normal = vec3(uMVMatrix * vec4(v_normal, 0.0));
+        v_normal = normalize(v_normal); 
     }
 </script>
 
@@ -158,7 +158,7 @@ var imports = url_params.get("import") ? url_params.get("import").split(',') : [
 
 var tools  ; // a map containing several things above so execution modes can access them
 
-var preload_meshes = ["default_avatar", "default_world","default_skybox","alternate_avatar","avatar_3", "avatar_4"] ;
+var preload_meshes = ["default_avatar", "default_world","default_skybox","alternate_avatar", "avatar_4", "dragon"] ;
 
 function canvasApp() {
     //The canvas this app is running on.

@@ -32,7 +32,7 @@ class WorldChatMode extends ExecutionMode{
 
     my_name = "player " + Math.floor(Math.random() * 1000000000) ;
     my_avatar = "default_avatar" ;
-    avatars = ["default_avatar","alternate_avatar", "avatar_3", "avatar_4"];
+    avatars = ["default_avatar","alternate_avatar", "avatar_4"];
     avatar_id = 0 ;
     my_mesh_id = -1;
     last_avatar_change = 0 ;
@@ -45,8 +45,8 @@ class WorldChatMode extends ExecutionMode{
     inv_player_space = mat4.create();
     player_position = vec3.create();
     player_angle = 0 ;
-    player_speed = 0.015 ;
-    player_spin_speed = 0.007;
+    player_speed = 0.02 ;
+    player_spin_speed = 0.006;
 
     held_id = [-1,-1]; // objects currently held by each hand
     held_offset = [mat4.create(), mat4.create()];
@@ -106,7 +106,12 @@ class WorldChatMode extends ExecutionMode{
             this.my_bones = tools.API.call("getBones", {mesh:this.my_avatar}, new Serializer()).bones ;
         }
         
-        
+        //TODO fnd a way to fix mesh files that don't export double sided property correctly
+        tools.renderer.setMeshDoubleSided("default_world", false);
+        tools.renderer.setMeshDoubleSided("default_avatar", false);
+        tools.renderer.setMeshDoubleSided("alternate_avatar", false);
+        tools.renderer.setMeshDoubleSided("avatar_4", false);
+        tools.renderer.setMeshDoubleSided("dragon", true);
 
         let has_model = false;
         let m = mat4.create();
@@ -115,10 +120,8 @@ class WorldChatMode extends ExecutionMode{
                 if(this.instances[k].owner != this.my_name){
                         mat4.multiply(m,this.inv_player_space, this.instances[k].pose);
                         if(this.instances[k].mesh.substr(0,5) === "shape"){ // shapes don't need to push bone data
-                            tools.renderer.setMeshDoubleSided(this.instances[k].mesh, false); // TODO probably not required
                             tools.renderer.drawMesh(this.instances[k].mesh, m);
                         }else{
-                            tools.renderer.setMeshDoubleSided(this.instances[k].mesh, false);
                             tools.renderer.drawMesh(this.instances[k].mesh, m , this.instances[k].bones);
                         }
                 }else{
@@ -129,7 +132,6 @@ class WorldChatMode extends ExecutionMode{
 
         // Draw your model with no delay
         if(has_model){
-            tools.renderer.setMeshDoubleSided(this.my_avatar, false);
             tools.renderer.drawMesh(this.my_avatar, this.model_pose, this.my_bones);
         }
     }
