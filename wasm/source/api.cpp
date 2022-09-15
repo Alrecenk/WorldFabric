@@ -57,7 +57,7 @@ std::chrono::high_resolution_clock::time_point animation_start_time;
 
 unique_ptr<Timeline> timeline ;
 
-float action_delay = 0.04;
+float action_delay = 0.05;
 
 std::unordered_map<int, TObject*> descriptor_cache ;
 
