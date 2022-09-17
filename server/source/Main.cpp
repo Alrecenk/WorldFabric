@@ -366,7 +366,7 @@ int main(int argc, const char** argv) {
     std::unique_ptr<MeshInstance> o = std::make_unique<MeshInstance>(glm::vec3(0,0,0), 100, "server", "default_skybox", sky_mat , Variant(), false) ;
     timeline->createObject(std::move(o), std::unique_ptr<TEvent>(nullptr) , timeline->current_time + 0.01);
 
-    addDragon(timeline, table);
+    //addDragon(timeline, table);
 
 
     // Read the password from a file so we don't have to type it (and it's not included in the source repository)
@@ -393,7 +393,7 @@ int main(int argc, const char** argv) {
     timeline->auto_clear_history = true;
     timeline->observable_interpolation = false;
     while (running) {
-        animateDragon(timeline, 20, vec3(0,15,0), 20, 0.7);
+        //animateDragon(timeline, 20, vec3(0,15,0), 20, 0.7);
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
         timeline->run();
         TimelineServer::quickForwardEvents();

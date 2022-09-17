@@ -32,7 +32,7 @@ class WorldChatMode extends ExecutionMode{
 
     my_name = "player " + Math.floor(Math.random() * 1000000000) ;
     my_avatar = "default_avatar" ;
-    avatars = ["default_avatar","alternate_avatar", "avatar_4"];
+    avatars = ["default_avatar","alternate_avatar"/*, "avatar_4"*/];
     avatar_id = 0 ;
     my_mesh_id = -1;
     last_avatar_change = 0 ;
@@ -110,8 +110,8 @@ class WorldChatMode extends ExecutionMode{
         tools.renderer.setMeshDoubleSided("default_world", false);
         tools.renderer.setMeshDoubleSided("default_avatar", false);
         tools.renderer.setMeshDoubleSided("alternate_avatar", false);
-        tools.renderer.setMeshDoubleSided("avatar_4", false);
-        tools.renderer.setMeshDoubleSided("dragon", true);
+        //tools.renderer.setMeshDoubleSided("avatar_4", false);
+        //tools.renderer.setMeshDoubleSided("dragon", true);
 
         let has_model = false;
         let m = mat4.create();

@@ -69,7 +69,6 @@ class TimelineClient{
         this.active = active;
 
         let request_ptr = wasm_module.call("getInitialTimelineRequest") ;
-        request_ptr = wasm_module.call("getInitialTimelineRequest") ; // TODO for some reason the first wasm module call always fails
 
         //console.log("pointer:" + request_ptr);
         let request_size = wasm_module.getReturnSize();

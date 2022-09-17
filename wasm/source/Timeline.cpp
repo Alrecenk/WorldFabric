@@ -404,11 +404,11 @@ void Timeline::clearHistoryBefore(double clear_time){
         while(first_instant->write_time >= clear_time && first_instant->prev){
             first_instant = first_instant->prev ;
         }
-        // delete everything before that instanrt
+        // delete everything before that instant
         first_instant->prev.reset();
     }
 
-    // clear out the quick forwarding redundancychecking list
+    // clear out the quick forwarding redundancy checking list
     vector<int> received_to_clear ;
     for(auto& [id, time] : received_events){
         if(time < clear_time){
@@ -590,7 +590,7 @@ bool Timeline::applyUpdate(const Variant& update, bool server){
             }
         }
 
-        if(time <= last_clear_time || time > current_time){ // asked for an update outside our timeline
+        if(time <= last_clear_time || time > current_time){ // given an update outside our timeline
             //printf("Update received outside of time slice!\n");
             return false; // return, we don't know what's outside of our time slice
         }
@@ -770,7 +770,10 @@ Variant Timeline::getDescriptor(double time, bool server, std::unordered_map<int
 Variant Timeline::getUpdateFor(const Variant& descriptor, bool server, std::unordered_map<int, TObject*>& descriptor_cache){
     map<string,Variant> descriptor_map  = descriptor.getObject();
     double time = descriptor_map["time"].getDouble();
-    time = fmax(time, last_clear_time); // if requested an update older than cleared time, then send cleared time
+    if(time < last_clear_time){
+        descriptor_cache.clear(); // clear the cache in case this a reset so we send everything
+        time = last_clear_time ; // if requested an update older than cleared time, then send cleared time
+    }
 
     // Correct client clock drift
     if(!server){
@@ -803,10 +806,6 @@ Variant Timeline::getUpdateFor(const Variant& descriptor, bool server, std::unor
     unordered_set<int> other_event_set ;
     for(int k=0;k<num_other_events;k++){
         other_event_set.insert(other_events[k]);
-    }
-    // If there are no events in the receieved descriptor it must be a starter packet
-    if(num_other_events == 0){
-        descriptor_cache.clear(); // clear the cache in cadse this a reset so we send everything
     }
     
     map<string,Variant> update_map ;
@@ -862,6 +861,11 @@ Variant Timeline::getUpdateFor(const Variant& descriptor, bool server, std::unor
 std::map<std::string, Variant> Timeline::synchronize(std::map<std::string, Variant>& packet, bool server, 
     std::unordered_map<int, TObject*>& descriptor_cache){
          lock.lock();
+
+    if(packet.find("reset")!= packet.end()){
+        descriptor_cache.clear();
+    }
+
     if(packet.find("update") != packet.end()){
         auto update = packet["update"].getObject() ;
         bool did_reset = applyUpdate(packet["update"], server);
@@ -881,6 +885,10 @@ std::map<std::string, Variant> Timeline::synchronize(std::map<std::string, Varia
             ret_map.erase("update");
         }
         ret_map["descriptor"] = getDescriptor(current_time-base_age, server, descriptor_cache);
+        if(just_reset){
+            ret_map["reset"] = Variant(1);
+            just_reset = false;
+        }
         lock.unlock();
         return ret_map;
     }
@@ -971,6 +979,7 @@ void Timeline::reset(){
     total_runs = 0 ;
     total_unruns = 0 ;
     last_run_time = timeMilliseconds();
+    just_reset = true;
     lock.unlock();
 }
 
