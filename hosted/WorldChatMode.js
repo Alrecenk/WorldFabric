@@ -328,8 +328,10 @@ class WorldChatMode extends ExecutionMode{
             }
 
             if(input_source.handedness == "right"){
-                if(Math.sqrt(input_source.axes[3]*input_source.axes[3] + input_source.axes[2]*input_source.axes[2]) > 0.05){
+                if(Math.abs(input_source.axes[2]) > 0.08){
                     this.player_angle -= this.player_spin_speed * input_source.axes[2] ; // rotate on horizontal axis
+                }
+                if(Math.abs(input_source.axes[3]) > 0.08){
                     this.player_position[1] -= this.player_speed * input_source.axes[3] ; // vertical move on vertical axis
                 }
             }
@@ -342,7 +344,7 @@ class WorldChatMode extends ExecutionMode{
             ch[2]*=n;
 
             if(input_source.handedness == "left"){ // horizontal movement on left stick
-                if(Math.sqrt(input_source.axes[3]*input_source.axes[3] + input_source.axes[2]*input_source.axes[2]) > 0.05){
+                if(Math.sqrt(input_source.axes[3]*input_source.axes[3] + input_source.axes[2]*input_source.axes[2]) > 0.08){
                     // move direction by player angle
                     let dx = input_source.axes[3] * mz - input_source.axes[2] * mx;
                     let dz = input_source.axes[3] * mx + input_source.axes[2] * mz ;
