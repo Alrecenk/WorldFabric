@@ -361,6 +361,8 @@ Variant GLTF::getBoneData(){
 
 Variant GLTF::getCompressedBoneData(){
     int num_bones = nodes.size() ;
+    /*
+    // lossless compression
     Variant bone_buffer;
     bone_buffer.makeFillableFloatArray(num_bones*4);
     float* bone_buffer_array =  bone_buffer.getFloatArray() ;
@@ -371,11 +373,49 @@ Variant GLTF::getCompressedBoneData(){
         bone_buffer_array[node_id*4 + 2] = node.rotation.z ;
         bone_buffer_array[node_id*4 + 3] = node.rotation.w ;
     }
+    //printf("num compressed bones: %d size: %d bytes\n", num_bones, num_bones*16);
     return bone_buffer ;
+    */
+    
+    // super compressed version
+    // Find IDs of all bones with nondefault values
+    vector<byte> compressed_ids ;
+    for(int node_id=0; node_id<nodes.size(); node_id++){   
+        Node& node = nodes[node_id];
+        glm::quat diff = node.base_rotation - node.rotation ;
+        float d2 = diff.x*diff.x + diff.y*diff.y + diff.z*diff.z + diff.w*diff.w ;
+        if(d2 > 0.001f){
+            compressed_ids.push_back(node_id);
+        }
+    }
+    // pack changed bones as shorts into single byte array with indices
+    Variant bone_buffer;
+    bone_buffer.makeFillableByteArray(compressed_ids.size()*9);
+    byte* data = bone_buffer.getByteArray();
+    int j = 0 ;
+    for(byte node_id : compressed_ids){
+        data[j] = node_id;
+        j++;
+        Node& node = nodes[node_id];
+        glm::quat r = node.rotation ;
+        ((short *) (data+j))[0] = (short)(r.x*32767) ;
+        j+=2;
+        ((short *) (data+j))[0] = (short)(r.y*32767) ;
+        j+=2;
+        ((short *) (data+j))[0] = (short)(r.z*32767) ;
+        j+=2;
+        ((short *) (data+j))[0] = (short)(r.w*32767) ;
+        j+=2;
+    }
+
+    return bone_buffer ;
+    
 }
 
 Variant GLTF::getBoneData(const Variant& compressed){
     vector<float> x0 = getX() ;
+    /*
+    // light compression
     float* x =  compressed.getFloatArray() ;
     int j = 0 ;
     for(int node_id=0; node_id<nodes.size(); node_id++){   
@@ -389,6 +429,21 @@ Variant GLTF::getBoneData(const Variant& compressed){
         node.rotation.w = x[j];
         j++;
     }
+    */
+    
+    // super compressed version
+    byte* data = compressed.getByteArray();
+    int num_set = compressed.getArrayLength()/9;
+    for(int k=0;k<num_set;k++){
+        int node_id = data[k*9];
+        glm::quat& r = nodes[node_id].rotation;
+        r.x = ((short *)(data+k*9+1))[0]/32767.0f ;
+        r.y = ((short *)(data+k*9+3))[0]/32767.0f ;
+        r.z = ((short *)(data+k*9+5))[0]/32767.0f ;
+        r.w = ((short *)(data+k*9+7))[0]/32767.0f ;
+        glm::normalize(r) ;
+    }
+
     computeNodeMatrices();
     Variant bd = getBoneData() ;
     setX(x0) ;

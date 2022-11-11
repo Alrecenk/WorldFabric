@@ -24,6 +24,8 @@ using std::this_thread::sleep_for;
 Timeline* TimelineServer::timeline;
 map<websocketpp::connection_hdl, long, std::owner_less<websocketpp::connection_hdl>> TimelineServer::connections ;
 SecureSocketServer TimelineServer::server;
+int TimelineServer::bytes_in = 0 ;
+int TimelineServer::bytes_out = 0 ;
 
 map<websocketpp::connection_hdl, std::unordered_map<int, TObject*>, std::owner_less<websocketpp::connection_hdl>> TimelineServer::descriptor_caches ;
 
@@ -74,7 +76,9 @@ void TimelineServer::onMessage(
             TimelineServer::connections[hdl] = TimelineServer::timeMilliseconds();
             //printf("Got message!\n");
     // Fetch raw bytes from binary packet
-    const char* packet_bytes = msg->get_payload().c_str();
+    auto payload = msg->get_payload() ;
+    const char* packet_bytes = payload.c_str();
+    bytes_in += payload.length();
     Variant packet_variant(
             Variant::OBJECT, (unsigned char*) packet_bytes);
     //printf("got packet:\n");
@@ -89,6 +93,7 @@ void TimelineServer::onMessage(
         s->send(
                 std::move(hdl), response.ptr, response_size,
                 websocketpp::frame::opcode::binary,ec);
+        bytes_out += response_size;
     }
 }
 
@@ -165,6 +170,7 @@ void TimelineServer::quickForwardEvents(){
                 TimelineServer::server.send(
                     connection, qs.ptr, packet_size,
                     websocketpp::frame::opcode::binary, ec);
+                bytes_out += packet_size;
             }
         }
     }

@@ -45,6 +45,9 @@ class TimelineServer {
 
         static long timeMilliseconds();
 
+        static int bytes_in ;
+        static int bytes_out ;
+
   private:
 
     // See https://wiki.mozilla.org/Security/Server_Side_TLS for more details about
