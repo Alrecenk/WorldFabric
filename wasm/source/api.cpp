@@ -10,6 +10,7 @@
 #include <chrono>
 #include <ctime>
 #include <memory>
+#include <math.h>
 #include "glm/vec3.hpp"
 #include "TableInterface.h"
 #include "UnitTests.h"
@@ -454,17 +455,24 @@ byte* setPinTarget(byte* ptr) {
         }else{
             target = p ; // no ray, target is point given
         }
-        model->setPinTarget(name, target);
+        if(!isnan(target.x) && !isnan(target.y) && !isnan(target.z)){
+            model->setPinTarget(name, target);
+        }
     }
    
     if(obj["o"].defined()){
         float* vm = obj["o"].getFloatArray();
         glm::mat4 m ;
+        bool has_nan = false;
         for(int k=0;k<16;k++){
             *(((float*)&m)+k) = vm[k] ;
+            has_nan = has_nan || isnan(vm[k]);
         }
-        glm::quat rot_target = glm::quat_cast(m) ;
-        model->setPinTarget(name, rot_target);
+        if(!has_nan){
+            glm::quat rot_target = glm::quat_cast(m) ;
+            rot_target = glm::normalize(rot_target);
+            model->setPinTarget(name, rot_target);
+        }
     }
 
     //model->applyPins();

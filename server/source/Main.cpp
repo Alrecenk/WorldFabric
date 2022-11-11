@@ -32,11 +32,11 @@ void runUnitTests(){
 void loadModels(unordered_map<string, Variant>& table){
     map<string,string> models ;
     models["default_avatar"] = "./models/default_avatar.vrm";
-    models["alternate_avatar"] = "./models/alternate_avatar.vrm";
-    models["avatar_3"] = "./models/avatar_3.vrm";
-    models["avatar_4"] = "./models/avatar_4.vrm";
+    //models["alternate_avatar"] = "./models/alternate_avatar.vrm";
+    //models["avatar_3"] = "./models/avatar_3.vrm";
+    //models["avatar_4"] = "./models/avatar_4.vrm";
     models["eroom"] = "./models/room.glb";
-    models["dragon"] = "./models/dragon.glb";
+    //models["dragon"] = "./models/dragon.glb";
     models["bunny"] = "./models/bunny350.glb";
     models["default_world"] = "./models/default_world.glb";
     models["default_skybox"] = "./models/default_skybox.glb";
@@ -392,11 +392,22 @@ int main(int argc, const char** argv) {
     
     timeline->auto_clear_history = true;
     timeline->observable_interpolation = false;
+    long last_network_print_time = timeMilliseconds() ;
     while (running) {
         //animateDragon(timeline, 20, vec3(0,15,0), 20, 0.7);
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
         timeline->run();
         TimelineServer::quickForwardEvents();
+
+        long time = timeMilliseconds() ;
+        if(time > last_network_print_time + 10000){
+          float sent = TimelineServer::bytes_out/(1000.0f*(time - last_network_print_time)) ;
+          float got = TimelineServer::bytes_in/(1000.0f*(time - last_network_print_time)) ;
+          TimelineServer::bytes_out = 0;
+          TimelineServer::bytes_in = 0 ;
+          printf("Timeline: Sent: %f MB/s Received %f MB/s\n", sent, got);
+          last_network_print_time = time ;
+        }
     }
     //web_server.stop();
     timeline_server.stop();

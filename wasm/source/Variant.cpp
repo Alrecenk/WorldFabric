@@ -1131,6 +1131,15 @@ uint32_t Variant::murmur(const uint8_t* key, size_t len, uint32_t seed) {
     return h;
 }
 
+void Variant::makeFillableByteArray(int size){
+    if(type_ != NULL_VARIANT){
+        free(ptr);
+    }
+    type_ = Variant::BYTE_ARRAY ;
+    ptr = (byte*) malloc(4 + size) ;
+    *(int*)(ptr) = size ;
+}
+
 void Variant::makeFillableIntArray(int size){
     if(type_ != NULL_VARIANT){
         free(ptr);
