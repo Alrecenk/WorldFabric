@@ -30,6 +30,7 @@
 #include "MoveSimpleSolid.h"
 #include "SetConvexSolid.h"
 #include "BSPNode.h"
+#include "PartitioningRadianceField.h"
 
 
 using std::vector;
@@ -164,6 +165,13 @@ Variant getVariantMatrix(glm::quat q){
     return matrix ;
 }
 
+glm::dvec3 getPixelRay(int x, int y, int width, int height, const glm::dvec3& pos, const glm::mat4& invMatrix){
+    glm::dvec4 p = vec4(2*x/(float)width-1, -1*(2*y/(float)height-1), 1, 1);
+    p = invMatrix * p ;
+    glm::dvec3 v = vec3(p.x/p.w-pos.x, p.y/p.w-pos.y, p.z/p.w-pos.z) ;
+    v = glm::normalize(v);
+    return v;
+}
 
 extern "C" { // Prevents C++ from mangling the exported name apparently
 
@@ -841,5 +849,81 @@ byte* setIKParams(byte* ptr){
 
     return emptyReturn();
 }
+
+
+byte* getSimpleTraceImage(byte* ptr){
+    auto start = now();
+    auto obj = Variant::deserializeObject(ptr);
+    int width = obj["width"].getInt();
+    int height = obj["height"].getInt();
+    vec3 pos = obj["camera_pos"].getVec3();
+    vec3 light_point = obj["light_point"].getVec3();
+    mat4* pMatrix = (mat4*)obj["pMatrix"].getFloatArray();
+    mat4* mvMatrix = (mat4*)obj["mvMatrix"].getFloatArray();
+
+    mat4 invMatrix = glm::inverse((*pMatrix)*(*mvMatrix)) ;
+
+    byte* image_data = (byte*)malloc(width*height*4);
+
+    // Get the pixel vector in screen space using viewport parameters.
+    vec4 pv (0, 0, 1, 1);
+    pv = invMatrix * pv ;
+    vec3 v(pv.x/pv.w-pos.x, pv.y/pv.w-pos.y, pv.z/pv.w-pos.z) ;
+    v = glm::normalize(v);
+    int rays = 0 ;
+
+    std::shared_ptr<GLTF> model = meshes[my_avatar];
+    model->applyTransforms();
+
+    /*
+    vector<vector<Polygon>> surfaces = Polygon::collectClosedSurfaces(model);
+    vector<BSPNode> roots ;
+    for(auto& surface : surfaces){
+        roots.emplace_back(surface);
+    }
+    */
+    std::unique_ptr<BSPNode> root = make_unique<BSPNode>(model) ;
+
+    auto build = now();
+    for(int x=0;x< width; x++){
+        for(int y = 0; y < height; y++){
+             // Get the pixel vector in screen space using viewport parameters.
+            v = getPixelRay(x, y, width, height, pos, invMatrix) ;
+            /*
+            // Use BSP 'cause it's a lot faster
+            float t = 9999999.0 ;
+            for(auto& root : roots){
+                float nt = root.rayTrace(pos,v);
+                if(nt >= 0 && nt < t){
+                    t = nt ;
+                }
+            }
+            */
+            float t =  root->rayTrace(pos,v);
+
+            int c = 0;
+            rays++;
+            if(t > 0 && t < 999999.0){
+                //int tri = model->last_traced_tri ;
+                c = 255 ;
+            }
+            int i = (y * width + x)*4 ;
+            image_data[i] = (byte)c ;
+            image_data[i+1] = (byte)c ;
+            image_data[i+2] = (byte)c ;
+            image_data[i+3] = (byte)255 ;
+        }
+    }
+
+    int time = millisBetween(start,now());
+    int build_time = millisBetween(start,build);
+    int trace_time = millisBetween(build,now());
+    printf("Simple Raytracing Time: %d ms ( %d build, %d trace)\n", time, build_time, trace_time);
+    map<string, Variant> ret_map;
+    ret_map["image"] = Variant(image_data, width*height*4);
+    free(image_data);
+    return pack(ret_map);
+}
+
 
 }// end extern C

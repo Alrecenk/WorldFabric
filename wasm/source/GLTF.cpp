@@ -1259,7 +1259,7 @@ void GLTF::setPolyhedronModel(std::vector<glm::vec3>& vertices, std::vector<std:
 // with the given triangle
 // return negative if no collision
 float EPSILON = 0.00001;
-float GLTF::trace(Triangle tri, const vec3 &p, const vec3 &v){
+float GLTF::trace(Triangle &tri, const vec3 &p, const vec3 &v){
     vector<Vertex>& x = this->vertices ;
     vec3& A = x[tri.A].transformed_position ;
     vec3 AB = x[tri.B].transformed_position - A ;
@@ -1302,7 +1302,9 @@ float GLTF::rayTrace(const vec3 &p, const vec3 &v){
     }
     if(min_t < std::numeric_limits<float>::max() ){
         return min_t ;
-    }return -1;
+    }else{
+        return -1;
+    }
 }
 
 // Returns the index of the closest vertex to the given point

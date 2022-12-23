@@ -296,9 +296,7 @@ class GLTF : public OptimizationProblem, public TableInterface {
         // Given a ray (p + v*t) return the t value of the nearest collision
         // with the given triangle
         // returns negative if no collision
-        float trace(Triangle tri, const glm::vec3 &p, const glm::vec3 &v);
-
-        
+        float trace(Triangle &tri, const glm::vec3 &p, const glm::vec3 &v);
         
 
 };

@@ -28,6 +28,8 @@ class Renderer{
 
     buffer_lookup = {};
 
+    hold_ui_context = false; 
+
     
     // Performs the set-up for openGL canvas and shaders on construction
     constructor(webgl_canvas_id, ui_canvas_id , fragment_shader_id, vertex_shader_id, space_underneath_app){
@@ -160,14 +162,18 @@ class Renderer{
             }
         }
         
+        
         var context = tools.canvas.getContext("2d");
-        context.clearRect(0, 0, context.canvas.width, context.canvas.height);
+        if(!r.hold_ui_context){
+            context.clearRect(0, 0, context.canvas.width, context.canvas.height);
+        }
         // Draw any buttons currently on the interface.
         for (let button_name in tools.buttons) {
             if (tools.buttons.hasOwnProperty(button_name)) {
                 tools.buttons[button_name].draw(context);
             }
         }
+        
 
         if(tools.current_mode){
             let gl = r.gl ;
