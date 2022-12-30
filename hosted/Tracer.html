@@ -342,8 +342,11 @@ function setMainMenuButtons(){
     tools.buttons["enter_vr"] = new InterfaceButton(5, 10, 200, 40, "Enter VR", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, () => {tools.renderer.startXRSession();});
     
     tools.buttons["cpu_trace"] = new InterfaceButton(5, 50, 200, 40, "CPU Trace", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, CPUTrace);
-    tools.buttons["clear_trace"] = new InterfaceButton(5, 90, 200, 40, "Clear Trace", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, clearTrace);
+    tools.buttons["field_trace"] = new InterfaceButton(5, 90, 200, 40, "Field Trace", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, fieldTrace);
+    tools.buttons["clear_trace"] = new InterfaceButton(5, 130, 200, 40, "Clear Trace", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, clearTrace);
 
+    tools.buttons["field_train"] = new InterfaceButton(5, 170, 200, 40, "Field Train", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, fieldTrain);
+    tools.buttons["grow_field"] = new InterfaceButton(5, 210, 200, 40, "Grow Field", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, growField);
 }
 
 function onBodyLoad(){
@@ -416,9 +419,58 @@ function CPUTrace(){
     tools.renderer.hold_ui_context = true;
 }
 
+function fieldTrace(){
+    var context = tools.canvas.getContext("2d");;
+    var image = context.createImageData(tools.canvas.width, tools.canvas.height);
+    console.log("Tracing " + image.width +" x " + image.height);
+    
+    var trace_input ={};
+    trace_input.width = image.width;
+    trace_input.height = image.height;
+    trace_input.camera_pos = new Float32Array(3);
+    trace_input.light_point = new Float32Array(3);
+    for(var k=0;k<3;k++){
+        trace_input.camera_pos[k] = tools.renderer.camera_pos[k];
+        trace_input.light_point[k] = tools.renderer.light_point[k];
+    }
+    trace_input.pMatrix = new Float32Array(16);
+    trace_input.mvMatrix = new Float32Array(16);
+    for(var k=0;k<16;k++){
+        trace_input.pMatrix[k] = tools.renderer.pMatrix[k];
+        trace_input.mvMatrix[k] = tools.renderer.mvMatrix[k];
+    }
+    console.log("trace_input:");
+    console.log(trace_input);
+    var trace_output = tools.API.call("getFieldImage",trace_input, new Serializer());
+    for(var k=0;k<trace_output.image.length;k++){
+        image.data[k] = trace_output.image[k] >= 0  ? trace_output.image[k] : trace_output.image[k] + 256;
+    }
+
+    //console.log(image);
+    context.putImageData(image, 0, 0);
+    tools.renderer.hold_ui_context = true;
+}
+
 function clearTrace(){
     console.log("clear trace");
     tools.renderer.hold_ui_context = false;
+}
+
+function fieldTrain(){
+    var train_input = {};
+    train_input.iter = 6;
+    train_input.rays = 10000;
+    train_input.step_iter = 60;
+    train_input.m = 5 ;
+    console.log(train_input);
+    for(let k=0;k<50;k++){
+        //console.log("train:" + k);
+        var trace_output = tools.API.call("trainField",train_input, new Serializer());
+    }
+}
+
+function growField(){
+    var trace_output = tools.API.call("growField",{}, new Serializer());
 }
 
 </script>

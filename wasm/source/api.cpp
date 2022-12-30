@@ -63,6 +63,9 @@ float action_delay = 0.05;
 
 std::unordered_map<int, TObject*> descriptor_cache ;
 
+int unlocked_field_rows = 7;
+PartitioningRadianceField field(unlocked_field_rows) ;
+
 
 long timeMilliseconds() {
     return std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -925,5 +928,144 @@ byte* getSimpleTraceImage(byte* ptr){
     return pack(ret_map);
 }
 
+
+byte* getFieldImage(byte* ptr){
+    auto start = now();
+    auto obj = Variant::deserializeObject(ptr);
+    int width = obj["width"].getInt();
+    int height = obj["height"].getInt();
+    vec3 pos = obj["camera_pos"].getVec3();
+    vec3 light_point = obj["light_point"].getVec3();
+    mat4* pMatrix = (mat4*)obj["pMatrix"].getFloatArray();
+    mat4* mvMatrix = (mat4*)obj["mvMatrix"].getFloatArray();
+
+    mat4 invMatrix = glm::inverse((*pMatrix)*(*mvMatrix)) ;
+
+    byte* image_data = (byte*)malloc(width*height*4);
+
+    // Get the pixel vector in screen space using viewport parameters.
+    vec4 pv (0, 0, 1, 1);
+    pv = invMatrix * pv ;
+    vec3 v(pv.x/pv.w-pos.x, pv.y/pv.w-pos.y, pv.z/pv.w-pos.z) ;
+    v = glm::normalize(v);
+    int rays = 0 ;
+    int correct = 0 ;
+
+    std::shared_ptr<GLTF> model = meshes[my_avatar];
+    model->applyTransforms();
+    std::unique_ptr<BSPNode> root = make_unique<BSPNode>(model) ;
+
+    for(int x=0;x< width; x++){
+        for(int y = 0; y < height; y++){
+             // Get the pixel vector in screen space using viewport parameters.
+            v = getPixelRay(x, y, width, height, pos, invMatrix) ;
+            
+
+            float t =  root->rayTrace(pos,v);
+            bool should_hit = false;
+            int c2 = 0 ;
+            if(t > 0 && t < 999999.0){
+                should_hit = true;
+                c2 = 255 ;
+            }
+
+            float output =field.computeValue(pos, v);
+    
+            output = fmin(1.0f,fmax(output,0.0f));
+
+            if((output > 0.5 && should_hit) || (output < 0.5 && !should_hit)){
+                correct++;
+            }
+
+            int c = (int)(255*output);
+            int c3 = 0 ;
+            if(output > 0.5){
+                c3 = 255 ;
+            }
+            rays++;
+            int i = (y * width + x)*4 ;
+            image_data[i] = (byte)c2 ;
+            image_data[i+1] = (byte)c ;
+            image_data[i+2] = (byte)c3 ;
+            image_data[i+3] = (byte)255 ;
+        }
+    }
+
+    int time = millisBetween(start,now());
+    printf("Radiance Field Render Time: %d  correct: %d/ %d\n", time, correct, rays);
+    map<string, Variant> ret_map;
+    ret_map["image"] = Variant(image_data, width*height*4);
+    free(image_data);
+    return pack(ret_map);
+}
+
+
+
+byte* trainField(byte* ptr){
+    auto obj = Variant::deserializeObject(ptr);
+    int rays = obj["rays"].getInt();
+    int iter = obj["iter"].getInt();
+    int step_iter = obj["step_iter"].getInt();
+    int m = obj["m"].getInt();
+
+    auto start = now();
+    printf("Collecting field training data...\n");
+
+    std::shared_ptr<GLTF> model = meshes[my_avatar];
+    model->applyTransforms();
+    std::unique_ptr<BSPNode> root = make_unique<BSPNode>(model) ;
+
+    field.training_set.clear();
+    int hits = 0 ;
+    for(int k=0;k<rays;k++){
+        // generate two points on bounding sphere
+        vec3 p(randomFloat()-0.5,randomFloat()-0.5,randomFloat()-0.5);
+        p = glm::normalize(p)*0.6f;
+        vec3 p2(randomFloat()-0.5,randomFloat()-0.5,randomFloat()-0.5);
+        p2 = glm::normalize(p2)*0.6f;
+        // make ray from one to the other
+        vec3 v = glm::normalize(p2-p);
+
+        // check if it hits the model
+        float t =  root->rayTrace(p,v);
+        float y = 0 ;
+        if(t > 0){
+            y = 1 ;
+            hits++;
+        }
+        field.addTrainingRay(p,v,y);
+    }
+    auto trace_done = now();
+    printf("%d/%d rays hit!\n", hits, rays);
+    printf("Optimizing field...\n");
+
+    vector<float> x0 = field.getX() ;
+    float start_error = field.error(x0) ;
+    vector<float>xf = field.minimizeByLBFGS(x0, m, iter, step_iter, 0.0001, 0.0001);
+    //vector<float>xf = field.minimumByGradientDescent(x0, 0.0001, iter, step_iter) ;
+    float end_error = field.error(xf) ;
+    
+    //field.setLeavestoTrainingAverage(0.1);
+    //xf = field.getX();
+
+    int trace_time = millisBetween(start,trace_done);
+    int train_time = millisBetween(trace_done, now());
+    int time = millisBetween(start,now());
+    float end_error2 = field.error(xf) ;
+    printf("Error: %f to %f and %f in %d ms ( %d trace, %d train)\n", start_error, end_error,end_error2, time, trace_time, train_time);
+    /*
+    for(int k=0;k<xf.size();k++){
+        printf("x[%d] = %f \n", k, xf[k]);
+    }*/
+
+    return emptyReturn();
+}
+
+byte* growField(byte* ptr){
+    field.lockRow(field.numRows()-unlocked_field_rows) ;
+    field.addRow();
+    
+    return emptyReturn();
+}
 
 }// end extern C

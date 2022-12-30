@@ -57,6 +57,9 @@ EXPORTED_FUNCTIONS =\
 	'_setIKParams',\
 	'_setAvatar',\
 	'_getSimpleTraceImage',\
+	'_getFieldImage',\
+	'_trainField',\
+	'_growField',\
 	'_free'
 EXTRA_EXPORTED_RUNTIME_METHODS=['ccall']
 API_MAIN = ${API_DIR}source/api.cpp

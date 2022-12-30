@@ -11,6 +11,8 @@
 class PartitioningRadianceField  : public OptimizationProblem{
     public:
 
+        float offset = 0.0f ;
+
         struct Partition{
             // if locked partition and value will not change with optimization steps
             bool locked = false;
@@ -41,8 +43,12 @@ class PartitioningRadianceField  : public OptimizationProblem{
 
         std::vector<TrainingRay> training_set;
 
+        PartitioningRadianceField();
+
 
         PartitioningRadianceField(int depth);
+
+        void initializeNode(int k);
 
         // functions for navigating the tree
         int firstChild(int n);
@@ -68,7 +74,8 @@ class PartitioningRadianceField  : public OptimizationProblem{
 
         // accumulates the gradient for a given node and training point
         // p,v is the ray mapping to value y, mult is the multiplier passed from the parent node
-        void accumulateGradient(int n, std::vector<float> &gradient, glm::vec3 &p, glm::vec3 &v, float mult);
+        //returns the value at the given node
+        float accumulateGradient(int n, std::vector<float> &gradient, glm::vec3 &p, glm::vec3 &v, float mult);
 
 
          // Return the current x for this object
@@ -87,6 +94,13 @@ class PartitioningRadianceField  : public OptimizationProblem{
         std::vector<float> gradient(std::vector<float> x) override;
         
 
+        void lockRow(int row);
+        void unlockRow(int row);
+        void setHomotopy(int row, float h);
+        void addRow();
+        int numRows();
+
+void setLeavestoTrainingAverage(double strength) ;
 
 };
 #endif // #ifndef _PARTITIONING_RADIANCE_FIELD_H_

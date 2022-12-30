@@ -152,14 +152,27 @@ class Renderer{
         var r = tools.renderer ;
         //Update FPS label
         r.frame++;
-        if(r.frame >= 30){
-            var time = new Date().getTime();
-            r.framerate = (r.frame*1000/ (time-r.last_time));
-            r.last_time = time;
-            r.frame = 0 ;
-            if(tools && tools.buttons && tools.buttons["fps_label"]){ // TODO not really the responsibility of the general rendering
-                tools.buttons["fps_label"].text = "FPS:" + Math.round(r.framerate);
+        if(tools.buttons && tools.buttons["fps_label"]){
+            if(r.frame >= 30){
+                var time = new Date().getTime();
+                r.framerate = (r.frame*1000/ (time-r.last_time));
+                r.last_time = time;
+                r.frame = 0 ;
+                if(tools && tools.buttons && tools.buttons["fps_label"]){ // TODO not really the responsibility of the general rendering
+                    tools.buttons["fps_label"].text = "FPS: " + Math.round(r.framerate);
+                }
+                
+                
             }
+
+            // Rotate a character in the fps label as an indicator the app is not frozen
+            let c = tools.buttons["fps_label"].text.charAt(4) ;
+            if(c == '|'){
+                c = '-' ;
+            }else{
+                c = '|' ;
+            }
+            tools.buttons["fps_label"].text = tools.buttons["fps_label"].text.substring(0, 4) + c + tools.buttons["fps_label"].text.substring(5);
         }
         
         
