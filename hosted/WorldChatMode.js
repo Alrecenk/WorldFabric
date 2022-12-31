@@ -73,7 +73,7 @@ class WorldChatMode extends ExecutionMode{
     exit(next_mode){
     }
 
-    // Called at regular intervals by the main app when the mode is active (30 or 60fps probably but not guarsnteed)
+    // Called at regular intervals by the main app when the mode is active (30 to 90fps probably but not guaranteed)
     timer(){
         
         let new_buffer_data = tools.API.call("getUpdatedBuffers", null, new Serializer());
@@ -83,7 +83,7 @@ class WorldChatMode extends ExecutionMode{
 
         if(tools.sync_link.ready()){
             tools.API.call("runTimeline", {}, new Serializer());
-            this.instances = tools.API.call("getMeshInstances", null, new Serializer());
+            
             //console.log(instances);
             }
     }
@@ -104,36 +104,48 @@ class WorldChatMode extends ExecutionMode{
             }
 
             this.my_bones = tools.API.call("getBones", {mesh:this.my_avatar}, new Serializer()).bones ;
+            this.instances = tools.API.call("getMeshInstances", null, new Serializer());
         }
         
-        //TODO fnd a way to fix mesh files that don't export double sided property correctly
+        //TODO find a way to fix mesh files that don't export double sided property correctly
         tools.renderer.setMeshDoubleSided("default_world", false);
         tools.renderer.setMeshDoubleSided("default_avatar", false);
         tools.renderer.setMeshDoubleSided("alternate_avatar", false);
         //tools.renderer.setMeshDoubleSided("avatar_4", false);
         //tools.renderer.setMeshDoubleSided("dragon", true);
 
-        let has_model = false;
         let m = mat4.create();
+
+        // Draw your model first with no delay
+        if(this.has_model){
+            tools.renderer.drawMesh(this.my_avatar, this.model_pose, this.my_bones);
+        }
+        // draw your held item also with no delay
+        for(let hand = 0; hand < 2; hand++){
+            if(this.held_id[hand] >=0 ){
+                mat4.multiply(m,this.inv_player_space, this.last_pose[hand]);
+                tools.renderer.drawMesh(this.instances[this.held_id[hand]].mesh, m);
+            }
+        }
+
+        this.has_model = false;
+        
         if(this.instances){
             for( let k in this.instances){
-                if(this.instances[k].owner != this.my_name){
+                if(this.instances[k].owner != this.my_name && k!= this.held_id[0] && k!=this.held_id[1]){
                         mat4.multiply(m,this.inv_player_space, this.instances[k].pose);
-                        if(this.instances[k].mesh.substr(0,5) === "shape"){ // shapes don't need to push bone data
+                        if(this.instances[k].mesh.substr(0,2) === "s-"){ // shapes don't need to push bone data
                             tools.renderer.drawMesh(this.instances[k].mesh, m);
                         }else{
                             tools.renderer.drawMesh(this.instances[k].mesh, m , this.instances[k].bones);
                         }
                 }else{
-                    has_model = true;
+                    this.has_model = true;
                 }
             }
         }
 
-        // Draw your model with no delay
-        if(has_model){
-            tools.renderer.drawMesh(this.my_avatar, this.model_pose, this.my_bones);
-        }
+        
     }
 
     cycleAvatar(){
