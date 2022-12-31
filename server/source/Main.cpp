@@ -206,12 +206,12 @@ void addTestShapes(Timeline* timeline){
     timeline->subscribe("tetra_solid_maker", "tetra_shape_created",
     [timeline,st,mass](const string& subscriber, const string& trigger, const Variant& data){
         int shape_id = data.getInt();
-        for(float x = -1.5; x < 1.5; x+=0.75f){
-        for(float y = 0; y < 0.5; y+=0.75f){
+        for(float x = -3; x < 3; x+=0.75f){
+        for(float y = -0.75; y < 1.25; y+=0.75f){
             std::unique_ptr<ConvexSolid> solid = std::make_unique<ConvexSolid>(
                 ConvexSolid(shape_id, mass, glm::vec3(x,y,-0.75f), glm::quat(0,0,0,1)));
             //solid->velocity = vec3(10.0f*(randomFloat()-0.5f),10.0f*(randomFloat()-0.5f),10.0f*(randomFloat()-0.5f));
-            timeline->createObject(std::move(solid), std::make_unique<MoveSimpleSolid>(1.0/90), st+ 1.1 + 0.01*randomFloat() );
+            timeline->createObject(std::move(solid), std::make_unique<MoveSimpleSolid>(1.0/45), st+ 1.1 + 0.01*randomFloat() );
         }}
     });
 
@@ -222,12 +222,12 @@ void addTestShapes(Timeline* timeline){
     timeline->subscribe("box_solid_maker", "box_shape_created",
     [timeline,st,mass](const string& subscriber, const string& trigger, const Variant& data){
         int shape_id = data.getInt();
-        for(float x = -1.5; x < 1.5; x+=0.75f){
-        for(float y = 0; y < 0.5; y+=0.75f){
+        for(float x = -3; x < 3; x+=0.75f){
+        for(float y = -0.75; y < 1.25; y+=0.75f){
             std::unique_ptr<ConvexSolid> solid = std::make_unique<ConvexSolid>(
                 ConvexSolid(shape_id, mass, glm::vec3(x,y,-0.25), glm::quat(0,0,0,1)));
             //solid->velocity = vec3(10.0f*(randomFloat()-0.5f),10.0f*(randomFloat()-0.5f),10.0f*(randomFloat()-0.5f));
-            timeline->createObject(std::move(solid), std::make_unique<MoveSimpleSolid>(1.0/90), st+ 1.1 + 0.01*randomFloat() );
+            timeline->createObject(std::move(solid), std::make_unique<MoveSimpleSolid>(1.0/45), st+ 1.1 + 0.01*randomFloat() );
         }}
     });
 
@@ -239,12 +239,12 @@ void addTestShapes(Timeline* timeline){
     timeline->subscribe("cylinder_solid_maker", "cylinder_shape_created",
     [timeline,st,mass](const string& subscriber, const string& trigger, const Variant& data){
         int shape_id = data.getInt();
-        for(float x = -1.5; x < 1.5; x+=0.75f){
-        for(float y = 0; y < 0.5; y+=0.75f){
+        for(float x = -3; x < 3; x+=0.75f){
+        for(float y = -0.75; y < 1.25; y+=0.75f){
             std::unique_ptr<ConvexSolid> solid = std::make_unique<ConvexSolid>(
                 ConvexSolid(shape_id, mass, glm::vec3(x,y,0.25), glm::quat(0,0,0,1)));
             //solid->velocity = vec3(10.0f*(randomFloat()-0.5f),10.0f*(randomFloat()-0.5f),10.0f*(randomFloat()-0.5f));
-            timeline->createObject(std::move(solid), std::make_unique<MoveSimpleSolid>(1.0/90), st+ 1.1 + 0.01*randomFloat() );
+            timeline->createObject(std::move(solid), std::make_unique<MoveSimpleSolid>(1.0/45), st+ 1.1 + 0.01*randomFloat() );
         }}
     });
     
@@ -256,12 +256,12 @@ void addTestShapes(Timeline* timeline){
     timeline->subscribe("sphere_solid_maker", "sphere_shape_created",
     [timeline,st, mass](const string& subscriber, const string& trigger, const Variant& data){
         int shape_id = data.getInt();
-        for(float x = -1.5; x < 1.5; x+=0.75f){
-        for(float y = 0; y < 0.5; y+=0.75f){
+        for(float x = -3; x < 3; x+=0.75f){
+        for(float y = -0.75; y < 1.25; y+=0.75f){
             std::unique_ptr<ConvexSolid> solid = std::make_unique<ConvexSolid>(
                 ConvexSolid(shape_id, mass, glm::vec3(x,y,0.75), glm::quat(0,0,0,1)));
             //solid->velocity = vec3(10.0f*(randomFloat()-0.5f),10.0f*(randomFloat()-0.5f),10.0f*(randomFloat()-0.5f));
-            timeline->createObject(std::move(solid), std::make_unique<MoveSimpleSolid>(1.0/90), st+ 1.1+ 0.01*randomFloat() );
+            timeline->createObject(std::move(solid), std::make_unique<MoveSimpleSolid>(1.0/45), st+ 1.1+ 0.01*randomFloat() );
         }}
     });
 
@@ -391,7 +391,7 @@ int main(int argc, const char** argv) {
     signal(SIGINT, quit); // Catch CTRL-C to exit gracefully
     
     timeline->auto_clear_history = true;
-    timeline->observable_interpolation = false;
+    timeline->observable_interpolation = true;
     long last_network_print_time = timeMilliseconds() ;
     while (running) {
         //animateDragon(timeline, 20, vec3(0,15,0), 20, 0.7);

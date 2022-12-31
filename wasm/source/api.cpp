@@ -149,7 +149,7 @@ Timeline* initialize2DBallTimeline(int width, int height, int amount, float min_
 Timeline* initializeChatTimeline(){
     timeline = make_unique<Timeline>(&MeshInstance::createEvent, &MeshInstance::createObject);
     timeline->auto_clear_history=true;
-    timeline->observable_interpolation = false;
+    timeline->observable_interpolation = true;
     return timeline.get() ;
 }
 
@@ -594,24 +594,19 @@ byte* getMeshInstances(byte* ptr){
                 }
             }else if(o->type == 2){ // convex solid
                 shared_ptr<ConvexSolid> solid= std::static_pointer_cast<ConvexSolid>(o);
-                
-                weak_ptr<TObject> os = timeline->getLastObserved(solid->shape_id);
-                if(auto s = os.lock()){// only send display data for shapes in observable mode
-                    shared_ptr<ConvexShape> shape = std::static_pointer_cast<ConvexShape>(s);
-                    string mesh_name = "shape-" + std::to_string(solid->shape_id);
-                    std::shared_ptr<GLTF> mesh_asset = meshes[mesh_name];
-                    if(mesh_asset != nullptr){
-                        map<string, Variant> inst_map ;
-                        inst_map["mesh"] = Variant(mesh_name) ;
-                        inst_map["owner"] = Variant("physics") ;
-                        inst_map["pose"] = Variant(solid->getTransform());
-                        ret_map[std::to_string(ob[k])] = Variant(inst_map);
-                    }
+                string mesh_name = "s-" + std::to_string(solid->shape_id);
+                std::shared_ptr<GLTF> mesh_asset = meshes[mesh_name];
+                if(mesh_asset != nullptr){
+                    map<string, Variant> inst_map ;
+                    inst_map["mesh"] = Variant(mesh_name) ;
+                    //inst_map["owner"] = Variant("physics") ;
+                    inst_map["pose"] = Variant(solid->getTransform());
+                    ret_map[std::to_string(ob[k])] = Variant(inst_map);
                 }
             
             }else if(o->type == 3){ // convex shape
                 shared_ptr<ConvexShape> shape = std::static_pointer_cast<ConvexShape>(o);
-                    string mesh_name = "shape-" + std::to_string(ob[k]) ;
+                    string mesh_name = "s-" + std::to_string(ob[k]) ;
                     std::shared_ptr<GLTF> mesh_asset = meshes[mesh_name] ;
                     if(mesh_asset == nullptr){
                         

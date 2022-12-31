@@ -253,7 +253,7 @@ void Timeline::run(double new_time){
             recent_unruns.clear();
         }
 
-        if(auto_clear_history && current_event->time - last_clear_time > history_kept*2){
+        if(auto_clear_history && current_event->time - last_clear_time > history_kept*1.2){
             current_time = fmax(current_time,current_event->time) ;
             clearHistoryBefore(current_time-history_kept);
         }

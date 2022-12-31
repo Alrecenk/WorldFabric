@@ -83,7 +83,12 @@ std::unique_ptr<TObject> ConvexSolid::deepCopy(){
 // Override this function to provide logic for interpolation after rollback or extrapolation for slowly updating objects
 // If not overridden getObserved returns the raw value of the object
 std::unique_ptr<TObject> ConvexSolid::getObserved(double time, const std::weak_ptr<TObject> last_observed, double last_time){
-    return deepCopy();
+    std::unique_ptr<ConvexSolid> c = std::make_unique<ConvexSolid>(position, radius, mass, shape_id, velocity, orientation, angular_velocity);
+    c->moveable = moveable ;
+    c->is_observable = is_observable ;
+    c->status = status ; // copy status only locally, so getObservable can pick it up for debug visuals
+    c->move(time - write_time);
+    return c;
 }
 
 // Returns the matrix mapping the shape's local points into world space
