@@ -62,6 +62,7 @@ void SetConvexSolid::run(){
         self->orientation = new_orientation;
         self->angular_velocity = new_angular_velocity;
         self->moveable = new_moveable ;
+        self->last_set_time = time ;
         weak_ptr<TObject> sw = get(self->shape_id) ; 
         if(auto sg = sw.lock()){ // if has a shape
             shared_ptr<ConvexShape> shape = std::static_pointer_cast<ConvexShape>(sg);
