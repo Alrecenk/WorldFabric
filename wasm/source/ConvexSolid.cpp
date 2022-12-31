@@ -52,6 +52,7 @@ std::map<std::string,Variant> ConvexSolid::serialize() const {
     serial["m"] = Variant(mass);
     serial["z"] = Variant(moveable ? 1 : 0);
     serial["d"] = Variant(is_observable ? 1 : 0);
+    serial["l"] = Variant(last_set_time);
     serial["type"] = Variant(type);
     return serial;
 }
@@ -67,6 +68,7 @@ void ConvexSolid::set(std::map<std::string,Variant>& serialized){
     mass = serialized["m"].getFloat();
     moveable = serialized["z"].getInt() == 1;
     is_observable = serialized["d"].getInt() == 1 ;
+    last_set_time = serialized["l"].getFloat();
 }
 
 
@@ -77,6 +79,7 @@ std::unique_ptr<TObject> ConvexSolid::deepCopy(){
     c->moveable = moveable ;
     c->is_observable = is_observable ;
     c->status = status ; // copy status only locally, so getObservable can pick it up for debug visuals
+    c->last_set_time = last_set_time ;
     return c ;
 }
 
@@ -87,6 +90,7 @@ std::unique_ptr<TObject> ConvexSolid::getObserved(double time, const std::weak_p
     c->moveable = moveable ;
     c->is_observable = is_observable ;
     c->status = status ; // copy status only locally, so getObservable can pick it up for debug visuals
+    c->last_set_time = last_set_time ;
     c->move(time - write_time);
     return c;
 }

@@ -64,6 +64,10 @@ void MoveSimpleSolid::run(){
     if(auto og = ow.lock()){
         shared_ptr<ConvexSolid> self = std::static_pointer_cast<ConvexSolid>(og);
         bool moving = false;
+        // Unstick grabbable visible solids if they haven't been manually set in hald a second
+        if(self->is_observable && time-self->last_set_time>0.5){
+            self->moveable = true;
+        }
         if(self->moveable){
             float speed = glm::length(self->velocity);
             if(speed > 0){

@@ -13,6 +13,7 @@ class ConvexSolid : public TObject{
         glm::vec3 velocity;
         glm::quat orientation;
         glm::vec3 angular_velocity;
+        float last_set_time = 0 ;
         float mass;
         bool moveable = true;
 
