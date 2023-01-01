@@ -12,6 +12,9 @@ class MeshInstance : public TObject{
         Variant bone_data;
         bool bones_compressed;
 
+        //delay in seconds to target for mesh instance interpolation (mostly for remote avatar pose smoothing)
+        static constexpr double mesh_interpolation_delay = 0.025;
+
         MeshInstance();
 
         MeshInstance(glm::vec3 p, float r, const std::string& own, const std::string& name, const glm::mat4& m, const Variant& bones, bool compressed);

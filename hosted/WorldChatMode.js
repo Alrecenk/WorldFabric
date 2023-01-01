@@ -53,6 +53,9 @@ class WorldChatMode extends ExecutionMode{
     last_pose = [mat4.create(), mat4.create()] ;
     last_hand_time = [0,0] ;
 
+    last_avatar_pose_send = new Date().getTime();
+    min_avatar_send_interval =  1000.0/50 ;
+
 
     // Tools is an object with string keys that may include things such as the canvas,
     // API WASM Module, an Interface manager, and/or a mesh manager for shared webGL functionality
@@ -501,7 +504,10 @@ class WorldChatMode extends ExecutionMode{
                 break ;
             }
         }
-        if(this.my_mesh_id >= 0){
+        let time = new Date().getTime();
+
+        if(this.my_mesh_id >= 0 && time - this.last_avatar_pose_send > this.min_avatar_send_interval){
+            this.last_avatar_pose_send = time ;
             //console.log("Found my owned model: " + id);
             mat4.multiply(MP,this.player_space, this.model_pose);
             tools.API.call("setMeshInstance", {id:this.my_mesh_id, pose:MP}, new Serializer());

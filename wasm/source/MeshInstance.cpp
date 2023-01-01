@@ -69,6 +69,67 @@ std::unique_ptr<TObject> MeshInstance::deepCopy(){
 // Override this function to provide logic for interpolation after rollback or extrapolation for slowly updating objects
 // If not overridden getObserved returns the raw value of the object
 std::unique_ptr<TObject> MeshInstance::getObserved(double time, const std::weak_ptr<TObject> last_observed, double last_time){
+    if(auto og = last_observed.lock()){
+       std::shared_ptr<MeshInstance> last = std::static_pointer_cast<MeshInstance>(og);
+    if(bones_compressed && last->bones_compressed && write_time - last->write_time > 0.01){
+        // last_observed is at t = 0 and current is at t = 1 
+        double target_time = time-mesh_interpolation_delay ;
+        double t = (target_time - last->write_time)/(write_time - last->write_time);
+        printf("time: %f, target: %f, write_time: %f, last_write: %f, t: %f\n", time, target_time, write_time, last->write_time, t);
+        map<int, glm::quat> interpolated_bones ;
+        //decompress the last observed bone data to use as basis for interpolation
+        byte* data = last->bone_data.getByteArray();
+        int num_set = last->bone_data.getArrayLength()/9;
+        for(int k=0;k<num_set;k++){
+            int node_id = data[k*9];
+            glm::quat& r = interpolated_bones[node_id];
+            r.x = ((short *)(data+k*9+1))[0]/32767.0f ;
+            r.y = ((short *)(data+k*9+3))[0]/32767.0f ;
+            r.z = ((short *)(data+k*9+5))[0]/32767.0f ;
+            r.w = ((short *)(data+k*9+7))[0]/32767.0f ;
+            glm::normalize(r) ;
+        }
+
+        //decompress the current bone data and interpolate as required
+        data = bone_data.getByteArray();
+        num_set = bone_data.getArrayLength()/9;
+        for(int k=0;k<num_set;k++){
+            int node_id = data[k*9];
+            glm::quat r_now ;
+            r_now.x = ((short *)(data+k*9+1))[0]/32767.0f ;
+            r_now.y = ((short *)(data+k*9+3))[0]/32767.0f ;
+            r_now.z = ((short *)(data+k*9+5))[0]/32767.0f ;
+            r_now.w = ((short *)(data+k*9+7))[0]/32767.0f ;
+            glm::normalize(r_now ) ;
+            if(interpolated_bones.find(node_id) != interpolated_bones.end()){
+                interpolated_bones[node_id] = GLTF::slerp(interpolated_bones[node_id], r_now, t);
+            }else{
+                interpolated_bones[node_id] = r_now ;
+            }
+        }
+
+        // recompress (we have to since we don't know how many bones there are to return it uncompresssed)
+        Variant bone_buffer;
+        bone_buffer.makeFillableByteArray(interpolated_bones.size()*9);
+        data = bone_buffer.getByteArray();
+        int j = 0 ;
+        for(auto& [node_id, r] : interpolated_bones){
+            data[j] = node_id;
+            j++;
+            ((short *) (data+j))[0] = (short)(r.x*32767) ;
+            j+=2;
+            ((short *) (data+j))[0] = (short)(r.y*32767) ;
+            j+=2;
+            ((short *) (data+j))[0] = (short)(r.z*32767) ;
+            j+=2;
+            ((short *) (data+j))[0] = (short)(r.w*32767) ;
+            j+=2;
+        }
+
+        auto c = std::make_unique<MeshInstance>(position, radius, owner, mesh_name, pose, bone_buffer, true);
+        c->write_time = target_time ;
+        return c ;
+    }}
     return deepCopy() ;
 }
 
