@@ -31,7 +31,8 @@
 #include "SetConvexSolid.h"
 #include "BSPNode.h"
 #include "PartitioningRadianceField.h"
-
+#include "ImageField.h"
+#include "stb_image.h"
 
 using std::vector;
 using std::string;
@@ -63,8 +64,16 @@ float action_delay = 0.05;
 
 std::unordered_map<int, TObject*> descriptor_cache ;
 
-int unlocked_field_rows = 7;
+int unlocked_field_rows = 2;
 PartitioningRadianceField field(unlocked_field_rows) ;
+
+// Image used for the BSP image training test
+Variant original_image ;
+int original_image_width;
+int original_image_height;
+int original_image_channels;
+
+ImageField image_field(unlocked_field_rows);
 
 
 long timeMilliseconds() {
@@ -1003,7 +1012,7 @@ byte* getFieldImage(byte* ptr){
 
 byte* trainField(byte* ptr){
     auto obj = Variant::deserializeObject(ptr);
-    int rays = obj["rays"].getInt();
+    int rays = obj["samples"].getInt();
     int iter = obj["iter"].getInt();
     int step_iter = obj["step_iter"].getInt();
     int m = obj["m"].getInt();
@@ -1065,6 +1074,188 @@ byte* growField(byte* ptr){
     field.lockRow(field.numRows()-unlocked_field_rows) ;
     field.addRow();
     
+    return emptyReturn();
+}
+
+byte* setSourceImage(byte* ptr){
+    auto obj = Variant::deserializeObject(ptr);
+    byte* byte_array = obj["data"].getByteArray();
+    int num_bytes = obj["data"].getArrayLength();
+    byte* pixels = stbi_load_from_memory(byte_array, num_bytes, &original_image_width, &original_image_height, &original_image_channels, 0) ;
+        
+    original_image = Variant(pixels,original_image_width*original_image_height*original_image_channels);
+    free(pixels);
+
+
+    image_field.training_set.clear();
+
+    byte* original = original_image.getByteArray();
+
+    int size = (int)fmin(original_image_width, original_image_height);
+    for(int x=0;x< original_image_width; x++){
+        for(int y = 0; y < original_image_height; y++){
+            glm::vec2 p = image_field.normalizeImagePosition(x,y,size);
+            int s = (y * original_image_width + x)*original_image_channels ;
+            glm::vec3 color =  glm::vec3 ( (original[s]&0xff)/255.0f,(original[s+1]&0xff)/255.0f,(original[s+2]&0xff)/255.0f);
+            image_field.addTrainingPixel(p,color);
+        }
+    }
+
+    image_field.initializeNode(0,image_field.training_set);
+
+    auto t1 = now() ;
+    float time = millisBetween(animation_start_time, now()) / 1000.0f; // TODO accept time as parameter
+    image_field.buildexptable(-10, 0, 0.000001) ;
+    auto t2 = now();
+
+    printf("Fastexp table build time : %d\n", millisBetween(t1,t2));
+/*
+    double re = 0 ;
+    int amnt =0;
+    for(double xd = -20; xd < 0;xd+=0.000000123){
+        float x = (float)xd ;
+        double e1 = image_field.fastexp(x) ;
+        double e2 = exp(x) ;
+        re += fabs(e1/e2 - 1.0);
+        amnt ++;
+    }
+    printf("Fastexp Average relative error: %f\n", re/amnt);
+
+    
+    auto t3 = now();
+    
+    double y = 0 ;
+    for(double xd = -20; xd < 0;xd+=0.000000123){
+        float x = (float)xd ;
+        y += exp(x);
+        y += exp(x*1.1f);
+        y += exp(x*1.2f);
+        y += exp(x*1.3f);
+        y += exp(x*1.4f);
+    }
+    
+    auto t4 = now();
+
+    
+    for(double xd = -20; xd < 0;xd+=0.000000123){
+        float x = (float)xd ;
+        y += image_field.fastexp(x) ;
+        y += image_field.fastexp(x*1.1f) ;
+        y += image_field.fastexp(x*1.2f) ;
+        y += image_field.fastexp(x*1.3f) ;
+        y += image_field.fastexp(x*1.4f) ;
+    }
+    
+
+    auto t5 = now();
+    int et = millisBetween(t3,t4);
+    int fet = millisBetween(t4,t5);
+    printf("Fast exp time : %d, regular exp time: %d, speedup: %f  value: %f\n", fet, et, et/(float)fet, y);
+*/
+
+    return emptyReturn();
+}
+
+byte* getOriginalImage(byte* ptr){
+    auto obj = Variant::deserializeObject(ptr);
+    int width = obj["width"].getInt();
+    int height = obj["height"].getInt();
+
+    byte* image_data = (byte*)malloc(width*height*4);
+
+    byte* original = original_image.getByteArray();
+
+    for(int x=0;x< width; x++){
+        for(int y = 0; y < height; y++){
+            int i = (y * width + x)*4 ;
+            image_data[i+3] = (byte)255 ;
+            if(x < original_image_width && y < original_image_height){
+                int s = (y * original_image_width + x)*original_image_channels ;
+                image_data[i] = original[s];
+                image_data[i+1] = original[s+1] ;
+                image_data[i+2] = original[s+2] ;
+            }else{
+                image_data[i] = (byte)255;
+                image_data[i+1] = (byte)255 ;
+                image_data[i+2] = (byte)255 ;
+            }
+        }
+    }
+
+    map<string, Variant> ret_map;
+    ret_map["image"] = Variant(image_data, width*height*4);
+    free(image_data);
+    return pack(ret_map);
+
+}
+
+byte* getImageFieldImage(byte* ptr){
+
+    auto obj = Variant::deserializeObject(ptr);
+    int width = obj["width"].getInt();
+    int height = obj["height"].getInt();
+
+    byte* image_data = (byte*)malloc(width*height*4);
+
+    //byte* original = original_image.getByteArray();
+
+    int size = (int)fmin(original_image_width, original_image_height);
+    for(int x=0;x< width; x++){
+        for(int y = 0; y < height; y++){
+            int i = (y * width + x)*4 ;
+            image_data[i+3] = (byte)255 ;
+            if(x < original_image_width && y < original_image_height){
+                
+                glm::vec2 p = image_field.normalizeImagePosition(x,y,size);
+                glm::vec3 color = image_field.color(p);
+                image_data[i] = (byte)(color.r *255) ;
+                image_data[i+1] = (byte)(color.g *255) ;
+                image_data[i+2] = (byte)(color.b *255) ;
+            }else{
+                image_data[i] = (byte)255;
+                image_data[i+1] = (byte)255 ;
+                image_data[i+2] = (byte)255 ;
+            }
+        }
+    }
+
+    map<string, Variant> ret_map;
+    ret_map["image"] = Variant(image_data, width*height*4);
+    free(image_data);
+    return pack(ret_map);
+
+    return emptyReturn();
+}
+
+byte* trainImageField(byte* ptr){
+
+    auto obj = Variant::deserializeObject(ptr);
+    int samples = obj["samples"].getInt();
+    int sample_size = obj["sample_size"].getInt();
+    
+    /*
+    image_field.training_set.clear();
+
+    byte* original = original_image.getByteArray();
+
+    int size = (int)fmin(original_image_width, original_image_height);
+    for(int x=0;x< original_image_width; x++){
+        for(int y = 0; y < original_image_height; y++){
+            glm::vec2 p = image_field.normalizeImagePosition(x,y,size);
+            int s = (y * original_image_width + x)*original_image_channels ;
+            glm::vec3 color =  glm::vec3 ( (original[s]&0xff)/255.0f,(original[s+1]&0xff)/255.0f,(original[s+2]&0xff)/255.0f);
+            image_field.addTrainingPixel(p,color);
+        }
+    }
+    */
+
+    image_field.train();
+    //image_field.train(0,image_field.training_set);
+    return emptyReturn();
+}
+
+byte* growImageField(byte* ptr){
+    image_field.addRow();
     return emptyReturn();
 }
 

@@ -60,6 +60,11 @@ EXPORTED_FUNCTIONS =\
 	'_getFieldImage',\
 	'_trainField',\
 	'_growField',\
+	'_setSourceImage',\
+	'_getOriginalImage',\
+	'_getImageFieldImage',\
+	'_trainImageField',\
+	'_growImageField',\
 	'_free'
 EXTRA_EXPORTED_RUNTIME_METHODS=['ccall']
 API_MAIN = ${API_DIR}source/api.cpp
@@ -92,7 +97,8 @@ API_SRC    =${API_DIR}source/Variant.cpp\
 			${API_DIR}source/Polygon.cpp\
 			${API_DIR}source/BSPNode.cpp\
 			${API_DIR}source/RadialVolume.cpp\
-			${API_DIR}source/PartitioningRadianceField.cpp
+			${API_DIR}source/PartitioningRadianceField.cpp\
+			${API_DIR}source/ImageField.cpp
 
 			
 default: all
