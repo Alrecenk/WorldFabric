@@ -230,6 +230,10 @@ class GLTF : public OptimizationProblem, public TableInterface {
         // return negative if no collision
         float rayTrace(const glm::vec3 &p, const glm::vec3 &v);
 
+        // Given a ray in model space (p + v*t) and a single point light
+        // returns the color that the simple World Fabric shader would
+        glm::vec3 rayTraceColor(const glm::vec3 &p, const glm::vec3 &v, const glm::vec3 &light_point, const float diffuse, const float ambient);
+
         // Returns the index of the closest vertex to the given point
         int getClosestVertex(const glm::vec3 &p);
 

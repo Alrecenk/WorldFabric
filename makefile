@@ -98,7 +98,8 @@ API_SRC    =${API_DIR}source/Variant.cpp\
 			${API_DIR}source/BSPNode.cpp\
 			${API_DIR}source/RadialVolume.cpp\
 			${API_DIR}source/PartitioningRadianceField.cpp\
-			${API_DIR}source/ImageField.cpp
+			${API_DIR}source/ImageField.cpp\
+			${API_DIR}source/SphereField.cpp
 
 			
 default: all

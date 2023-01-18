@@ -30,7 +30,7 @@
 #include "MoveSimpleSolid.h"
 #include "SetConvexSolid.h"
 #include "BSPNode.h"
-#include "PartitioningRadianceField.h"
+#include "SphereField.h"
 #include "ImageField.h"
 #include "stb_image.h"
 
@@ -65,7 +65,6 @@ float action_delay = 0.05;
 std::unordered_map<int, TObject*> descriptor_cache ;
 
 int unlocked_field_rows = 2;
-PartitioningRadianceField field(unlocked_field_rows) ;
 
 // Image used for the BSP image training test
 Variant original_image ;
@@ -74,6 +73,8 @@ int original_image_height;
 int original_image_channels;
 
 ImageField image_field(unlocked_field_rows);
+
+SphereField sphere_field(vec3(0,0,0), 0.9f, 4);
 
 
 long timeMilliseconds() {
@@ -237,6 +238,7 @@ byte* setModel(byte* ptr){
     map<string, Variant> ret_map;
     ret_map["center"] = Variant(center);
     ret_map["size"] = Variant(size);
+    
 
     int millis = millisBetween(start_time, now());
     printf("Total model load time: %d ms\n", millis);
@@ -886,14 +888,6 @@ byte* getSimpleTraceImage(byte* ptr){
 
     std::shared_ptr<GLTF> model = meshes[my_avatar];
     model->applyTransforms();
-
-    /*
-    vector<vector<Polygon>> surfaces = Polygon::collectClosedSurfaces(model);
-    vector<BSPNode> roots ;
-    for(auto& surface : surfaces){
-        roots.emplace_back(surface);
-    }
-    */
     std::unique_ptr<BSPNode> root = make_unique<BSPNode>(model) ;
 
     auto build = now();
@@ -901,29 +895,26 @@ byte* getSimpleTraceImage(byte* ptr){
         for(int y = 0; y < height; y++){
              // Get the pixel vector in screen space using viewport parameters.
             v = getPixelRay(x, y, width, height, pos, invMatrix) ;
-            /*
-            // Use BSP 'cause it's a lot faster
-            float t = 9999999.0 ;
-            for(auto& root : roots){
-                float nt = root.rayTrace(pos,v);
-                if(nt >= 0 && nt < t){
-                    t = nt ;
-                }
-            }
-            */
             float t =  root->rayTrace(pos,v);
 
-            int c = 0;
             rays++;
             if(t > 0 && t < 999999.0){
-                //int tri = model->last_traced_tri ;
-                c = 255 ;
-            }
+
+            vec3 color = model->rayTraceColor(pos,v, light_point, 0.7f, 0.3f);
+            int i = (y * width + x)*4 ;
+            image_data[i] = (byte)(255*color[0]) ;
+            image_data[i+1] = (byte)(255*color[1]) ;
+            image_data[i+2] = (byte)(255*color[2]) ;
+            image_data[i+3] = (byte)255 ;
+            sphere_field.setRay(pos,v, color);
+            }else{
+            int c = 0;
             int i = (y * width + x)*4 ;
             image_data[i] = (byte)c ;
             image_data[i+1] = (byte)c ;
             image_data[i+2] = (byte)c ;
             image_data[i+3] = (byte)255 ;
+            }
         }
     }
 
@@ -936,7 +927,6 @@ byte* getSimpleTraceImage(byte* ptr){
     free(image_data);
     return pack(ret_map);
 }
-
 
 byte* getFieldImage(byte* ptr){
     auto start = now();
@@ -957,51 +947,27 @@ byte* getFieldImage(byte* ptr){
     pv = invMatrix * pv ;
     vec3 v(pv.x/pv.w-pos.x, pv.y/pv.w-pos.y, pv.z/pv.w-pos.z) ;
     v = glm::normalize(v);
-    int rays = 0 ;
-    int correct = 0 ;
-
-    std::shared_ptr<GLTF> model = meshes[my_avatar];
-    model->applyTransforms();
-    std::unique_ptr<BSPNode> root = make_unique<BSPNode>(model) ;
+   
 
     for(int x=0;x< width; x++){
         for(int y = 0; y < height; y++){
              // Get the pixel vector in screen space using viewport parameters.
             v = getPixelRay(x, y, width, height, pos, invMatrix) ;
-            
 
-            float t =  root->rayTrace(pos,v);
-            bool should_hit = false;
-            int c2 = 0 ;
-            if(t > 0 && t < 999999.0){
-                should_hit = true;
-                c2 = 255 ;
-            }
-
-            float output =field.computeValue(pos, v);
+            //float output = field.computeValue(pos, v);
+            vec3 color = sphere_field.getColor(pos,v);
     
-            output = fmin(1.0f,fmax(output,0.0f));
-
-            if((output > 0.5 && should_hit) || (output < 0.5 && !should_hit)){
-                correct++;
-            }
-
-            int c = (int)(255*output);
-            int c3 = 0 ;
-            if(output > 0.5){
-                c3 = 255 ;
-            }
-            rays++;
             int i = (y * width + x)*4 ;
-            image_data[i] = (byte)c2 ;
-            image_data[i+1] = (byte)c ;
-            image_data[i+2] = (byte)c3 ;
+            image_data[i] = (byte)(255*color[0]) ;
+            image_data[i+1] = (byte)(255*color[1]) ;
+            image_data[i+2] = (byte)(255*color[2]) ;
             image_data[i+3] = (byte)255 ;
+
         }
     }
 
     int time = millisBetween(start,now());
-    printf("Radiance Field Render Time: %d  correct: %d/ %d\n", time, correct, rays);
+    printf("Radiance Field Render Time: %d  c\n", time);
     map<string, Variant> ret_map;
     ret_map["image"] = Variant(image_data, width*height*4);
     free(image_data);
@@ -1011,68 +977,12 @@ byte* getFieldImage(byte* ptr){
 
 
 byte* trainField(byte* ptr){
-    auto obj = Variant::deserializeObject(ptr);
-    int rays = obj["samples"].getInt();
-    int iter = obj["iter"].getInt();
-    int step_iter = obj["step_iter"].getInt();
-    int m = obj["m"].getInt();
-
-    auto start = now();
-    printf("Collecting field training data...\n");
-
-    std::shared_ptr<GLTF> model = meshes[my_avatar];
-    model->applyTransforms();
-    std::unique_ptr<BSPNode> root = make_unique<BSPNode>(model) ;
-
-    field.training_set.clear();
-    int hits = 0 ;
-    for(int k=0;k<rays;k++){
-        // generate two points on bounding sphere
-        vec3 p(randomFloat()-0.5,randomFloat()-0.5,randomFloat()-0.5);
-        p = glm::normalize(p)*0.6f;
-        vec3 p2(randomFloat()-0.5,randomFloat()-0.5,randomFloat()-0.5);
-        p2 = glm::normalize(p2)*0.6f;
-        // make ray from one to the other
-        vec3 v = glm::normalize(p2-p);
-
-        // check if it hits the model
-        float t =  root->rayTrace(p,v);
-        float y = 0 ;
-        if(t > 0){
-            y = 1 ;
-            hits++;
-        }
-        field.addTrainingRay(p,v,y);
-    }
-    auto trace_done = now();
-    printf("%d/%d rays hit!\n", hits, rays);
-    printf("Optimizing field...\n");
-
-    vector<float> x0 = field.getX() ;
-    float start_error = field.error(x0) ;
-    vector<float>xf = field.minimizeByLBFGS(x0, m, iter, step_iter, 0.0001, 0.0001);
-    //vector<float>xf = field.minimumByGradientDescent(x0, 0.0001, iter, step_iter) ;
-    float end_error = field.error(xf) ;
     
-    //field.setLeavestoTrainingAverage(0.1);
-    //xf = field.getX();
-
-    int trace_time = millisBetween(start,trace_done);
-    int train_time = millisBetween(trace_done, now());
-    int time = millisBetween(start,now());
-    float end_error2 = field.error(xf) ;
-    printf("Error: %f to %f and %f in %d ms ( %d trace, %d train)\n", start_error, end_error,end_error2, time, trace_time, train_time);
-    /*
-    for(int k=0;k<xf.size();k++){
-        printf("x[%d] = %f \n", k, xf[k]);
-    }*/
-
     return emptyReturn();
 }
 
 byte* growField(byte* ptr){
-    field.lockRow(field.numRows()-unlocked_field_rows) ;
-    field.addRow();
+    
     
     return emptyReturn();
 }

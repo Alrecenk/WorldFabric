@@ -1307,6 +1307,81 @@ float GLTF::rayTrace(const vec3 &p, const vec3 &v){
     }
 }
 
+// Given a ray in model space (p + v*t) and a single point light
+// returns the color that the simple World Fabric shader would
+glm::vec3 GLTF::rayTraceColor(const glm::vec3 &p, const glm::vec3 &v, const glm::vec3 &light_point, const float diffuse, const float ambient){
+    float t = rayTrace(p,v);//BSP tree doesn't know triangles so do a slow trace if it hits
+    if(last_traced_tri < 0){
+        return glm::vec3(0,0,0);
+    }
+    GLTF::Triangle &T = triangles[last_traced_tri] ;
+    vec3 x = p + (v*t) ;
+    GLTF::Vertex &A = vertices[T.A];
+    GLTF::Vertex &B = vertices[T.B];
+    GLTF::Vertex &C = vertices[T.C];
+    vec3 &ax = A.transformed_position;
+    vec3 &bx = B.transformed_position;
+    vec3 &cx = C.transformed_position;
+
+    // barycentric coordinates
+    float ab = glm::length(glm::cross(cx-bx, x-bx)) ;
+    float bb = glm::length(glm::cross(cx-ax, x-ax)) ;
+    float cb = glm::length(glm::cross(bx-ax, x-ax)) ;
+    float total_area = ab+bb+cb;
+    ab/=total_area;
+    bb/=total_area;
+    cb/=total_area;
+    
+    //printf("x: %f, %f, %f\n", x.x, xs.y, x.z);
+    //printf("barycentric: %f, %f, %f\n", ab, bb, cb);
+
+    vec3 v_normal = A.transformed_normal*ab+B.transformed_normal*bb+C.transformed_normal*cb ;
+    Material& mat = materials[T.material] ;
+    glm::vec3 color = mat.color;
+    if(mat.texture){
+        vec2 tex_coord = A.tex_coord*ab + B.tex_coord*bb+C.tex_coord*cb;
+        Image& texture = images[mat.image] ;
+        byte* pixels = texture.data.getByteArray();
+        int tx = (int)(tex_coord.x*texture.width) ;
+        int ty = (int)(tex_coord.y*texture.height) ;
+        while(tx < 0){
+            tx+=texture.width;
+        }
+        while(ty< 0){
+            ty+=texture.height;
+        }
+        tx = tx%texture.width;
+        ty = ty%texture.height;
+        //tx = std::max(0, std::min(tx, texture.width-1));
+        //ty = std::max(0, std::min(ty, texture.height-1));
+
+        int s = (ty * texture.width + tx)*texture.channels ;
+        color =  glm::vec3 ( (pixels[s]&0xff)/255.0f,(pixels[s+1]&0xff)/255.0f,(pixels[s+2]&0xff)/255.0f);
+        /*
+        if(texture.channels == 4){
+            float alpha = (pixels[s+3]&0xff)/255.0f ;
+            if(alpha < 0.5){
+                color = vec3(0.0f,1.0f,0);
+            }
+        }
+
+        if(glm::length(color) < 0.001 || tx < 0 || ty < 0 || tx > texture.width-1 || ty > texture.height-1){
+            printf("Black pixel: image = %d  tex_cooord=(%f,%f)\n", mat.image, tex_coord.x, tex_coord.y);
+            color = vec3(0.0f,0,1.0f);
+        }
+    */
+    }/*else{
+        color = vec3(1.0f,0,0);
+    }*/
+
+    
+    vec3 light_ray = x- light_point;
+    float direct = fmax(0., -glm::dot(light_ray, v_normal)/glm::length(light_ray));
+    float l = ambient + diffuse * direct ; // Add some ambient light
+    l = fmin(1.0f,l);
+    return color * l;
+}
+
 // Returns the index of the closest vertex to the given point
 int GLTF::getClosestVertex(const glm::vec3 &p){
     int best = 0;
