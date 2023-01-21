@@ -33,6 +33,8 @@
 #include "SphereField.h"
 #include "ImageField.h"
 #include "stb_image.h"
+#include "FieldImage.h"
+#include "FieldImageSet.h"
 
 using std::vector;
 using std::string;
@@ -74,7 +76,9 @@ int original_image_channels;
 
 ImageField image_field(unlocked_field_rows);
 
-SphereField sphere_field(vec3(0,0,0), 0.9f, 4);
+//SphereField sphere_field(vec3(0,0,0), 0.9f, 4);
+
+FieldImageSet image_set ;
 
 
 long timeMilliseconds() {
@@ -878,13 +882,22 @@ byte* getSimpleTraceImage(byte* ptr){
     mat4 invMatrix = glm::inverse((*pMatrix)*(*mvMatrix)) ;
 
     byte* image_data = (byte*)malloc(width*height*4);
-
+    Variant point_texture;
+    point_texture.makeFillableFloatArray(width*height*3);
+    float* point_data = point_texture.getFloatArray();
     // Get the pixel vector in screen space using viewport parameters.
     vec4 pv (0, 0, 1, 1);
     pv = invMatrix * pv ;
     vec3 v(pv.x/pv.w-pos.x, pv.y/pv.w-pos.y, pv.z/pv.w-pos.z) ;
     v = glm::normalize(v);
-    int rays = 0 ;
+
+    std::vector<glm::vec2> ps = {glm::vec2(0,0), glm::vec2(width,0), glm::vec2(width,height), glm::vec2(0,height)};
+    std::vector<std::pair<glm::vec3, glm::vec2>> ray_examples;
+    for(auto& p : ps){
+        ray_examples.push_back(std::pair<glm::vec3, glm::vec2>(getPixelRay(p.x, p.y, width, height, pos, invMatrix), p));
+    }
+
+    FieldImage fi(pos, v , ray_examples);
 
     std::shared_ptr<GLTF> model = meshes[my_avatar];
     model->applyTransforms();
@@ -897,26 +910,43 @@ byte* getSimpleTraceImage(byte* ptr){
             v = getPixelRay(x, y, width, height, pos, invMatrix) ;
             float t =  root->rayTrace(pos,v);
 
-            rays++;
             if(t > 0 && t < 999999.0){
+                vec3 color = model->rayTraceColor(pos,v, light_point, 0.7f, 0.3f);
+                int i = (y * width + x)*4 ;
+                image_data[i] = (byte)(255*color[0]) ;
+                image_data[i+1] = (byte)(255*color[1]) ;
+                image_data[i+2] = (byte)(255*color[2]) ;
+                image_data[i+3] = (byte)255 ;
+                
+                int ip = (y * width + x)*3 ;
+                vec3 px = pos + (v*t) ;
+                point_data[ip] = px.x ;
+                point_data[ip+1] = px.y ;
+                point_data[ip+2] = px.z ;
 
-            vec3 color = model->rayTraceColor(pos,v, light_point, 0.7f, 0.3f);
-            int i = (y * width + x)*4 ;
-            image_data[i] = (byte)(255*color[0]) ;
-            image_data[i+1] = (byte)(255*color[1]) ;
-            image_data[i+2] = (byte)(255*color[2]) ;
-            image_data[i+3] = (byte)255 ;
-            sphere_field.setRay(pos,v, color);
             }else{
-            int c = 0;
-            int i = (y * width + x)*4 ;
-            image_data[i] = (byte)c ;
-            image_data[i+1] = (byte)c ;
-            image_data[i+2] = (byte)c ;
-            image_data[i+3] = (byte)255 ;
+                int c = 0;
+                int i = (y * width + x)*4 ;
+                image_data[i] = (byte)c ;
+                image_data[i+1] = (byte)c ;
+                image_data[i+2] = (byte)c ;
+                image_data[i+3] = (byte)255 ;
+
+                
+                int ip = (y * width + x)*3 ;
+                //vec3 px = pos + (v*10.0f) ;
+                vec3 px(1000.f,10000.f,5000.f);
+                point_data[ip] = px.x ;
+                point_data[ip+1] = px.y ;
+                point_data[ip+2] = px.z ;
+
             }
         }
     }
+
+    Variant id = Variant(image_data, width*height*4) ;
+    fi.moveImage(id, point_texture, width,height, 4);
+    image_set.addImage(fi);
 
     int time = millisBetween(start,now());
     int build_time = millisBetween(start,build);
@@ -955,7 +985,9 @@ byte* getFieldImage(byte* ptr){
             v = getPixelRay(x, y, width, height, pos, invMatrix) ;
 
             //float output = field.computeValue(pos, v);
-            vec3 color = sphere_field.getColor(pos,v);
+            //vec3 color = sphere_field.getColor(pos,v);
+
+            vec3 color = image_set.getColor(pos,v);
     
             int i = (y * width + x)*4 ;
             image_data[i] = (byte)(255*color[0]) ;

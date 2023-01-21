@@ -339,14 +339,14 @@ function initializeModes(){
 function setMainMenuButtons(){
     tools.buttons = {};
     tools.buttons["fps_label"] = new InterfaceButton(tools.canvas.width-80, 10, 80, 40, "FPS:?", 20, "#FFFFFF", "#000000", "#000000", 3, null);
-    tools.buttons["enter_vr"] = new InterfaceButton(5, 10, 200, 40, "Enter VR", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, () => {tools.renderer.startXRSession();});
+    tools.buttons["enter_vr"] = new InterfaceButton(5, 10, 100, 40, "Enter VR", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, () => {tools.renderer.startXRSession();});
     
-    tools.buttons["cpu_trace"] = new InterfaceButton(5, 50, 200, 40, "CPU Trace", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, CPUTrace);
-    tools.buttons["field_trace"] = new InterfaceButton(5, 90, 200, 40, "Field Trace", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, fieldTrace);
-    tools.buttons["clear_trace"] = new InterfaceButton(5, 130, 200, 40, "Clear Trace", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, clearTrace);
+    tools.buttons["cpu_trace"] = new InterfaceButton(5, 50, 100, 40, "CPU Trace", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, CPUTrace);
+    tools.buttons["field_trace"] = new InterfaceButton(5, 90, 100, 40, "Field Trace", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, fieldTrace);
+    tools.buttons["clear_trace"] = new InterfaceButton(5, 130, 100, 40, "Clear Trace", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, clearTrace);
 
-    tools.buttons["field_train"] = new InterfaceButton(5, 170, 200, 40, "Field Train", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, fieldTrain);
-    tools.buttons["grow_field"] = new InterfaceButton(5, 210, 200, 40, "Grow Field", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, growField);
+    tools.buttons["field_train"] = new InterfaceButton(5, 170, 100, 40, "Field Train", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, fieldTrain);
+    tools.buttons["grow_field"] = new InterfaceButton(5, 210, 100, 40, "Grow Field", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, growField);
 }
 
 function onBodyLoad(){
