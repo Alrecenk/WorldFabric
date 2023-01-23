@@ -32,11 +32,11 @@ void runUnitTests(){
 void loadModels(unordered_map<string, Variant>& table){
     map<string,string> models ;
     models["default_avatar"] = "./models/default_avatar.vrm";
-    //models["alternate_avatar"] = "./models/alternate_avatar.vrm";
+    models["alternate_avatar"] = "./models/alternate_avatar.vrm";
     //models["avatar_3"] = "./models/avatar_3.vrm";
     //models["avatar_4"] = "./models/avatar_4.vrm";
     models["eroom"] = "./models/room.glb";
-    //models["dragon"] = "./models/dragon.glb";
+    models["dragon"] = "./models/dragon.glb";
     models["bunny"] = "./models/bunny350.glb";
     models["default_world"] = "./models/default_world.glb";
     models["default_skybox"] = "./models/default_skybox.glb";
@@ -206,7 +206,7 @@ void addTestShapes(Timeline* timeline){
     timeline->subscribe("tetra_solid_maker", "tetra_shape_created",
     [timeline,st,mass](const string& subscriber, const string& trigger, const Variant& data){
         int shape_id = data.getInt();
-        for(float x = -3; x < 3; x+=0.75f){
+        for(float x = -1; x < 1; x+=0.75f){
         for(float y = -0.75; y < 1.25; y+=0.75f){
             std::unique_ptr<ConvexSolid> solid = std::make_unique<ConvexSolid>(
                 ConvexSolid(shape_id, mass, glm::vec3(x,y,-0.75f), glm::quat(0,0,0,1)));
@@ -222,7 +222,7 @@ void addTestShapes(Timeline* timeline){
     timeline->subscribe("box_solid_maker", "box_shape_created",
     [timeline,st,mass](const string& subscriber, const string& trigger, const Variant& data){
         int shape_id = data.getInt();
-        for(float x = -3; x < 3; x+=0.75f){
+        for(float x = -1; x < 1; x+=0.75f){
         for(float y = -0.75; y < 1.25; y+=0.75f){
             std::unique_ptr<ConvexSolid> solid = std::make_unique<ConvexSolid>(
                 ConvexSolid(shape_id, mass, glm::vec3(x,y,-0.25), glm::quat(0,0,0,1)));
@@ -239,7 +239,7 @@ void addTestShapes(Timeline* timeline){
     timeline->subscribe("cylinder_solid_maker", "cylinder_shape_created",
     [timeline,st,mass](const string& subscriber, const string& trigger, const Variant& data){
         int shape_id = data.getInt();
-        for(float x = -3; x < 3; x+=0.75f){
+        for(float x = -1; x < 1; x+=0.75f){
         for(float y = -0.75; y < 1.25; y+=0.75f){
             std::unique_ptr<ConvexSolid> solid = std::make_unique<ConvexSolid>(
                 ConvexSolid(shape_id, mass, glm::vec3(x,y,0.25), glm::quat(0,0,0,1)));
@@ -256,7 +256,7 @@ void addTestShapes(Timeline* timeline){
     timeline->subscribe("sphere_solid_maker", "sphere_shape_created",
     [timeline,st, mass](const string& subscriber, const string& trigger, const Variant& data){
         int shape_id = data.getInt();
-        for(float x = -3; x < 3; x+=0.75f){
+        for(float x = -1; x < 1; x+=0.75f){
         for(float y = -0.75; y < 1.25; y+=0.75f){
             std::unique_ptr<ConvexSolid> solid = std::make_unique<ConvexSolid>(
                 ConvexSolid(shape_id, mass, glm::vec3(x,y,0.75), glm::quat(0,0,0,1)));
@@ -393,9 +393,9 @@ int main(int argc, const char** argv) {
     timeline->auto_clear_history = true;
     timeline->observable_interpolation = true;
     long last_network_print_time = timeMilliseconds() ;
+    long last_dragon_animate_time = timeMilliseconds() ;
     while (running) {
-        //animateDragon(timeline, 20, vec3(0,15,0), 20, 0.7);
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));  
         timeline->run();
         TimelineServer::quickForwardEvents();
 
@@ -408,6 +408,12 @@ int main(int argc, const char** argv) {
           printf("Timeline: Sent: %f MB/s Received %f MB/s\n", sent, got);
           last_network_print_time = time ;
         }
+        
+        if(time > last_dragon_animate_time + 1000.0/60){
+            last_dragon_animate_time = time ;
+            //animateDragon(timeline, 20, vec3(0,15,0), 20, 0.3);
+        }
+        
     }
     //web_server.stop();
     timeline_server.stop();

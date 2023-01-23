@@ -32,7 +32,7 @@ class WorldChatMode extends ExecutionMode{
 
     my_name = "player " + Math.floor(Math.random() * 1000000000) ;
     my_avatar = "default_avatar" ;
-    avatars = ["default_avatar"/*,"alternate_avatar", "avatar_4"*/];
+    avatars = ["default_avatar","alternate_avatar",/* "avatar_4"*/];
     avatar_id = 0 ;
     my_mesh_id = -1;
     last_avatar_change = 0 ;
@@ -54,7 +54,7 @@ class WorldChatMode extends ExecutionMode{
     last_hand_time = [0,0] ;
 
     last_avatar_pose_send = new Date().getTime();
-    min_avatar_send_interval =  1000.0/50 ;
+    min_avatar_send_interval =  1000.0/60 ;
 
 
     // Tools is an object with string keys that may include things such as the canvas,
