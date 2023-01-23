@@ -13,7 +13,7 @@ class MeshInstance : public TObject{
         bool bones_compressed;
 
         //delay in seconds to target for mesh instance interpolation (mostly for remote avatar pose smoothing)
-        static constexpr double mesh_interpolation_delay = 0.025;
+        static constexpr double mesh_interpolation_delay = 1.0/90.0;
 
         MeshInstance();
 
