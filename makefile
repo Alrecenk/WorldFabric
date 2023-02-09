@@ -56,6 +56,9 @@ EXPORTED_FUNCTIONS =\
 	'_setSolidPose',\
 	'_setIKParams',\
 	'_setAvatar',\
+	'_setSolidPoseTelekinesis',\
+	'_getTelekinesisGrab',\
+	'_getSolidPose',\
 	'_free'
 EXTRA_EXPORTED_RUNTIME_METHODS=['ccall']
 API_MAIN = ${API_DIR}source/api.cpp
@@ -87,7 +90,8 @@ API_SRC    =${API_DIR}source/Variant.cpp\
 			${API_DIR}source/ApplySolidImpulse.cpp\
 			${API_DIR}source/Polygon.cpp\
 			${API_DIR}source/BSPNode.cpp\
-			${API_DIR}source/RadialVolume.cpp
+			${API_DIR}source/RadialVolume.cpp\
+			${API_DIR}source/ApplyTelekinesis.cpp
 
 			
 default: all
