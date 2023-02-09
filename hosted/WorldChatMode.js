@@ -123,19 +123,20 @@ class WorldChatMode extends ExecutionMode{
         if(this.has_model){
             tools.renderer.drawMesh(this.my_avatar, this.model_pose, this.my_bones);
         }
+        /*
         // draw your held item also with no delay
         for(let hand = 0; hand < 2; hand++){
             if(this.held_id[hand] >=0 ){
                 mat4.multiply(m,this.inv_player_space, this.last_pose[hand]);
                 tools.renderer.drawMesh(this.instances[this.held_id[hand]].mesh, m);
             }
-        }
+        }*/
 
         this.has_model = false;
         
         if(this.instances){
             for( let k in this.instances){
-                if(this.instances[k].owner != this.my_name && k!= this.held_id[0] && k!=this.held_id[1]){
+                if(this.instances[k].owner != this.my_name /*&& k!= this.held_id[0] && k!=this.held_id[1]*/){
                         mat4.multiply(m,this.inv_player_space, this.instances[k].pose);
                         if(this.instances[k].mesh.substr(0,2) === "s-"){ // shapes don't need to push bone data
                             tools.renderer.drawMesh(this.instances[k].mesh, m);
@@ -235,6 +236,7 @@ class WorldChatMode extends ExecutionMode{
     
     vrInputSourcesUpdated(xr_input){
         let GRIP = 1 ; //constant for grip button on controllers
+        let TRIGGER = 0 ;
         let B_BUTTON = 5 ;
         //console.log("model pose start:" + JSON.stringify(this.model_pose));
 
@@ -410,27 +412,38 @@ class WorldChatMode extends ExecutionMode{
                     //console.log("grip button pressed");
                     let pose = mat4.create();
                     mat4.multiply(pose,this.player_space,current_grip);
-                    
+                    let inv_pose = mat4.create();
+                    mat4.invert(inv_pose, pose);
 
                     if(this.held_id[which_hand] == -1){
-                        let inv_pose = mat4.create();
-                        mat4.invert(inv_pose, pose);
+                        
                         //console.log("getting nearest solid:");
                         let gp = new Float32Array([pose[12], pose[13], pose[14]]);
-
-                        let result = tools.API.call("getNearestSolid", {p:gp}, new Serializer()); 
+                        let head_pose = mat4.create();
+                        mat4.multiply(head_pose,this.player_space,tools.renderer.head_pose.transform.matrix);
+                        let hp = new Float32Array([head_pose[12], head_pose[13], head_pose[14]]);
+                        //let hp = new Float32Array([this.player_space[12], this.player_space[13], this.player_space[14]]);
+                        //let result = tools.API.call("getNearestSolid", {p:gp}, new Serializer()); 
+                        let result = tools.API.call("getTelekinesisGrab", {p:gp,h:hp,a:20.0,r:0.03}, new Serializer()); 
                         //console.log(result);
-                        if(result.distance < 0.3){
+                        //if(result.distance < 0.3){
                             
                             this.held_id[which_hand] = result.id ;
 
                             mat4.multiply(this.held_offset[which_hand],inv_pose ,result.initial_pose);
-                        }
+                        //}
                     }
                     if(this.held_id[which_hand] != -1){
+
+                        
+
                         //console.log("setting solid pose");
+                        this.held_offset[which_hand][12] = 0 ;
+                        this.held_offset[which_hand][13] = 0 ; // remove translational component of held offset
+                        this.held_offset[which_hand][14] = 0 ;
                         mat4.multiply(pose, pose,this.held_offset[which_hand]);
                         let time = new Date().getTime();
+                        /*
                         if(this.last_hand_time[which_hand] == 0 ){
                             tools.API.call("setSolidPose", {id:this.held_id[which_hand], pose: pose, freeze:1}, new Serializer()); 
                         }else{
@@ -438,10 +451,35 @@ class WorldChatMode extends ExecutionMode{
                             tools.API.call("setSolidPose", {id:this.held_id[which_hand], pose: pose, freeze:1,
                                 last_pose:this.last_pose[which_hand], dt:(time-this.last_hand_time[which_hand])*0.001 }, new Serializer()); 
                         }
-                        this.last_pose[which_hand] = pose;
-                        this.last_hand_time[which_hand] = time ;
+                        */
+                        if(this.last_pose[which_hand]){
+                            tools.API.call("setSolidPoseTelekinesis", {id:this.held_id[which_hand], pose: pose,base_pose:this.last_pose[which_hand], s:8.0, w:6.0, ma:30.0, maa:40.0, dead_zone:0.01}, new Serializer()); 
+                        
+                            if(input_source.buttons[TRIGGER].pressed){
+                                this.last_pose[which_hand] = pose;
+                                this.last_hand_time[which_hand] = time ;                            
+                                let current_pose = tools.API.call("getSolidPose",{id:this.held_id[which_hand]}, new Serializer()).pose;
+                                mat4.multiply(this.held_offset[which_hand],inv_pose ,current_pose);
+                            }
+                        }else{
+                            this.last_pose[which_hand] = pose;
+                            this.last_hand_time[which_hand] = time ;
+                        }
+
+                        
+
+                        /*
+                        let debugtext = "";
+                        for(let b in input_source.buttons){
+                            if(input_source.buttons[b].pressed){
+                                debugtext+=b;
+                            }
+                        }
+                        console.log(debugtext);
+                        */
                     }
                 }else{
+                    /*
                     if(this.held_id[which_hand] != -1){ // on release
                         let pose = mat4.create();
                             mat4.multiply(pose,this.player_space,current_grip);
@@ -451,15 +489,17 @@ class WorldChatMode extends ExecutionMode{
                             // apply exit velocity
                             tools.API.call("setSolidPose", {id:this.held_id[which_hand], pose: pose,
                                 last_pose:this.last_pose[which_hand], dt:(time-this.last_hand_time[which_hand])*0.001 }, new Serializer()); 
+                            
                         }else{
                             tools.API.call("setSolidPose", {id:this.held_id[which_hand], pose: pose}, new Serializer());
                         }
                         
                     }
-
+                    */
 
                     this.held_id[which_hand] = -1 ;
                     this.last_hand_time[which_hand] = 0 ;
+                    this.last_pose[which_hand] = null ;
                 }
 
             }

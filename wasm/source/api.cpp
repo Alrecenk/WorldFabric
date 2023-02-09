@@ -30,6 +30,7 @@
 #include "MoveSimpleSolid.h"
 #include "SetConvexSolid.h"
 #include "BSPNode.h"
+#include "ApplyTelekinesis.h"
 
 
 using std::vector;
@@ -780,6 +781,59 @@ byte* getNearestSolid(byte* ptr){
     return pack(ret_map);
 }
 
+byte* getSolidPose(byte* ptr){
+    auto obj = Variant::deserializeObject(ptr);
+    int id = obj["id"].getInt();
+    vector<int> ob = timeline->updateObservables();
+    weak_ptr<TObject> ow = timeline->getLastObserved(id) ;
+    if(auto o = ow.lock()){
+        shared_ptr<ConvexSolid> solid = std::static_pointer_cast<ConvexSolid>(o);
+        map<string, Variant> ret_map ;
+        ret_map["pose"] = Variant(solid->getTransform());
+        return pack(ret_map);
+    }
+    return emptyReturn();
+}
+
+// Returns the timeline "id" and "distance" of the nearest observable solid to the given point p
+byte* getTelekinesisGrab(byte* ptr){
+    auto obj = Variant::deserializeObject(ptr);
+    vec3 grab_position = obj["p"].getVec3();
+    vec3 head_position = obj["h"].getVec3();
+    float alpha = obj["a"].getNumberAsFloat();
+    float radius = obj["r"].getNumberAsFloat();
+    vec3 AB = grab_position-head_position ;
+    AB = glm::normalize(AB);
+    int closest = -1;
+    float best_score = 1E30;
+    mat4 initial_pose;
+
+    vector<int> ob = timeline->updateObservables();
+    for(int k=0;k<ob.size();k++){
+        weak_ptr<TObject> ow = timeline->getLastObserved(ob[k]) ;
+        if(auto o = ow.lock()){
+            if(o->type == 2){
+                shared_ptr<ConvexSolid> solid = std::static_pointer_cast<ConvexSolid>(o);
+                vec3 p = solid->position-head_position;
+                float id = glm::dot(p,AB) ; //inline distance
+                float od = glm::length(AB*id - p); // out of line distance
+                float score = alpha * fmax(od-radius,0) + id;
+                if(id > 0 && score < best_score && solid->moveable){
+                    best_score = score;
+                    closest = ob[k];
+                    initial_pose = solid->getTransform();
+                }
+            }
+        }
+    }
+
+    map<string, Variant> ret_map ;
+    ret_map["id"] = Variant(closest);
+    ret_map["distance"] = Variant(best_score);
+    ret_map["initial_pose"] = Variant(initial_pose);
+    return pack(ret_map);
+}
+
 // sets the solid given by "id" to the given mat4 "pose" 
 byte* setSolidPose(byte* ptr){
     auto obj = Variant::deserializeObject(ptr);
@@ -805,6 +859,47 @@ byte* setSolidPose(byte* ptr){
     }
     bool mv = !(obj["freeze"].defined());
     timeline->addEvent(std::make_unique<SetConvexSolid>(id, p, v, o, av , mv),  timeline->current_time+action_delay) ;
+    return emptyReturn();
+}
+
+// sets the solid given by "id" to the given mat4 "pose" 
+byte* setSolidPoseTelekinesis(byte* ptr){
+    auto obj = Variant::deserializeObject(ptr);
+    int id = obj["id"].getInt();
+    // extract relevant current hand pose data
+    mat4 pose = obj["pose"].getMat4();
+    vec3 p = vec3(pose[3]);
+    glm::quat o = glm::quat_cast(pose);
+    // extract base hand pose data
+    mat4 base_pose = obj["base_pose"].getMat4();
+    vec3 bp = vec3(base_pose[3]);
+    glm::quat bo = glm::quat_cast(base_pose);
+    // compute rotation change as an angular velocity vector
+    glm::quat dq = o * glm::inverse(bo); 
+    //float angle = glm::angle(dq);
+    //vec3 axis = glm::axis(dq);
+    // calculate desired acceleration and rotation based on difference from current and base pose
+    float move_speed = obj["s"].getNumberAsFloat();
+    float rotate_speed= obj["w"].getNumberAsFloat();
+    float max_acc = obj["ma"].getNumberAsFloat();
+    float max_aac = obj["maa"].getNumberAsFloat();
+    float dead_zone = obj["dead_zone"].getNumberAsFloat();
+    vec3 dp = (p-bp);
+    float l = glm::length(dp) ;
+    l = fmax(0,l-dead_zone);
+    dp*= l/glm::length(dp) ;
+
+    //vec3 da = (axis*angle) ;
+    //l = glm::length(da) ;
+    //l = fmax(0,l-dead_zone);
+    //da*= l/glm::length(da) ;
+
+    //o = o*o; // multiply target orientation to make orientation more sensitive than real life input
+ 
+    o = dq * dq * bo ;
+
+    timeline->addEvent(std::make_unique<ApplyTelekinesis>(id, dp  * move_speed, max_acc,  o, rotate_speed /*da * rotate_speed, max_aac*/), timeline->current_time+action_delay+randomFloat()*0.0001f) ;
+
     return emptyReturn();
 }
 
