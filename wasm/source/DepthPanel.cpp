@@ -143,16 +143,18 @@ std::pair<int,int> DepthPanel::firstPixelHit(const glm::vec3 &p, const glm::vec3
     int depth = image[(y * width + x)*channels + depth_channel] ;
     while(z < max_z && x >=0 && x < width && y >=0 && y < height && z > depth_map[depth] && (depth > 0 || z >0)){
         // step horizontally or vertically based on which you would hit next
+        float next_t = nextx < nexty ? nextx : nexty ;
+        z += zpert*(next_t-t) ;
+        if(z <= depth_map[depth]){ // if we would hit the bar before exiting
+            break ; // exit without stepping
+        }
+        t = next_t ;
         if(nextx < nexty){
-            z+= zpert*(nextx-t) ;
-            t = nextx ;
-            nextx+=tperx*xstep;
-            x+=xstep;
+            nextx += tperx*xstep;
+            x += xstep;
         }else{
-            z += zpert*(nexty-t) ;
-            t = nexty ;
-            nexty+=tpery*ystep;
-            y+=ystep;
+            nexty += tpery*ystep;
+            y += ystep;
         }
         depth = image[(y * width + x)*channels + depth_channel] ;
     }
@@ -209,7 +211,7 @@ glm::vec3 DepthPanel::getColor(int tx, int ty){
 
 DepthPanel DepthPanel::generateTestPanel(glm::vec3 center, float radius, glm::vec3 normal){
    
-    int width = 32, height = 32;
+    int width = 512, height = 512;
     float border=0.1;
     
     // Make a basis where panel Y roughly matches real world Y
