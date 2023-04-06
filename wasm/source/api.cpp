@@ -35,6 +35,7 @@
 #include "stb_image.h"
 #include "FieldImage.h"
 #include "FieldImageSet.h"
+#include "DepthPanel.h"
 
 using std::vector;
 using std::string;
@@ -1199,6 +1200,50 @@ byte* trainImageField(byte* ptr){
 byte* growImageField(byte* ptr){
     image_field.addRow();
     return emptyReturn();
+}
+
+
+byte* getDepthPanelTraceImage(byte* ptr){
+    auto start = now();
+    auto obj = Variant::deserializeObject(ptr);
+    int width = obj["width"].getInt();
+    int height = obj["height"].getInt();
+    vec3 pos = obj["camera_pos"].getVec3();
+    //vec3 light_point = obj["light_point"].getVec3();
+    mat4* pMatrix = (mat4*)obj["pMatrix"].getFloatArray();
+    mat4* mvMatrix = (mat4*)obj["mvMatrix"].getFloatArray();
+
+    mat4 invMatrix = glm::inverse((*pMatrix)*(*mvMatrix)) ;
+
+    //printf("a\n");
+    byte* image_data = (byte*)malloc(width*height*4); // TODO use fillable variant
+    //printf("b\n");
+    DepthPanel panel = DepthPanel::generateTestPanel(vec3(0,0,0), 1.0f, vec3(0,1.0f,0)) ;
+    //printf("c\n");
+    auto build = now();
+    for(int x=0;x< width; x++){
+        for(int y = 0; y < height; y++){
+             // Get the pixel vector in screen space using viewport parameters.
+            vec3 v = getPixelRay(x, y, width, height, pos, invMatrix) ;
+            
+            vec3 color = panel.getColor(pos,v);
+            int i = (y * width + x)*4 ;
+            image_data[i] = (byte)(255*color[0]) ;
+            image_data[i+1] = (byte)(255*color[1]) ;
+            image_data[i+2] = (byte)(255*color[2]) ;
+            image_data[i+3] = (byte)255 ;
+                
+        }
+    }
+    //printf("d");
+    int time = millisBetween(start,now());
+    int build_time = millisBetween(start,build);
+    int trace_time = millisBetween(build,now());
+    printf("CPU Panel Raytracing Time: %d ms ( %d build, %d trace)\n", time, build_time, trace_time);
+    map<string, Variant> ret_map;
+    ret_map["image"] = Variant(image_data, width*height*4);
+    free(image_data);
+    return pack(ret_map);
 }
 
 }// end extern C

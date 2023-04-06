@@ -65,6 +65,7 @@ EXPORTED_FUNCTIONS =\
 	'_getImageFieldImage',\
 	'_trainImageField',\
 	'_growImageField',\
+	'_getDepthPanelTraceImage',\
 	'_free'
 EXTRA_EXPORTED_RUNTIME_METHODS=['ccall']
 API_MAIN = ${API_DIR}source/api.cpp
@@ -101,7 +102,8 @@ API_SRC    =${API_DIR}source/Variant.cpp\
 			${API_DIR}source/ImageField.cpp\
 			${API_DIR}source/SphereField.cpp\
 			${API_DIR}source/FieldImage.cpp\
-			${API_DIR}source/FieldImageSet.cpp
+			${API_DIR}source/FieldImageSet.cpp\
+			${API_DIR}source/DepthPanel.cpp
 
 			
 default: all
