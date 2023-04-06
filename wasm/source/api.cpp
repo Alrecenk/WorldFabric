@@ -81,6 +81,8 @@ ImageField image_field(unlocked_field_rows);
 
 FieldImageSet image_set ;
 
+DepthPanel panel = DepthPanel::generateTestPanel(vec3(0,0,0), 1.0f, vec3(0,1.0f,0)) ;
+
 
 long timeMilliseconds() {
     return std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -1218,7 +1220,7 @@ byte* getDepthPanelTraceImage(byte* ptr){
     //printf("a\n");
     byte* image_data = (byte*)malloc(width*height*4); // TODO use fillable variant
     //printf("b\n");
-    DepthPanel panel = DepthPanel::generateTestPanel(vec3(0,0,0), 1.0f, vec3(0,1.0f,0)) ;
+    
     //printf("c\n");
     auto build = now();
     for(int x=0;x< width; x++){
@@ -1244,6 +1246,101 @@ byte* getDepthPanelTraceImage(byte* ptr){
     ret_map["image"] = Variant(image_data, width*height*4);
     free(image_data);
     return pack(ret_map);
+}
+
+
+byte* setDepthPanelToTrace(byte* ptr){
+
+    auto start = now();
+    auto obj = Variant::deserializeObject(ptr);
+    //int screen_width = obj["width"].getInt();
+    //int screen_height = obj["height"].getInt();
+    vec3 pos = obj["camera_pos"].getVec3();
+    vec3 light_point = obj["light_point"].getVec3();
+    mat4* pMatrix = (mat4*)obj["pMatrix"].getFloatArray();
+    mat4* mvMatrix = (mat4*)obj["mvMatrix"].getFloatArray();
+
+    mat4 invMatrix = glm::inverse((*pMatrix)*(*mvMatrix)) ;
+    std::shared_ptr<GLTF> model = meshes[my_avatar];
+    model->applyTransforms();
+    std::unique_ptr<BSPNode> root = make_unique<BSPNode>(model) ;
+    auto build = now();
+
+// Get the pixel vector in screen space using viewport parameters.
+    vec4 pv (0, 0, 1, 1);
+    pv = invMatrix * pv ;
+    vec3 normal(pv.x/pv.w-pos.x, pv.y/pv.w-pos.y, pv.z/pv.w-pos.z) ;
+    normal = -glm::normalize(normal);
+    vec3 center = vec3(0,0,0);
+    float radius = 1 ;
+    int width = 256, height = 256, channels = 4;
+
+    
+    // Make a basis where panel Y roughly matches real world Y
+    vec3 Y(-0.002,1,0.01);
+    vec3 X = glm::cross(normal, Y);
+    Y = glm::cross(normal, X);
+    vec3 Z = glm::normalize(normal);
+    // X and Y are per pixel, so, we want the image to cover a radius witha border
+    X = glm::normalize(X) * (float)(radius*2/width);
+    Y = glm::normalize(Y) * (float)(radius*2/height);
+ 
+    glm::vec3 zero = center - X*(float)(width/2) - Y*(float)(height/2) - Z*1.0f ;
+    //printf("d\n");
+    panel = DepthPanel (zero, X, Y , Z);
+    //printf("e\n");
+    
+    
+    Variant texture ;
+    texture.makeFillableByteArray(width*height*channels);
+    byte* image_bytes = texture.getByteArray();
+
+
+
+    for(int x=0;x< width; x++){
+        for(int y = 0; y < height; y++){
+
+            vec3 p = zero + X*(float)x +Y*(float)y ; // get 3D point on backplate
+            float rayfrom = 5.0f ;
+             // Get the pixel vector in screen space using viewport parameters.
+            //vec3 v = getPixelRay(x, y, width, height, pos, invMatrix) ;
+            float t =  root->rayTrace(p+normal*rayfrom,-normal); // trace orthogonal to depth field
+
+            if(t > 0 && t < 999999.0){
+                vec3 color = model->rayTraceColor(p+normal*rayfrom,-normal, light_point, 0.7f, 0.3f);
+                int i = (y * width + x)*4 ;
+                image_bytes[i] = (byte)(255*color[0]) ;
+                image_bytes[i+1] = (byte)(255*color[1]) ;
+                image_bytes[i+2] = (byte)(255*color[2]) ;
+                int depth = (int)((rayfrom-t)*100)+1 ;
+                depth = std::min(std::max(depth,1),255);
+                image_bytes[i+3] = (byte)depth ; // TODO fighure out depth
+            }else{
+                int c = 0;
+                int i = (y * width + x)*4 ;
+                image_bytes[i] = (byte)c ;
+                image_bytes[i+1] = (byte)c ;
+                image_bytes[i+2] = (byte)c ;
+                image_bytes[i+3] = (byte)0 ;
+            }
+        }
+    }
+
+    vector<float> depth_map;
+    depth_map.reserve(256);
+    for(int k=0;k<256;k++){
+        depth_map.push_back((k-1)*0.01f); // [1] needs to be 0 
+        //k = value*100+1
+    }
+    panel.moveImage(texture, width,height, depth_map);
+
+    int time = millisBetween(start,now());
+    int build_time = millisBetween(start,build);
+    int trace_time = millisBetween(build,now());
+    printf("Raytracing Time(to build panel): %d ms ( %d build, %d trace)\n", time, build_time, trace_time);
+    return emptyReturn();
+
+
 }
 
 }// end extern C

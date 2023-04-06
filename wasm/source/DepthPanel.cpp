@@ -211,7 +211,7 @@ glm::vec3 DepthPanel::getColor(int tx, int ty){
 
 DepthPanel DepthPanel::generateTestPanel(glm::vec3 center, float radius, glm::vec3 normal){
    
-    int width = 512, height = 512;
+    int width = 256, height = 256;
     float border=0.1;
     
     // Make a basis where panel Y roughly matches real world Y
@@ -241,7 +241,7 @@ DepthPanel DepthPanel::generateTestPanel(glm::vec3 center, float radius, glm::ve
             image_bytes[channels * ( width * y + x) + red_channel] = (byte)(255*x/width) ;
             image_bytes[channels * ( width * y + x) + green_channel] = (byte)(255*y/height) ;
             image_bytes[channels * ( width * y + x) + blue_channel] = (byte)(0) ;
-            image_bytes[channels * ( width * y + x) + depth_channel] = r < radius ? (255-253*r/radius) : 0 ;
+            image_bytes[channels * ( width * y + x) + depth_channel] = r < radius ? (int)(128 + 120*sin(10*r/radius)) : 0 ;
             if(r > radius){
                 image_bytes[channels * ( width * y + x) + blue_channel] = (byte)(255) ;
             }

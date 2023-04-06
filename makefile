@@ -66,6 +66,7 @@ EXPORTED_FUNCTIONS =\
 	'_trainImageField',\
 	'_growImageField',\
 	'_getDepthPanelTraceImage',\
+	'_setDepthPanelToTrace',\
 	'_free'
 EXTRA_EXPORTED_RUNTIME_METHODS=['ccall']
 API_MAIN = ${API_DIR}source/api.cpp

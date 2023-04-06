@@ -163,6 +163,7 @@ function canvasApp() {
     var context = theCanvas.getContext("2d");
 
     var mouse_x, mouse_y, mouse_down_x, mouse_down_y ;
+    var updating = false, needs_updated = true;
 
 
 	function init() {
@@ -198,6 +199,13 @@ function canvasApp() {
                 tools.renderer.has_new_xr_input = false;
             }
             tools.current_mode.timer();  
+            if(needs_updated && !updating && tools.renderer.hold_ui_context){
+                updating = true;
+                panelTrace();
+                needs_updated = false;
+                updating = false;
+            }
+
         }
 
         if(tools.table_link != null && tools.table_link.ready() && !tools.table_link.active){
@@ -304,6 +312,7 @@ function canvasApp() {
 		mouse_y = pointers[0].y;
         if(tools.current_mode!=null){
             tools.current_mode.pointerMove(pointers);
+            needs_updated = true;
         }
     }
 
@@ -345,7 +354,7 @@ function setMainMenuButtons(){
     tools.buttons["panel_trace"] = new InterfaceButton(5, 50, 100, 40, "Panel Trace", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, panelTrace);
     tools.buttons["clear_trace"] = new InterfaceButton(5, 90, 100, 40, "Clear Trace", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, clearTrace);
 
-    //tools.buttons["field_train"] = new InterfaceButton(5, 170, 100, 40, "Field Train", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, fieldTrain);
+    tools.buttons["panel_set"] = new InterfaceButton(5, 170, 100, 40, "Build Panel", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, buildPanel);
     //tools.buttons["grow_field"] = new InterfaceButton(5, 210, 100, 40, "Grow Field", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, growField);
 }
 
@@ -501,6 +510,32 @@ function panelTrace(){
     //console.log(image);
     context.putImageData(image, 0, 0);
     tools.renderer.hold_ui_context = true;
+}
+
+function buildPanel(){
+    var context = tools.canvas.getContext("2d");;
+    var image = context.createImageData(tools.canvas.width, tools.canvas.height);
+    console.log("Tracing " + image.width +" x " + image.height);
+    
+    var trace_input ={};
+    trace_input.width = image.width;
+    trace_input.height = image.height;
+    trace_input.camera_pos = new Float32Array(3);
+    trace_input.light_point = new Float32Array(3);
+    for(var k=0;k<3;k++){
+        trace_input.camera_pos[k] = tools.renderer.camera_pos[k];
+        trace_input.light_point[k] = tools.renderer.light_point[k];
+    }
+    trace_input.pMatrix = new Float32Array(16);
+    trace_input.mvMatrix = new Float32Array(16);
+    for(var k=0;k<16;k++){
+        trace_input.pMatrix[k] = tools.renderer.pMatrix[k];
+        trace_input.mvMatrix[k] = tools.renderer.mvMatrix[k];
+    }
+    console.log("trace_input:");
+    console.log(trace_input);
+    var trace_output = tools.API.call("setDepthPanelToTrace",trace_input, new Serializer());
+
 }
 
 
