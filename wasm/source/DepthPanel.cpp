@@ -145,18 +145,146 @@ glm::vec3 DepthPanel::getFirstPointInBox(const glm::vec3 &p, const glm::vec3 &v)
 
 }
 
-// Returns the x,y coordinates of the first pixel column the given ray hits.
-// returns -1,-1 if there is no hit
-// This function steps 1 pixel at a time, so you'll want to use other methods to step the ray closer to its intersection point before calling this
-std::pair<int,int> DepthPanel::firstPixelHit(const glm::vec3 &p, const glm::vec3 &v){
 
-    ray_calls++;
+// builds the blockdepth image for use with getFirstBlockHit
+void DepthPanel::buildBlockImage(int size){
+    block_size = size ;
+    bwidth = width/size + 1;
+    bheight = height/size + 1;
+    block_depth.makeFillableByteArray(bwidth*bheight);
+    byte* block_bytes = block_depth.getByteArray();
+    for(int bx = 0; bx < bwidth; bx++){
+        for(int by = 0; by < bheight;by++){
+            block_bytes[bx+by*width] = 0 ;
+        }
+    }
+    // each block ha the max of all pixels in it, so it will hit if anything in it would
+    byte* texture_bytes = texture.getByteArray();
+    for(int x=0;x<width;x++){
+        for(int y=0;y<height;y++){
+            byte d = texture_bytes[channels * (width * y + x) + depth_channel] ;
+            int bx = x/block_size;
+            int by = y/block_size;
+            block_bytes[bx + by*bwidth] = std::max(block_bytes[bx + by*bwidth], d);
+            //printf("b:%d, %d  d: %d, max: %d\n",bx,by,d, block_bytes[bx + by*bwidth]);
+        }
+    }
+
+}
+
+// returns the position where the given ray first intersects a block
+// or returns p if p is inside a block already
+// returns 0,0,0 if the ray does not intersect the box TODO remove magic number
+glm::vec3 DepthPanel::getFirstPointInBlock(const glm::vec3 &p, const glm::vec3 &v){
+/*
+//TODO remove debug
+std::pair<int,int> uv = firstPixelHit(p,v);
+
+if(uv.first <0 || uv.second < 0 || rand()%100<90){
+    
+}else{ // if basic pixel step would hit
+*/
+
     float first_x = glm::dot(p-zero_position, X)/glm::dot(X,X);
     float first_y = glm::dot(p-zero_position, Y)/glm::dot(Y,Y);
     float first_z = glm::dot(p-zero_position, Z)/glm::dot(Z,Z);
 
-    //return std::pair<int,int>((int)first_x,(int)first_y);
+    // get t value on sides of pixel column by intersecting ray with planes of pixel boundary
+    float left_t = rayPlaneIntersect(p,v, X, - glm::dot(X, zero_position + X*(floor(first_x/block_size)*block_size)));
+    float right_t = rayPlaneIntersect(p,v, X, - glm::dot(X, zero_position + X*(floor(first_x/block_size)*block_size+block_size)));
+    float top_t = rayPlaneIntersect(p,v, Y, - glm::dot(Y, zero_position + Y*(floor(first_y/block_size)*block_size)));
+    float bottom_t = rayPlaneIntersect(p,v, Y, - glm::dot(Y, zero_position + Y*(floor(first_y/block_size)*block_size+block_size)));
+
+    // how ray t changes with movement in texture coordinates
+    float tperblockx = right_t-left_t ;
+    float tperblocky = bottom_t-top_t ;
+    float zpert = glm::dot(v, Z)/glm::dot(Z,Z) ;
+
+
+    int xstep  ;
+    float nextx ;
+    if(right_t > left_t){
+        xstep = 1;
+        nextx = right_t ;
+    }else{
+        xstep = -1;
+        nextx = left_t ;
+    }
+
+    int ystep  ;
+    float nexty ;
+    if(bottom_t > top_t){
+        ystep = 1;
+        nexty = bottom_t ;
+    }else{
+        ystep = -1;
+        nexty = top_t ;
+    }
+
+    int bx = (int)(first_x/block_size) ;
+    int by = (int)(first_y/block_size) ;
+    float t = 0 ;
+    float z = first_z ;
+    byte* depth_image = block_depth.getByteArray();
+
+
+    // loop until z is in range or past the edge
+    float max_z = depth_map[255]+0.001f ;
+    int depth = depth_image[by * bwidth + bx] ;
+    int first_depth = depth ;
+    int steps = 0 ;
+    //float prev_t = 0 ;
+    //printf("bxy0: %d, %d  first_depth: %d\n",bx, by, depth);
+    while(z < max_z && bx >= 0 && bx < bwidth && by >=0 && by < bheight && z > depth_map[depth] && (depth > 0 || z >0)){
+        block_steps++;
+        // step horizontally or vertically based on which you would hit next
+        float next_t = nextx < nexty ? nextx : nexty ;
+        z += zpert*(next_t-t) ;
+        if(z <= depth_map[depth]){ // if we would hit the bar before exiting
+            break ; // exit without stepping
+        }
+        //prev_t = t ;
+        t = next_t ;
+        if(nextx < nexty){
+            nextx += tperblockx*xstep;
+            bx += xstep;
+        }else{
+            nexty += tperblocky*ystep;
+            by += ystep;
+        }
+        depth = depth_image[by * bwidth + bx] ;
+        steps++;
+        //printf(" bx: %d, by:%d, depth: %d,  steps: %d\n", bx, by, depth, steps);
+    }
+
     
+    /*
+        
+    //print block
+    printf("Block Step: \n");
+    printf("  x0:%f y0:%f  z0: %f \n", first_x, first_y, first_z); 
+    printf("  tperblockx: %f, tperblocky: %f, zpert: %f\n", tperblockx, tperblocky, zpert); 
+    printf("  bxyf:%d,%d  z: %f  \n", bx,by, z); 
+    printf("  t: %f, max_z:%f , depth: %d, depth value :%f\n", t,  max_z, depth, depth_map[depth_image[by * width + bx]]); 
+    
+    // print pixel
+    debug_pixel_step = true ;
+    uv = firstPixelHit(p,v);
+    debug_pixel_step = false ;
+    printf("--------------------------------------------------------\n");
+}
+    */
+
+    return p + v*t ;
+}
+
+// Returns the x,y coordinates of the first pixel column the given ray hits.
+// returns -1,-1 if there is no hit
+// This function steps 1 pixel at a time, so you'll want to use other methods to step the ray closer to its intersection point before calling this
+std::pair<int,int> DepthPanel::firstPixelHit(const glm::vec3 &p, const glm::vec3 &v){
+    float first_x = glm::dot(p-zero_position, X)/glm::dot(X,X);
+    float first_y = glm::dot(p-zero_position, Y)/glm::dot(Y,Y);
+    float first_z = glm::dot(p-zero_position, Z)/glm::dot(Z,Z);
 
     // get t value on sides of pixel column by intersecting ray with planes of pixel boundary
     float left_t = rayPlaneIntersect(p,v, X, - glm::dot(X, zero_position + X*floor(first_x)));
@@ -189,14 +317,11 @@ std::pair<int,int> DepthPanel::firstPixelHit(const glm::vec3 &p, const glm::vec3
         nexty = top_t ;
     }
 
-    // TODO there's a bunch of rounding wierdness here, so the result isn't perfect
     int x = (int)first_x ;
     int y = (int)first_y ;
     float t = 0 ;
     float z = first_z ;
     byte* image = texture.getByteArray();
-
-    
 
     // loop until z is in range or past the edge
     float max_z = depth_map[255]+0.001f ;
@@ -220,22 +345,28 @@ std::pair<int,int> DepthPanel::firstPixelHit(const glm::vec3 &p, const glm::vec3
         depth = image[(y * width + x)*channels + depth_channel] ;
     }
 
-    /*
-    printf("x0:%f y0:%f  z0: %f \n", first_x, first_y, first_z); 
-    printf("tperx: %f, tpery: %f, zpert: %f\n", tperx, tpery, zpert); 
-    printf("xyf:%d,%d  z: %f  \n", x,y, z); 
-    printf("t: %f, max_z:%f , depth: %d, depth value :%f\n", t,  max_z, depth, depth_map[image[(y * width + x)*channels + depth_channel]]); 
-    */
 
     if(z < max_z && x >=0 && x < width && y >=0 && y < height && depth > 0){
-        
+        if(debug_pixel_step){
+            printf("Pixel Step: -----------\n");
+            printf("  x0:%f y0:%f  z0: %f \n", first_x, first_y, first_z); 
+            printf("  tperx: %f, tpery: %f, zpert: %f\n", tperx, tpery, zpert); 
+            printf("  xyf:%d,%d  z: %f  \n", x,y, z); 
+            printf("  t: %f, max_z:%f , depth: %d, depth value :%f\n", t,  max_z, depth, depth_map[image[(y * width + x)*channels + depth_channel]]);
+            
+            byte* depth_image = block_depth.getByteArray();
+            int bx = x/block_size;
+            int by= y/block_size;
+            int bdepth = depth_image[by * bwidth + bx] ;
+            
+            printf("bx:%d, by:%d,  block_depth: %d\n", bx,by,bdepth);
+            printf("x:%d, y:%d,  depth: %d\n", x,y,image[(y * width + x)*channels + depth_channel]);
+
+        }
         return std::pair<int,int>(x,y);
     }else{
         return std::pair<int,int>(-1,-1);
     }
-
-
-    
 }
 
 // get the color of a ray
@@ -244,7 +375,12 @@ glm::vec3 DepthPanel::getColor(const glm::vec3 &p, const glm::vec3 &v){
     if(enter_p.x == 0.0f && enter_p.y == 0.0f && enter_p.z == 0.0f){
         return enter_p;
     }
-    //return vec3(1,1,1);
+    ray_calls++;
+    
+    
+    if(block_size > 0){
+        enter_p = getFirstPointInBlock(enter_p,v);
+    }
     
     std::pair<int,int> uv = firstPixelHit(enter_p,v);
     
@@ -252,7 +388,6 @@ glm::vec3 DepthPanel::getColor(const glm::vec3 &p, const glm::vec3 &v){
         return vec3(0,0,0);
     }
     return getColor(uv.first, uv.second);
-    
 }
 
 // given coordinates into the texture, return the 3D point of the surface
@@ -271,7 +406,6 @@ glm::vec3 DepthPanel::getColor(int tx, int ty){
 }
 
 DepthPanel DepthPanel::generateTestPanel(glm::vec3 center, float radius, glm::vec3 normal){
-   
     int width = 256, height = 256;
     float border=0.1;
     
@@ -285,15 +419,11 @@ DepthPanel DepthPanel::generateTestPanel(glm::vec3 center, float radius, glm::ve
     Y = glm::normalize(Y) * (float)(radius*2*(1+border)/height);
  
     glm::vec3 zero = center - X*(float)(width/2) - Y*(float)(height/2) ;
-    //printf("d\n");
     DepthPanel result (zero, X, Y , Z);
-    //printf("e\n");
-    
-    
+
     Variant texture ;
     texture.makeFillableByteArray(width*height*channels);
     byte* image_bytes = texture.getByteArray();
-    //printf("f\n");
     for(int x = 0 ; x < width; x++){
         for(int y = 0 ; y < height; y++){
             vec3 p = zero + X*(float)x +Y*(float)y ; // get 3D point on backplate
@@ -308,7 +438,6 @@ DepthPanel DepthPanel::generateTestPanel(glm::vec3 center, float radius, glm::ve
             }
         }
     }
-    //printf("g\n");
 
     vector<float> depth_map;
     depth_map.reserve(256);
@@ -316,7 +445,6 @@ DepthPanel DepthPanel::generateTestPanel(glm::vec3 center, float radius, glm::ve
         depth_map.push_back((k-1)*0.003f); // [1] needs to be 0 
     }
     result.moveImage(texture, width,height, depth_map);
-    //printf("h\n");
     return result ;
 }
 

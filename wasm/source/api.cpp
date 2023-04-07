@@ -1242,7 +1242,7 @@ byte* getDepthPanelTraceImage(byte* ptr){
     int build_time = millisBetween(start,build);
     int trace_time = millisBetween(build,now());
     printf("CPU Panel Raytracing Time: %d ms ( %d build, %d trace)\n", time, build_time, trace_time);
-    printf("Ray calls: %d, Ray Steps: %d, average steps: %d\n", panel.ray_calls, panel.ray_steps, panel.ray_steps/panel.ray_calls);
+    printf("Ray calls: %d, Ray Steps: %d, Block Steps:%d average steps: %d average block steps:%d\n", panel.ray_calls, panel.ray_steps,panel.block_steps, panel.ray_steps/panel.ray_calls,panel.block_steps/panel.ray_calls);
     map<string, Variant> ret_map;
     ret_map["image"] = Variant(image_data, width*height*4);
     free(image_data);
@@ -1251,11 +1251,10 @@ byte* getDepthPanelTraceImage(byte* ptr){
 
 
 byte* setDepthPanelToTrace(byte* ptr){
-
     auto start = now();
     auto obj = Variant::deserializeObject(ptr);
-    //int screen_width = obj["width"].getInt();
-    //int screen_height = obj["height"].getInt();
+    int image_size = obj["size"].getInt();
+    int block_size = obj["block_size"].getInt();
     vec3 pos = obj["camera_pos"].getVec3();
     vec3 light_point = obj["light_point"].getVec3();
     mat4* pMatrix = (mat4*)obj["pMatrix"].getFloatArray();
@@ -1274,9 +1273,8 @@ byte* setDepthPanelToTrace(byte* ptr){
     normal = -glm::normalize(normal);
     vec3 center = vec3(0,0,0);
     float radius = 1 ;
-    int width = 512, height = 512, channels = 3;
+    int width = image_size, height = image_size, channels = 3;
 
-    
     // Make a basis where panel Y roughly matches real world Y
     vec3 Y(-0.002,1,0.01);
     vec3 X = glm::cross(normal, Y);
@@ -1287,9 +1285,7 @@ byte* setDepthPanelToTrace(byte* ptr){
     Y = glm::normalize(Y) * (float)(radius*2/height);
  
     glm::vec3 zero = center - X*(float)(width/2) - Y*(float)(height/2) - Z*0.5f ;
-    //printf("d\n");
     panel = DepthPanel (zero, X, Y , Z);
-    //printf("e\n");
     
     
     Variant texture ;
@@ -1298,9 +1294,6 @@ byte* setDepthPanelToTrace(byte* ptr){
 
     vector<vector<float>> depth ;
     depth.resize(width);
-
-
-
 
     for(int x=0;x< width; x++){
         depth[x].resize(height);
@@ -1331,6 +1324,11 @@ byte* setDepthPanelToTrace(byte* ptr){
 
     panel.moveImage(texture, width,height, channels);
     panel.setDepth(depth);
+    if(block_size >0){
+        panel.buildBlockImage(block_size);
+    }
+
+
 
     int time = millisBetween(start,now());
     int build_time = millisBetween(start,build);

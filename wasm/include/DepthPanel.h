@@ -29,8 +29,18 @@ class DepthPanel{
         //depth_map[255] is the max, which makes it the closest depth to the screen because z faces camera
         std::vector<float> depth_map ; 
         
+
+        int block_size = 0;
+        int bwidth, bheight;
+        Variant block_depth ;
+
+
         int ray_steps = 0 ;
         int ray_calls = 0 ;
+        int block_steps = 0;
+
+        bool debug_pixel_step = false;
+
 
 
     // position of upper left corner of image, how pixel coordinates convert to 3D space and normal of image plane (typically facing toward camera)
@@ -56,6 +66,14 @@ class DepthPanel{
     // or returns p if p is inside the panel already
     // returns 0,0,0 if the ray does not intersect the box TODO remove magic number
     glm::vec3 getFirstPointInBox(const glm::vec3 &p, const glm::vec3 &v);
+
+    // builds the blockdepth image for use with getFirstBlockHit
+    void buildBlockImage(int size);
+
+    // returns the position where the given ray first intersects a block
+    // or returns p if p is inside a block already
+    // returns 0,0,0 if the ray does not intersect the box TODO remove magic number
+    glm::vec3 getFirstPointInBlock(const glm::vec3 &p, const glm::vec3 &v);
 
     // Returns the x,y coordinates of the first pixel the given ray hits.
     // This function steps 1 pixel at a time, so you'll want to use other methods to step the ray closer to its intersection point before calling this

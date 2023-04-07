@@ -532,6 +532,10 @@ function buildPanel(){
         trace_input.pMatrix[k] = tools.renderer.pMatrix[k];
         trace_input.mvMatrix[k] = tools.renderer.mvMatrix[k];
     }
+
+    trace_input.size = 512 ;
+    trace_input.block_size = 16;
+    
     console.log("trace_input:");
     console.log(trace_input);
     var trace_output = tools.API.call("setDepthPanelToTrace",trace_input, new Serializer());
