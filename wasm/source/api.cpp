@@ -1242,6 +1242,7 @@ byte* getDepthPanelTraceImage(byte* ptr){
     int build_time = millisBetween(start,build);
     int trace_time = millisBetween(build,now());
     printf("CPU Panel Raytracing Time: %d ms ( %d build, %d trace)\n", time, build_time, trace_time);
+    printf("Ray calls: %d, Ray Steps: %d, average steps: %d\n", panel.ray_calls, panel.ray_steps, panel.ray_steps/panel.ray_calls);
     map<string, Variant> ret_map;
     ret_map["image"] = Variant(image_data, width*height*4);
     free(image_data);
@@ -1273,7 +1274,7 @@ byte* setDepthPanelToTrace(byte* ptr){
     normal = -glm::normalize(normal);
     vec3 center = vec3(0,0,0);
     float radius = 1 ;
-    int width = 256, height = 256, channels = 4;
+    int width = 512, height = 512, channels = 3;
 
     
     // Make a basis where panel Y roughly matches real world Y
@@ -1285,7 +1286,7 @@ byte* setDepthPanelToTrace(byte* ptr){
     X = glm::normalize(X) * (float)(radius*2/width);
     Y = glm::normalize(Y) * (float)(radius*2/height);
  
-    glm::vec3 zero = center - X*(float)(width/2) - Y*(float)(height/2) - Z*1.0f ;
+    glm::vec3 zero = center - X*(float)(width/2) - Y*(float)(height/2) - Z*0.5f ;
     //printf("d\n");
     panel = DepthPanel (zero, X, Y , Z);
     //printf("e\n");
@@ -1295,11 +1296,15 @@ byte* setDepthPanelToTrace(byte* ptr){
     texture.makeFillableByteArray(width*height*channels);
     byte* image_bytes = texture.getByteArray();
 
+    vector<vector<float>> depth ;
+    depth.resize(width);
+
+
 
 
     for(int x=0;x< width; x++){
+        depth[x].resize(height);
         for(int y = 0; y < height; y++){
-
             vec3 p = zero + X*(float)x +Y*(float)y ; // get 3D point on backplate
             float rayfrom = 5.0f ;
              // Get the pixel vector in screen space using viewport parameters.
@@ -1308,31 +1313,24 @@ byte* setDepthPanelToTrace(byte* ptr){
 
             if(t > 0 && t < 999999.0){
                 vec3 color = model->rayTraceColor(p+normal*rayfrom,-normal, light_point, 0.7f, 0.3f);
-                int i = (y * width + x)*4 ;
+                int i = (y * width + x)*channels ;
                 image_bytes[i] = (byte)(255*color[0]) ;
                 image_bytes[i+1] = (byte)(255*color[1]) ;
                 image_bytes[i+2] = (byte)(255*color[2]) ;
-                int depth = (int)((rayfrom-t)*100)+1 ;
-                depth = std::min(std::max(depth,1),255);
-                image_bytes[i+3] = (byte)depth ; // TODO fighure out depth
+                depth[x][y] = (rayfrom-t) ;
             }else{
                 int c = 0;
-                int i = (y * width + x)*4 ;
+                int i = (y * width + x)*channels;
                 image_bytes[i] = (byte)c ;
                 image_bytes[i+1] = (byte)c ;
                 image_bytes[i+2] = (byte)c ;
-                image_bytes[i+3] = (byte)0 ;
+                depth[x][y] = -1.0f; // negative depth indicates transparency
             }
         }
     }
 
-    vector<float> depth_map;
-    depth_map.reserve(256);
-    for(int k=0;k<256;k++){
-        depth_map.push_back((k-1)*0.01f); // [1] needs to be 0 
-        //k = value*100+1
-    }
-    panel.moveImage(texture, width,height, depth_map);
+    panel.moveImage(texture, width,height, channels);
+    panel.setDepth(depth);
 
     int time = millisBetween(start,now());
     int build_time = millisBetween(start,build);

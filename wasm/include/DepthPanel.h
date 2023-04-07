@@ -29,18 +29,28 @@ class DepthPanel{
         //depth_map[255] is the max, which makes it the closest depth to the screen because z faces camera
         std::vector<float> depth_map ; 
         
+        int ray_steps = 0 ;
+        int ray_calls = 0 ;
 
 
     // position of upper left corner of image, how pixel coordinates convert to 3D space and normal of image plane (typically facing toward camera)
     DepthPanel(glm::vec3 zero, glm::vec3 xperpixel , glm::vec3 yperpixel , glm::vec3 z_normal);
 
     // Moves the image data into this field (destroys the variant passed in)
-    // w,h defines dimension of image data bytes
+    // w,h,channels defines dimension of image data bytes
     // The image bytes should be packed with the number of channels and arranged as defined in const expressions in DephPanel.h
     // depth values are indices into a depth_map 
     //(depth=0 is transparent, depth[1]= 0 increasing to depth[255] = max depth /closest to expected view position)
     void moveImage(Variant& image_data, int w, int h, std::vector<float> depths) ;
 
+    // Copies the image data into this field
+    // w,h,channels defines dimension of image data bytes with R,G,B assumed to be the first 3 channels
+    //Does not modify depth values (made ofr use with setDepth(float[][]);
+    void moveImage(const Variant& image_data, int w, int h, int data_channels) ;
+
+    // sets depths and depth map by k-means clustering
+    //Also adjusts zero position so depths efficiently cover the whole range
+    void setDepth(std::vector<std::vector<float>>& depth);
 
     // returns the position where the given ray first intersects the bounding box of this panel
     // or returns p if p is inside the panel already

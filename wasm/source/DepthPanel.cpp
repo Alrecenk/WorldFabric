@@ -37,6 +37,66 @@ void DepthPanel::moveImage(Variant& image_data, int w, int h, std::vector<float>
 }
 
 
+// Copies the image data into this field
+// w,h,channels defines dimension of image data bytes with R,G,B assumed to be the first 3 channels
+//Does not modify depth values (made ofr use with setDepth(float[][]);
+void DepthPanel::moveImage(const Variant& image_data, int w, int h, int data_channels){
+    width = w ;
+    height = h ;
+    texture.makeFillableByteArray(width*height*channels);
+    byte* texture_bytes = texture.getByteArray();
+    byte* input_bytes = image_data.getByteArray();
+    for(int x=0;x<width;x++){
+        for(int y=0;y<height;y++){
+            for(int c=0;c<3;c++){
+                texture_bytes[channels * ( width * y + x) + c] = input_bytes[data_channels * ( width * y + x) + c] ;
+            }
+        }
+    }
+}
+
+// sets depths and depth map to cover a depth image given as floats of distances (toward camera) from image plane
+// Also adjusts zero position so the minimum depth is at 0
+// Depth with negative value are set as transparent
+void DepthPanel::setDepth(vector<vector<float>>& depth){
+    float min_depth = std::numeric_limits<float>::max() ;
+    float max_depth = -std::numeric_limits<float>::max() ;
+    for(int x=0;x<width;x++){
+        for(int y=0;y<height;y++){
+            float d = depth[x][y];
+            if(d >= 0){
+                min_depth = fmin(min_depth, d);
+            }
+            max_depth = fmax(max_depth, d);
+        }
+    }
+    
+    // adjust zero point so min_depth is at Z = 0
+    zero_position = zero_position + Z*min_depth ;
+    max_depth -= min_depth ;
+    // linearly map the depth values over the range
+    depth_map.reserve(256);
+    for(int k=0;k<256;k++){
+        depth_map.push_back((k-1)*max_depth/254); // [1] needs to be 0 
+    }
+    // map depths to indices into new depth array
+    byte* texture_bytes = texture.getByteArray();
+    for(int x=0;x<width;x++){
+        for(int y=0;y<height;y++){
+            depth[x][y] -= min_depth;
+            float d = depth[x][y] ;
+            int di = 0 ;
+            if(d >= 0){
+                di = 1 + (int)(d*254/max_depth) ;
+                //printf("d:%f, di: %d\n", d, di);
+                di = std::min(255,std::max(1,di));
+            }
+            texture_bytes[channels * ( width * y + x) + depth_channel] = di ;
+        }
+    }
+}
+
+
 // returns the position where the given ray first intersects the bounding box of this panel
 // or returns p if p is inside the panel already
 // returns 0,0,0 if the ray does not intersect the box TODO remove magic number
@@ -90,7 +150,7 @@ glm::vec3 DepthPanel::getFirstPointInBox(const glm::vec3 &p, const glm::vec3 &v)
 // This function steps 1 pixel at a time, so you'll want to use other methods to step the ray closer to its intersection point before calling this
 std::pair<int,int> DepthPanel::firstPixelHit(const glm::vec3 &p, const glm::vec3 &v){
 
-
+    ray_calls++;
     float first_x = glm::dot(p-zero_position, X)/glm::dot(X,X);
     float first_y = glm::dot(p-zero_position, Y)/glm::dot(Y,Y);
     float first_z = glm::dot(p-zero_position, Z)/glm::dot(Z,Z);
@@ -142,6 +202,7 @@ std::pair<int,int> DepthPanel::firstPixelHit(const glm::vec3 &p, const glm::vec3
     float max_z = depth_map[255]+0.001f ;
     int depth = image[(y * width + x)*channels + depth_channel] ;
     while(z < max_z && x >=0 && x < width && y >=0 && y < height && z > depth_map[depth] && (depth > 0 || z >0)){
+        ray_steps++;
         // step horizontally or vertically based on which you would hit next
         float next_t = nextx < nexty ? nextx : nexty ;
         z += zpert*(next_t-t) ;
