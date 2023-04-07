@@ -274,7 +274,6 @@ if(uv.first <0 || uv.second < 0 || rand()%100<90){
     printf("--------------------------------------------------------\n");
 }
     */
-
     return p + v*t ;
 }
 
@@ -296,6 +295,27 @@ std::pair<int,int> DepthPanel::firstPixelHit(const glm::vec3 &p, const glm::vec3
     float tperx = right_t-left_t ;
     float tpery = bottom_t-top_t ;
     float zpert = glm::dot(v, Z)/glm::dot(Z,Z) ;
+
+    float max_z = depth_map[255]+0.001f ;
+    //compute t that leaves the image outside loop so we only need to check one axis in the loop
+    float exit_t = std::numeric_limits<float>::max() ;
+    if(zpert > 0){
+        exit_t = fmin(exit_t, (max_z-first_z)/zpert) ;
+    }else{
+        exit_t = fmin(exit_t, (0-first_z)/zpert) ;
+    }
+
+    if(tperx > 0){
+        exit_t = fmin(exit_t, (width-first_x)*tperx);
+    }else{
+        exit_t = fmin(exit_t, (0-first_x)*tperx);
+    }
+
+    if(tpery > 0){
+        exit_t = fmin(exit_t, (height-first_y)*tpery);
+    }else{
+        exit_t = fmin(exit_t, (0-first_y)*tpery);
+    }
 
     int xstep  ;
     float nextx ;
@@ -324,26 +344,38 @@ std::pair<int,int> DepthPanel::firstPixelHit(const glm::vec3 &p, const glm::vec3
     byte* image = texture.getByteArray();
 
     // loop until z is in range or past the edge
-    float max_z = depth_map[255]+0.001f ;
-    int depth = image[(y * width + x)*channels + depth_channel] ;
-    while(z < max_z && x >=0 && x < width && y >=0 && y < height && z > depth_map[depth] && (depth > 0 || z >0)){
-        ray_steps++;
+    int i = (y * width + x)*channels + depth_channel ;
+    int yistep = width*channels*ystep;
+    int xistep = channels*xstep;
+    int depth = image[i] ;
+    float depth_value = depth_map[depth] ;
+    float tperxstep = tperx*xstep ;
+    float tperystep = tpery*ystep ;
+
+    //while(z < max_z && x >=0 && x < width && y >=0 && y < height && z > depth_map[depth] && (depth > 0 || z >0)){
+     while(t < exit_t && z > depth_value){ // while in box and not hitting a bar
         // step horizontally or vertically based on which you would hit next
         float next_t = nextx < nexty ? nextx : nexty ;
         z += zpert*(next_t-t) ;
-        if(z <= depth_map[depth]){ // if we would hit the bar before exiting
-            break ; // exit without stepping
+        if(z > depth_value){ // if we wouldn't hit the bar before exiting this pixel
+            // step to next pixel
+            t = next_t ;
+            if(nextx < nexty){
+                nextx += tperxstep;
+                x += xstep;
+                i += xistep;
+            }else{
+                nexty += tperystep;
+                y += ystep;
+                i += yistep;
+            }
+            //fetch depth index and value
+            depth = image[i] ; //i = (y * width + x)*channels + depth_channel ;
+            depth_value = depth_map[depth] ;
         }
-        t = next_t ;
-        if(nextx < nexty){
-            nextx += tperx*xstep;
-            x += xstep;
-        }else{
-            nexty += tpery*ystep;
-            y += ystep;
-        }
-        depth = image[(y * width + x)*channels + depth_channel] ;
     }
+
+    ray_steps += abs(x-(int)first_x) + abs(y-(int)first_y) ;// don't add to it in the loop, just computer by change afterwards
 
 
     if(z < max_z && x >=0 && x < width && y >=0 && y < height && depth > 0){
@@ -377,11 +409,9 @@ glm::vec3 DepthPanel::getColor(const glm::vec3 &p, const glm::vec3 &v){
     }
     ray_calls++;
     
-    
     if(block_size > 0){
         enter_p = getFirstPointInBlock(enter_p,v);
     }
-    
     std::pair<int,int> uv = firstPixelHit(enter_p,v);
     
     if(uv.first <0 || uv.second < 0){
