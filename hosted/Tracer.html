@@ -155,6 +155,7 @@ var app; // The main app running on the CAD canvas
 var imports = url_params.get("import") ? url_params.get("import").split(',') : [];
 
 var tools  ; // a map containing several things above so execution modes can access them
+var views = 0, panels = 0 ;
 
 function canvasApp() {
     //The canvas this app is running on.
@@ -201,7 +202,11 @@ function canvasApp() {
             tools.current_mode.timer();  
             if(needs_updated && !updating && tools.renderer.hold_ui_context){
                 updating = true;
-                panelTrace();
+                if(views > 0 && panels > 0){
+                    holoTrace();
+                }
+                //panelTrace();
+                
                 needs_updated = false;
                 updating = false;
             }
@@ -348,13 +353,20 @@ function initializeModes(){
 function setMainMenuButtons(){
     tools.buttons = {};
     tools.buttons["fps_label"] = new InterfaceButton(tools.canvas.width-80, 10, 80, 40, "FPS:?", 20, "#FFFFFF", "#000000", "#000000", 3, null);
+    tools.buttons["views_label"] = new InterfaceButton(tools.canvas.width-90, 70, 90, 40, "views:0", 20, "#FFFFFF", "#000000", "#000000", 3, null);
     //tools.buttons["enter_vr"] = new InterfaceButton(5, 10, 100, 40, "Enter VR", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, () => {tools.renderer.startXRSession();});
     
-    tools.buttons["cpu_trace"] = new InterfaceButton(5, 10, 100, 40, "CPU Trace", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, CPUTrace);
-    tools.buttons["panel_trace"] = new InterfaceButton(5, 50, 100, 40, "Panel Trace", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, panelTrace);
-    tools.buttons["clear_trace"] = new InterfaceButton(5, 90, 100, 40, "Clear Trace", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, clearTrace);
+    tools.buttons["cpu_trace"] = new InterfaceButton(5, 10, 100, 40, "Raytrace", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, CPUTrace);
+    tools.buttons["clear_trace"] = new InterfaceButton(5, 50, 100, 40, "Clear Trace", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, clearTrace);
+    
+    //tools.buttons["panel_set"] = new InterfaceButton(5, 130, 100, 40, "Build Panel", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, buildPanel);
+    //tools.buttons["panel_trace"] = new InterfaceButton(5, 170, 100, 40, "Panel Trace", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, panelTrace);
+    
+    
 
-    tools.buttons["panel_set"] = new InterfaceButton(5, 170, 100, 40, "Build Panel", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, buildPanel);
+    tools.buttons["holo_view"] = new InterfaceButton(5, 130, 100, 40, "Add View", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, addHologramView);
+    //tools.buttons["holo_panel"] = new InterfaceButton(5, 290, 100, 40, "Add Panel", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, addHologramPanel);
+    tools.buttons["holo_trace"] = new InterfaceButton(5, 170, 100, 40, "Hologram", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, holoTrace);
     //tools.buttons["grow_field"] = new InterfaceButton(5, 210, 100, 40, "Grow Field", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, growField);
 }
 
@@ -396,14 +408,10 @@ function loadGLBFile() {
 	}
 }
 
-function CPUTrace(){
-    var context = tools.canvas.getContext("2d");;
-    var image = context.createImageData(tools.canvas.width, tools.canvas.height);
-    console.log("Tracing " + image.width +" x " + image.height);
-    
+function getCameraTraceInput(){
     var trace_input ={};
-    trace_input.width = image.width;
-    trace_input.height = image.height;
+    trace_input.width = tools.canvas.width;
+    trace_input.height = tools.canvas.height;
     trace_input.camera_pos = new Float32Array(3);
     trace_input.light_point = new Float32Array(3);
     for(var k=0;k<3;k++){
@@ -416,6 +424,15 @@ function CPUTrace(){
         trace_input.pMatrix[k] = tools.renderer.pMatrix[k];
         trace_input.mvMatrix[k] = tools.renderer.mvMatrix[k];
     }
+    return trace_input ;
+}
+
+function CPUTrace(){
+    var context = tools.canvas.getContext("2d");;
+    var image = context.createImageData(tools.canvas.width, tools.canvas.height);
+    console.log("Tracing " + image.width +" x " + image.height);
+    
+    let trace_input = getCameraTraceInput();
     console.log("trace_input:");
     console.log(trace_input);
     var trace_output = tools.API.call("getSimpleTraceImage",trace_input, new Serializer());
@@ -428,58 +445,12 @@ function CPUTrace(){
     tools.renderer.hold_ui_context = true;
 }
 
-function fieldTrace(){
-    var context = tools.canvas.getContext("2d");;
-    var image = context.createImageData(tools.canvas.width, tools.canvas.height);
-    console.log("Tracing " + image.width +" x " + image.height);
-    
-    var trace_input ={};
-    trace_input.width = image.width;
-    trace_input.height = image.height;
-    trace_input.camera_pos = new Float32Array(3);
-    trace_input.light_point = new Float32Array(3);
-    for(var k=0;k<3;k++){
-        trace_input.camera_pos[k] = tools.renderer.camera_pos[k];
-        trace_input.light_point[k] = tools.renderer.light_point[k];
-    }
-    trace_input.pMatrix = new Float32Array(16);
-    trace_input.mvMatrix = new Float32Array(16);
-    for(var k=0;k<16;k++){
-        trace_input.pMatrix[k] = tools.renderer.pMatrix[k];
-        trace_input.mvMatrix[k] = tools.renderer.mvMatrix[k];
-    }
-    console.log("trace_input:");
-    console.log(trace_input);
-    var trace_output = tools.API.call("getFieldImage",trace_input, new Serializer());
-    for(var k=0;k<trace_output.image.length;k++){
-        image.data[k] = trace_output.image[k] >= 0  ? trace_output.image[k] : trace_output.image[k] + 256;
-    }
 
-    //console.log(image);
-    context.putImageData(image, 0, 0);
-    tools.renderer.hold_ui_context = true;
-}
+
 
 function clearTrace(){
     console.log("clear trace");
     tools.renderer.hold_ui_context = false;
-}
-
-function fieldTrain(){
-    var train_input = {};
-    train_input.iter = 6;
-    train_input.rays = 10000;
-    train_input.step_iter = 60;
-    train_input.m = 5 ;
-    console.log(train_input);
-    for(let k=0;k<50;k++){
-        //console.log("train:" + k);
-        var trace_output = tools.API.call("trainField",train_input, new Serializer());
-    }
-}
-
-function growField(){
-    var trace_output = tools.API.call("growField",{}, new Serializer());
 }
 
 function panelTrace(){
@@ -487,19 +458,7 @@ function panelTrace(){
     var image = context.createImageData(tools.canvas.width, tools.canvas.height);
     console.log("Tracing " + image.width +" x " + image.height);
     
-    var trace_input ={};
-    trace_input.width = image.width;
-    trace_input.height = image.height;
-    trace_input.camera_pos = new Float32Array(3);
-    for(var k=0;k<3;k++){
-        trace_input.camera_pos[k] = tools.renderer.camera_pos[k];
-    }
-    trace_input.pMatrix = new Float32Array(16);
-    trace_input.mvMatrix = new Float32Array(16);
-    for(var k=0;k<16;k++){
-        trace_input.pMatrix[k] = tools.renderer.pMatrix[k];
-        trace_input.mvMatrix[k] = tools.renderer.mvMatrix[k];
-    }
+    let trace_input = getCameraTraceInput();
     console.log("trace_input:");
     console.log(trace_input);
     var trace_output = tools.API.call("getDepthPanelTraceImage",trace_input, new Serializer());
@@ -517,21 +476,7 @@ function buildPanel(){
     var image = context.createImageData(tools.canvas.width, tools.canvas.height);
     console.log("Tracing " + image.width +" x " + image.height);
     
-    var trace_input ={};
-    trace_input.width = image.width;
-    trace_input.height = image.height;
-    trace_input.camera_pos = new Float32Array(3);
-    trace_input.light_point = new Float32Array(3);
-    for(var k=0;k<3;k++){
-        trace_input.camera_pos[k] = tools.renderer.camera_pos[k];
-        trace_input.light_point[k] = tools.renderer.light_point[k];
-    }
-    trace_input.pMatrix = new Float32Array(16);
-    trace_input.mvMatrix = new Float32Array(16);
-    for(var k=0;k<16;k++){
-        trace_input.pMatrix[k] = tools.renderer.pMatrix[k];
-        trace_input.mvMatrix[k] = tools.renderer.mvMatrix[k];
-    }
+    let trace_input = getCameraTraceInput();
 
     trace_input.size = 512 ;
     trace_input.block_size = 16;
@@ -539,7 +484,63 @@ function buildPanel(){
     console.log("trace_input:");
     console.log(trace_input);
     var trace_output = tools.API.call("setDepthPanelToTrace",trace_input, new Serializer());
+}
 
+
+function addHologramPanel(){
+    var context = tools.canvas.getContext("2d");;
+    var image = context.createImageData(tools.canvas.width, tools.canvas.height);
+    console.log("Tracing " + image.width +" x " + image.height);
+    
+    let trace_input = getCameraTraceInput();
+
+    trace_input.size = 256 ;
+    trace_input.block_size = 16;
+    
+    console.log("trace_input:");
+    console.log(trace_input);
+    var trace_output = tools.API.call("addHologramPanel",trace_input, new Serializer());
+    panels++;
+}
+
+function addHologramView(){
+    var context = tools.canvas.getContext("2d");;
+    var image = context.createImageData(tools.canvas.width, tools.canvas.height);
+    console.log("Tracing " + image.width +" x " + image.height);
+    
+    let trace_input = getCameraTraceInput();
+    
+    console.log("trace_input:");
+    console.log(trace_input);
+    var trace_output = tools.API.call("addHologramView",trace_input, new Serializer());
+    for(var k=0;k<trace_output.image.length;k++){
+        image.data[k] = trace_output.image[k] >= 0  ? trace_output.image[k] : trace_output.image[k] + 256;
+    }
+
+    //console.log(image);
+    context.putImageData(image, 0, 0);
+    tools.renderer.hold_ui_context = true;
+    views++;
+    addHologramPanel();
+    tools.buttons["views_label"].text = "views: " + views;
+}
+
+function holoTrace(){
+    var context = tools.canvas.getContext("2d");;
+    var image = context.createImageData(tools.canvas.width, tools.canvas.height);
+    console.log("Tracing " + image.width +" x " + image.height);
+    
+    let trace_input = getCameraTraceInput();
+    console.log("trace_input:");
+    console.log(trace_input);
+    var trace_output = tools.API.call("getHologramTraceImage",trace_input, new Serializer());
+    for(var k=0;k<trace_output.image.length;k++){
+        image.data[k] = trace_output.image[k] >= 0  ? trace_output.image[k] : trace_output.image[k] + 256;
+    }
+
+    //console.log(image);
+    context.putImageData(image, 0, 0);
+    tools.renderer.hold_ui_context = true;
 }
 
 

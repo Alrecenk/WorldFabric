@@ -38,9 +38,10 @@ HologramView::HologramView(glm::vec3 p, glm::vec3 n, const std::vector<std::pair
 }
 
 // Moves the image data into this field (destroys the variant passed in)
-void HologramView::moveImage(Variant& image_data, int w, int h){
+void HologramView::moveImage(Variant& image_data, int w, int h, int c){
     width = w ;
     height = h ;
+    channels = c ;
     texture = std::move(image_data);
 }
 
@@ -50,6 +51,7 @@ glm::vec3 HologramView::getColor(const glm::vec3 &p){
     vec2 tex = getTextureCoordinates(v);
     int tx = (int)tex.x ;
     int ty = (int)tex.y ;
+    //printf("View getColor v: %f, %f, %f  uv: %d, %d\n", v.x,v.y,v.z,tx,ty);
     if(tx>= 0 && ty >= 0 && tx < width && ty < height){
         return getColor(tx,ty);
     }else{
@@ -74,5 +76,5 @@ float HologramView::scoreAlignment(const glm::vec3& p0, const glm::vec3& interse
     vec3 v0 = p0-intersect;
     vec3 vi = position-intersect ;
     // minimize angle between ray to user view and ray to this image 
-    return glm::dot(v0,vi)/ sqrt(glm::dot(v0,v0) * glm::dot(vi,vi));
+    return -glm::dot(v0,vi)/ sqrt(glm::dot(v0,v0) * glm::dot(vi,vi));
 }

@@ -57,11 +57,11 @@ class HologramPanel{
         // Returns the t for ray p+v*t  of the first pixel the given ray hits.
         // returns -1 if no hit
         // This function steps 1 pixel at a time, so you'll want to use other methods to step the ray closer to its intersection point before calling this
-        float firstPixelHit(const glm::vec3 &p, const glm::vec3 &v);
+        glm::vec3 firstPointHit(const glm::vec3 &p, const glm::vec3 &v);
 
         // returns the t value where p +v*t would hit the panel
         // returns -1 if the ray does not hit the panel
-        float rayTrace(const glm::vec3 &p, const glm::vec3 &v);
+        glm::vec3 rayTrace(const glm::vec3 &p, const glm::vec3 &v);
 
         // returns t value where ray (p + v*t) intersects a plane (N*x + d = 0)
         static float rayPlaneIntersect(const glm::vec3 &p, const glm::vec3 &v, const glm::vec3 &N, const float d) ;

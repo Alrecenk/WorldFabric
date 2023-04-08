@@ -22,7 +22,7 @@ class HologramView{
         HologramView(glm::vec3 p, glm::vec3 n , const std::vector<std::pair<glm::vec3, glm::vec2>> &v_to_pixel);
 
         // Moves the image data into this field (destroys the variant passed in)
-        void moveImage(Variant& image_data, int w, int h) ;
+        void moveImage(Variant& image_data, int w, int h, int c) ;
 
         // get the color of a point this image can see
         glm::vec3 getColor(const glm::vec3 &p);

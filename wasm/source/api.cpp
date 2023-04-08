@@ -30,12 +30,13 @@
 #include "MoveSimpleSolid.h"
 #include "SetConvexSolid.h"
 #include "BSPNode.h"
-#include "SphereField.h"
-#include "ImageField.h"
-#include "stb_image.h"
-#include "FieldImage.h"
-#include "FieldImageSet.h"
+//#include "SphereField.h"
+//#include "ImageField.h"
+//#include "stb_image.h"
+//#include "FieldImage.h"
+//#include "FieldImageSet.h"
 #include "DepthPanel.h"
+#include "Hologram.h"
 
 using std::vector;
 using std::string;
@@ -67,7 +68,8 @@ float action_delay = 0.05;
 
 std::unordered_map<int, TObject*> descriptor_cache ;
 
-int unlocked_field_rows = 2;
+
+
 
 // Image used for the BSP image training test
 Variant original_image ;
@@ -75,14 +77,19 @@ int original_image_width;
 int original_image_height;
 int original_image_channels;
 
+/*
+int unlocked_field_rows = 2;
 ImageField image_field(unlocked_field_rows);
 
 //SphereField sphere_field(vec3(0,0,0), 0.9f, 4);
 
 FieldImageSet image_set ;
 
+*/
+
 DepthPanel panel = DepthPanel::generateTestPanel(vec3(0,0,0), 1.0f, vec3(0,1.0f,0)) ;
 
+Hologram hologram(vec3(0,0,0), 1) ;
 
 long timeMilliseconds() {
     return std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -233,11 +240,16 @@ byte* setModel(byte* ptr){
     }
 
     model->transform = mat4(1);
-    if(size < 0.5 || size > 3){
-        model->transform  = glm::scale(mat4(1), {(1.0f/size),(1.0f/size),(1.0f/size)});
-        model->transform  = glm::translate(model->transform, center*-1.0f);
-    }
+    model->transform  = glm::scale(mat4(1), {(1.0f/size),(1.0f/size),(1.0f/size)});
+    model->transform  = glm::translate(model->transform, center*-1.0f);
+
+    //model->transform  = glm::translate(model->transform, center*-1.0f);
+    //model->transform  = glm::scale(model->transform, {(1.0f/size),(1.0f/size),(1.0f/size)});
     
+    center = vec3(0,0,0);
+    size = 1.0f ;
+
+
     model->computeNodeMatrices();
     model->applyTransforms();
     
@@ -881,26 +893,14 @@ byte* getSimpleTraceImage(byte* ptr){
     vec3 light_point = obj["light_point"].getVec3();
     mat4* pMatrix = (mat4*)obj["pMatrix"].getFloatArray();
     mat4* mvMatrix = (mat4*)obj["mvMatrix"].getFloatArray();
-
     mat4 invMatrix = glm::inverse((*pMatrix)*(*mvMatrix)) ;
-
     byte* image_data = (byte*)malloc(width*height*4);
-    Variant point_texture;
-    point_texture.makeFillableFloatArray(width*height*3);
-    float* point_data = point_texture.getFloatArray();
     // Get the pixel vector in screen space using viewport parameters.
     vec4 pv (0, 0, 1, 1);
     pv = invMatrix * pv ;
     vec3 v(pv.x/pv.w-pos.x, pv.y/pv.w-pos.y, pv.z/pv.w-pos.z) ;
-    v = glm::normalize(v);
+    //v = glm::normalize(v); // v through center of screen, useful but not used here
 
-    std::vector<glm::vec2> ps = {glm::vec2(0,0), glm::vec2(width,0), glm::vec2(width,height), glm::vec2(0,height)};
-    std::vector<std::pair<glm::vec3, glm::vec2>> ray_examples;
-    for(auto& p : ps){
-        ray_examples.push_back(std::pair<glm::vec3, glm::vec2>(getPixelRay(p.x, p.y, width, height, pos, invMatrix), p));
-    }
-
-    FieldImage fi(pos, v , ray_examples);
 
     std::shared_ptr<GLTF> model = meshes[my_avatar];
     model->applyTransforms();
@@ -920,13 +920,6 @@ byte* getSimpleTraceImage(byte* ptr){
                 image_data[i+1] = (byte)(255*color[1]) ;
                 image_data[i+2] = (byte)(255*color[2]) ;
                 image_data[i+3] = (byte)255 ;
-                
-                int ip = (y * width + x)*3 ;
-                vec3 px = pos + (v*t) ;
-                point_data[ip] = px.x ;
-                point_data[ip+1] = px.y ;
-                point_data[ip+2] = px.z ;
-
             }else{
                 int c = 0;
                 int i = (y * width + x)*4 ;
@@ -934,22 +927,9 @@ byte* getSimpleTraceImage(byte* ptr){
                 image_data[i+1] = (byte)c ;
                 image_data[i+2] = (byte)c ;
                 image_data[i+3] = (byte)255 ;
-
-                
-                int ip = (y * width + x)*3 ;
-                //vec3 px = pos + (v*10.0f) ;
-                vec3 px(1000.f,10000.f,5000.f);
-                point_data[ip] = px.x ;
-                point_data[ip+1] = px.y ;
-                point_data[ip+2] = px.z ;
-
             }
         }
     }
-
-    Variant id = Variant(image_data, width*height*4) ;
-    fi.moveImage(id, point_texture, width,height, 4);
-    image_set.addImage(fi);
 
     int time = millisBetween(start,now());
     int build_time = millisBetween(start,build);
@@ -960,250 +940,6 @@ byte* getSimpleTraceImage(byte* ptr){
     free(image_data);
     return pack(ret_map);
 }
-
-byte* getFieldImage(byte* ptr){
-    auto start = now();
-    auto obj = Variant::deserializeObject(ptr);
-    int width = obj["width"].getInt();
-    int height = obj["height"].getInt();
-    vec3 pos = obj["camera_pos"].getVec3();
-    vec3 light_point = obj["light_point"].getVec3();
-    mat4* pMatrix = (mat4*)obj["pMatrix"].getFloatArray();
-    mat4* mvMatrix = (mat4*)obj["mvMatrix"].getFloatArray();
-
-    mat4 invMatrix = glm::inverse((*pMatrix)*(*mvMatrix)) ;
-
-    byte* image_data = (byte*)malloc(width*height*4);
-
-    // Get the pixel vector in screen space using viewport parameters.
-    vec4 pv (0, 0, 1, 1);
-    pv = invMatrix * pv ;
-    vec3 v(pv.x/pv.w-pos.x, pv.y/pv.w-pos.y, pv.z/pv.w-pos.z) ;
-    v = glm::normalize(v);
-   
-
-    for(int x=0;x< width; x++){
-        for(int y = 0; y < height; y++){
-             // Get the pixel vector in screen space using viewport parameters.
-            v = getPixelRay(x, y, width, height, pos, invMatrix) ;
-
-            //float output = field.computeValue(pos, v);
-            //vec3 color = sphere_field.getColor(pos,v);
-
-            vec3 color = image_set.getColor(pos,v);
-    
-            int i = (y * width + x)*4 ;
-            image_data[i] = (byte)(255*color[0]) ;
-            image_data[i+1] = (byte)(255*color[1]) ;
-            image_data[i+2] = (byte)(255*color[2]) ;
-            image_data[i+3] = (byte)255 ;
-
-        }
-    }
-
-    int time = millisBetween(start,now());
-    printf("Radiance Field Render Time: %d  c\n", time);
-    map<string, Variant> ret_map;
-    ret_map["image"] = Variant(image_data, width*height*4);
-    free(image_data);
-    return pack(ret_map);
-}
-
-
-
-byte* trainField(byte* ptr){
-    
-    return emptyReturn();
-}
-
-byte* growField(byte* ptr){
-    
-    
-    return emptyReturn();
-}
-
-byte* setSourceImage(byte* ptr){
-    auto obj = Variant::deserializeObject(ptr);
-    byte* byte_array = obj["data"].getByteArray();
-    int num_bytes = obj["data"].getArrayLength();
-    byte* pixels = stbi_load_from_memory(byte_array, num_bytes, &original_image_width, &original_image_height, &original_image_channels, 0) ;
-        
-    original_image = Variant(pixels,original_image_width*original_image_height*original_image_channels);
-    free(pixels);
-
-
-    image_field.training_set.clear();
-
-    byte* original = original_image.getByteArray();
-
-    int size = (int)fmin(original_image_width, original_image_height);
-    for(int x=0;x< original_image_width; x++){
-        for(int y = 0; y < original_image_height; y++){
-            glm::vec2 p = image_field.normalizeImagePosition(x,y,size);
-            int s = (y * original_image_width + x)*original_image_channels ;
-            glm::vec3 color =  glm::vec3 ( (original[s]&0xff)/255.0f,(original[s+1]&0xff)/255.0f,(original[s+2]&0xff)/255.0f);
-            image_field.addTrainingPixel(p,color);
-        }
-    }
-
-    image_field.initializeNode(0,image_field.training_set);
-
-    auto t1 = now() ;
-    float time = millisBetween(animation_start_time, now()) / 1000.0f; // TODO accept time as parameter
-    image_field.buildexptable(-10, 0, 0.000001) ;
-    auto t2 = now();
-
-    printf("Fastexp table build time : %d\n", millisBetween(t1,t2));
-/*
-    double re = 0 ;
-    int amnt =0;
-    for(double xd = -20; xd < 0;xd+=0.000000123){
-        float x = (float)xd ;
-        double e1 = image_field.fastexp(x) ;
-        double e2 = exp(x) ;
-        re += fabs(e1/e2 - 1.0);
-        amnt ++;
-    }
-    printf("Fastexp Average relative error: %f\n", re/amnt);
-
-    
-    auto t3 = now();
-    
-    double y = 0 ;
-    for(double xd = -20; xd < 0;xd+=0.000000123){
-        float x = (float)xd ;
-        y += exp(x);
-        y += exp(x*1.1f);
-        y += exp(x*1.2f);
-        y += exp(x*1.3f);
-        y += exp(x*1.4f);
-    }
-    
-    auto t4 = now();
-
-    
-    for(double xd = -20; xd < 0;xd+=0.000000123){
-        float x = (float)xd ;
-        y += image_field.fastexp(x) ;
-        y += image_field.fastexp(x*1.1f) ;
-        y += image_field.fastexp(x*1.2f) ;
-        y += image_field.fastexp(x*1.3f) ;
-        y += image_field.fastexp(x*1.4f) ;
-    }
-    
-
-    auto t5 = now();
-    int et = millisBetween(t3,t4);
-    int fet = millisBetween(t4,t5);
-    printf("Fast exp time : %d, regular exp time: %d, speedup: %f  value: %f\n", fet, et, et/(float)fet, y);
-*/
-
-    return emptyReturn();
-}
-
-byte* getOriginalImage(byte* ptr){
-    auto obj = Variant::deserializeObject(ptr);
-    int width = obj["width"].getInt();
-    int height = obj["height"].getInt();
-
-    byte* image_data = (byte*)malloc(width*height*4);
-
-    byte* original = original_image.getByteArray();
-
-    for(int x=0;x< width; x++){
-        for(int y = 0; y < height; y++){
-            int i = (y * width + x)*4 ;
-            image_data[i+3] = (byte)255 ;
-            if(x < original_image_width && y < original_image_height){
-                int s = (y * original_image_width + x)*original_image_channels ;
-                image_data[i] = original[s];
-                image_data[i+1] = original[s+1] ;
-                image_data[i+2] = original[s+2] ;
-            }else{
-                image_data[i] = (byte)255;
-                image_data[i+1] = (byte)255 ;
-                image_data[i+2] = (byte)255 ;
-            }
-        }
-    }
-
-    map<string, Variant> ret_map;
-    ret_map["image"] = Variant(image_data, width*height*4);
-    free(image_data);
-    return pack(ret_map);
-
-}
-
-byte* getImageFieldImage(byte* ptr){
-
-    auto obj = Variant::deserializeObject(ptr);
-    int width = obj["width"].getInt();
-    int height = obj["height"].getInt();
-
-    byte* image_data = (byte*)malloc(width*height*4);
-
-    //byte* original = original_image.getByteArray();
-
-    int size = (int)fmin(original_image_width, original_image_height);
-    for(int x=0;x< width; x++){
-        for(int y = 0; y < height; y++){
-            int i = (y * width + x)*4 ;
-            image_data[i+3] = (byte)255 ;
-            if(x < original_image_width && y < original_image_height){
-                
-                glm::vec2 p = image_field.normalizeImagePosition(x,y,size);
-                glm::vec3 color = image_field.color(p);
-                image_data[i] = (byte)(color.r *255) ;
-                image_data[i+1] = (byte)(color.g *255) ;
-                image_data[i+2] = (byte)(color.b *255) ;
-            }else{
-                image_data[i] = (byte)255;
-                image_data[i+1] = (byte)255 ;
-                image_data[i+2] = (byte)255 ;
-            }
-        }
-    }
-
-    map<string, Variant> ret_map;
-    ret_map["image"] = Variant(image_data, width*height*4);
-    free(image_data);
-    return pack(ret_map);
-
-    return emptyReturn();
-}
-
-byte* trainImageField(byte* ptr){
-
-    auto obj = Variant::deserializeObject(ptr);
-    int samples = obj["samples"].getInt();
-    int sample_size = obj["sample_size"].getInt();
-    
-    /*
-    image_field.training_set.clear();
-
-    byte* original = original_image.getByteArray();
-
-    int size = (int)fmin(original_image_width, original_image_height);
-    for(int x=0;x< original_image_width; x++){
-        for(int y = 0; y < original_image_height; y++){
-            glm::vec2 p = image_field.normalizeImagePosition(x,y,size);
-            int s = (y * original_image_width + x)*original_image_channels ;
-            glm::vec3 color =  glm::vec3 ( (original[s]&0xff)/255.0f,(original[s+1]&0xff)/255.0f,(original[s+2]&0xff)/255.0f);
-            image_field.addTrainingPixel(p,color);
-        }
-    }
-    */
-
-    image_field.train();
-    //image_field.train(0,image_field.training_set);
-    return emptyReturn();
-}
-
-byte* growImageField(byte* ptr){
-    image_field.addRow();
-    return emptyReturn();
-}
-
 
 byte* getDepthPanelTraceImage(byte* ptr){
     auto start = now();
@@ -1217,11 +953,8 @@ byte* getDepthPanelTraceImage(byte* ptr){
 
     mat4 invMatrix = glm::inverse((*pMatrix)*(*mvMatrix)) ;
 
-    //printf("a\n");
     byte* image_data = (byte*)malloc(width*height*4); // TODO use fillable variant
-    //printf("b\n");
-    
-    //printf("c\n");
+
     auto build = now();
     for(int x=0;x< width; x++){
         for(int y = 0; y < height; y++){
@@ -1249,7 +982,6 @@ byte* getDepthPanelTraceImage(byte* ptr){
     return pack(ret_map);
 }
 
-
 byte* setDepthPanelToTrace(byte* ptr){
     auto start = now();
     auto obj = Variant::deserializeObject(ptr);
@@ -1266,7 +998,7 @@ byte* setDepthPanelToTrace(byte* ptr){
     std::unique_ptr<BSPNode> root = make_unique<BSPNode>(model) ;
     auto build = now();
 
-// Get the pixel vector in screen space using viewport parameters.
+    // Get the pixel vector in screen space using viewport parameters.
     vec4 pv (0, 0, 1, 1);
     pv = invMatrix * pv ;
     vec3 normal(pv.x/pv.w-pos.x, pv.y/pv.w-pos.y, pv.z/pv.w-pos.z) ;
@@ -1328,7 +1060,70 @@ byte* setDepthPanelToTrace(byte* ptr){
         panel.buildBlockImage(block_size);
     }
 
+    int time = millisBetween(start,now());
+    int build_time = millisBetween(start,build);
+    int trace_time = millisBetween(build,now());
+    printf("Raytracing Time(to build panel): %d ms ( %d build, %d trace)\n", time, build_time, trace_time);
+    return emptyReturn();
+}
 
+byte* addHologramPanel(byte* ptr){
+    auto start = now();
+    auto obj = Variant::deserializeObject(ptr);
+    int image_size = obj["size"].getInt();
+    int block_size = obj["block_size"].getInt();
+    vec3 pos = obj["camera_pos"].getVec3();
+    vec3 light_point = obj["light_point"].getVec3();
+    mat4* pMatrix = (mat4*)obj["pMatrix"].getFloatArray();
+    mat4* mvMatrix = (mat4*)obj["mvMatrix"].getFloatArray();
+
+    mat4 invMatrix = glm::inverse((*pMatrix)*(*mvMatrix)) ;
+    std::shared_ptr<GLTF> model = meshes[my_avatar];
+    model->applyTransforms();
+    //std::unique_ptr<BSPNode> root = make_unique<BSPNode>(model) ;
+    auto build = now();
+
+    // Get the pixel vector in screen space using viewport parameters.
+    vec4 pv (0, 0, 1, 1);
+    pv = invMatrix * pv ;
+    vec3 normal(pv.x/pv.w-pos.x, pv.y/pv.w-pos.y, pv.z/pv.w-pos.z) ;
+    normal = -glm::normalize(normal);
+    vec3 center = vec3(0,0,0);
+    float radius = 1 ;
+    int width = image_size, height = image_size, channels = 3;
+
+    // Make a basis where panel Y roughly matches real world Y
+    vec3 Y(-0.002,1,0.01);
+    vec3 X = glm::cross(normal, Y);
+    Y = glm::cross(normal, X);
+    vec3 Z = glm::normalize(normal);
+    // X and Y are per pixel, so, we want the image to cover a radius witha border
+    X = glm::normalize(X) * (float)(radius*2/width);
+    Y = glm::normalize(Y) * (float)(radius*2/height);
+ 
+    glm::vec3 zero = center - X*(float)(width/2) - Y*(float)(height/2) - Z*0.5f ;
+ 
+    vector<vector<float>> depth ;
+    depth.resize(width);
+
+    for(int x=0;x< width; x++){
+        depth[x].resize(height);
+        for(int y = 0; y < height; y++){
+            vec3 p = zero + X*(float)x +Y*(float)y ; // get 3D point on backplate
+            float rayfrom = 5.0f ;
+             // Get the pixel vector in screen space using viewport parameters.
+            //vec3 v = getPixelRay(x, y, width, height, pos, invMatrix) ;
+            float t = model->rayTrace(p+normal*rayfrom,-normal); // trace orthogonal to depth field
+
+            if(t > 0 && t < 999999.0){
+                depth[x][y] = (rayfrom-t) ; // depth is out of panel into camera
+            }else{
+                depth[x][y] = -1.0f; // negative depth indicates transparency
+            }
+        }
+    }
+
+    hologram.addPanel(zero, X, Y, Z, depth, block_size);
 
     int time = millisBetween(start,now());
     int build_time = millisBetween(start,build);
@@ -1336,7 +1131,121 @@ byte* setDepthPanelToTrace(byte* ptr){
     printf("Raytracing Time(to build panel): %d ms ( %d build, %d trace)\n", time, build_time, trace_time);
     return emptyReturn();
 
+}
 
+byte* addHologramView(byte* ptr){
+    auto start = now();
+    auto obj = Variant::deserializeObject(ptr);
+    int width = obj["width"].getInt();
+    int height = obj["height"].getInt();
+    vec3 pos = obj["camera_pos"].getVec3();
+    vec3 light_point = obj["light_point"].getVec3();
+    mat4* pMatrix = (mat4*)obj["pMatrix"].getFloatArray();
+    mat4* mvMatrix = (mat4*)obj["mvMatrix"].getFloatArray();
+
+    mat4 invMatrix = glm::inverse((*pMatrix)*(*mvMatrix)) ;
+
+    byte* image_data = (byte*)malloc(width*height*4);
+    // Get the pixel vector in screen space using viewport parameters.
+    vec4 pv (0, 0, 1, 1);
+    pv = invMatrix * pv ;
+    vec3 v(pv.x/pv.w-pos.x, pv.y/pv.w-pos.y, pv.z/pv.w-pos.z) ;
+    v = glm::normalize(v); // ray through center of screen
+
+    std::vector<glm::vec2> ps = {glm::vec2(0,0), glm::vec2(width,0), glm::vec2(width,height), glm::vec2(0,height)};
+    std::vector<std::pair<glm::vec3, glm::vec2>> ray_examples;
+    for(auto& p : ps){
+        ray_examples.push_back(std::pair<glm::vec3, glm::vec2>(getPixelRay(p.x, p.y, width, height, pos, invMatrix), p));
+    }
+
+
+
+    HologramView view(pos, v , ray_examples);
+    for(auto& p : ps){
+        vec3 ve = getPixelRay(p.x, p.y, width, height, pos, invMatrix)*2.0 ;
+        glm::vec2 vt = view.getTextureCoordinates(ve);
+        printf("%f,%f = %f,%f\n", p.x,p.y,vt.x,vt.y);
+    }
+
+    
+
+    std::shared_ptr<GLTF> model = meshes[my_avatar];
+    model->applyTransforms();
+    //std::unique_ptr<BSPNode> root = make_unique<BSPNode>(model) ;
+
+    auto build = now();
+    for(int x=0;x< width; x++){
+        for(int y = 0; y < height; y++){
+            int i = (y * width + x)*4 ;
+            vec3 color = vec3(0,0,0);
+            if(x > 80 && y > 80 && x < width-80 && y < height-80){ // border to save time
+                // Get the pixel vector in screen space using viewport parameters.
+                v = getPixelRay(x, y, width, height, pos, invMatrix) ;
+                color = model->rayTraceColor(pos,v, light_point, 0.7f, 0.3f);
+            }
+            image_data[i] = (byte)(255*color[0]) ;
+            image_data[i+1] = (byte)(255*color[1]) ;
+            image_data[i+2] = (byte)(255*color[2]) ;
+            image_data[i+3] = (byte)255 ;
+        }
+    }
+
+    Variant view_texture = Variant(image_data, width*height*4) ;
+    view.moveImage(view_texture,  width,height, 4);
+    hologram.addView(view);
+
+    int time = millisBetween(start,now());
+    int build_time = millisBetween(start,build);
+    int trace_time = millisBetween(build,now());
+    printf("Raytracing Time (To add hologram view): %d ms ( %d build, %d trace)\n", time, build_time, trace_time);
+    map<string, Variant> ret_map;
+    ret_map["image"] = Variant(image_data, width*height*4);
+    free(image_data);
+    return pack(ret_map);
+}
+
+byte* getHologramTraceImage(byte* ptr){
+    auto start = now();
+    auto obj = Variant::deserializeObject(ptr);
+    int width = obj["width"].getInt();
+    int height = obj["height"].getInt();
+    vec3 pos = obj["camera_pos"].getVec3();
+    //vec3 light_point = obj["light_point"].getVec3();
+    mat4* pMatrix = (mat4*)obj["pMatrix"].getFloatArray();
+    mat4* mvMatrix = (mat4*)obj["mvMatrix"].getFloatArray();
+
+    mat4 invMatrix = glm::inverse((*pMatrix)*(*mvMatrix)) ;
+
+    byte* image_data = (byte*)malloc(width*height*4); // TODO use fillable variant
+
+    auto build = now();
+    for(int x=0;x< width; x++){
+        for(int y = 0; y < height; y++){
+            vec3 color = vec3(0,0,0);
+            if(x > 80 && y > 80 && x < width-80 && y < height-80){ // border to save time
+
+                // Get the pixel vector in screen space using viewport parameters.
+                vec3 v = getPixelRay(x, y, width, height, pos, invMatrix) ;
+                
+                color = hologram.getColor(pos,v);
+            }
+            int i = (y * width + x)*4 ;
+            image_data[i] = (byte)(255*color[0]) ;
+            image_data[i+1] = (byte)(255*color[1]) ;
+            image_data[i+2] = (byte)(255*color[2]) ;
+            image_data[i+3] = (byte)255 ;
+                
+        }
+    }
+    int time = millisBetween(start,now());
+    int build_time = millisBetween(start,build);
+    int trace_time = millisBetween(build,now());
+    printf("CPU Holo Raytracing Time: %d ms ( %d build, %d trace)\n", time, build_time, trace_time);
+    //printf("Ray calls: %d, Ray Steps: %d, Block Steps:%d average steps: %d average block steps:%d\n", panel.ray_calls, panel.ray_steps,panel.block_steps, panel.ray_steps/panel.ray_calls,panel.block_steps/panel.ray_calls);
+    map<string, Variant> ret_map;
+    ret_map["image"] = Variant(image_data, width*height*4);
+    free(image_data);
+    return pack(ret_map);
 }
 
 }// end extern C

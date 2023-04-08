@@ -17,7 +17,8 @@ class Hologram{
         std::vector<HologramPanel> panel;
         std::vector<HologramView> view;
         
-        // position of upper left corner of image, how pixel coordinates convert to 3D space and normal of image plane (typically facing toward camera)
+        Hologram();
+        
         Hologram(glm::vec3 view_point, float view_radius);
 
         // Adds a new panel for determining depth of view rays
@@ -31,7 +32,7 @@ class Hologram{
 
         // Constructs and adds a new view
         // Note: image_data will be moved and passed in Variant will be destroyed
-        void addView(glm::vec3 p, glm::vec3 n , const std::vector<std::pair<glm::vec3, glm::vec2>> &v_to_pixel, Variant& image_data, int w, int h);
+        void addView(glm::vec3 p, glm::vec3 n , const std::vector<std::pair<glm::vec3, glm::vec2>> &v_to_pixel, Variant& image_data, int w, int h, int channels);
 
         // get the point a ray would hit by intersecting it with the appropriate panel
         glm::vec3 getPoint(const glm::vec3 &p, const glm::vec3 &v);

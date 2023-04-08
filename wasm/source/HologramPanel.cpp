@@ -22,6 +22,10 @@ HologramPanel::HologramPanel(glm::vec3 zero, glm::vec3 xperpixel, glm::vec3 yper
 // Also adjusts zero position so the minimum depth is at 0
 // Depth with negative value are set as transparent
 void HologramPanel::setDepth(vector<vector<float>>& depth){
+    width = depth.size();
+    height = depth[0].size();
+    depth_texture.makeFillableByteArray(width*height);
+    printf("Building Panel %d x %d\n", width, height);
     float min_depth = std::numeric_limits<float>::max() ;
     float max_depth = -std::numeric_limits<float>::max() ;
     for(int x=0;x<width;x++){
@@ -57,6 +61,7 @@ void HologramPanel::setDepth(vector<vector<float>>& depth){
             texture_bytes[ width * y + x] = di ;
         }
     }
+
 }
 
 
@@ -210,7 +215,7 @@ glm::vec3 HologramPanel::getFirstPointInBlock(const glm::vec3 &p, const glm::vec
 // Returns the t for ray p+v*t  of the first pixel the given ray hits.
 // returns -1 if no hit
 // This function steps 1 pixel at a time, so you'll want to use other methods to step the ray closer to its intersection point before calling this
-float HologramPanel::firstPixelHit(const glm::vec3 &p, const glm::vec3 &v){
+glm::vec3 HologramPanel::firstPointHit(const glm::vec3 &p, const glm::vec3 &v){
     float first_x = glm::dot(p-zero_position, X)/glm::dot(X,X);
     float first_y = glm::dot(p-zero_position, Y)/glm::dot(Y,Y);
     float first_z = glm::dot(p-zero_position, Z)/glm::dot(Z,Z);
@@ -309,25 +314,29 @@ float HologramPanel::firstPixelHit(const glm::vec3 &p, const glm::vec3 &v){
 
 
     if(z < max_z && x >=0 && x < width && y >=0 && y < height && depth > 0){
-        return t;
+        //vec3 point = zero_position + X*x + Y*y + Z*z ;
+        //vec3 point2 = p + v*t ;
+        //printf("tcheck:%f,%f,%f == %f,%f,%f\n");
+        return p+t*v;
     }else{
-        return -1.0f;
+        return vec3(0,0,0) ;
     }
 }
 
 // returns the t value where p +v*t would hit the panel
 // returns -1 if the ray does not hit the panel
-float HologramPanel::rayTrace(const glm::vec3 &p, const glm::vec3 &v){
+vec3 HologramPanel::rayTrace(const glm::vec3 &p, const glm::vec3 &v){
     vec3 enter_p = getFirstPointInBox(p,v);
     if(enter_p.x == 0.0f && enter_p.y == 0.0f && enter_p.z == 0.0f){
-        return -1.0f ;
+        return enter_p ;
     }
     ray_calls++;
     
     if(block_size > 0){
         enter_p = getFirstPointInBlock(enter_p,v);
     }
-    return firstPixelHit(enter_p,v);
+    return firstPointHit(enter_p,v) ;
+   
 }
 
 // returns t value where ray (p + v*t) intersects a plane (N*x + d = 0)
@@ -339,5 +348,5 @@ float HologramPanel::rayPlaneIntersect(const glm::vec3 &p, const glm::vec3 &v, c
 float HologramPanel::scoreAlignment(const glm::vec3 &p, const glm::vec3 &v){
     float vv = glm::dot(v,v);
     float vn = glm::dot(v, Z);
-    return -vn/sqrt(vv);
+    return vn/sqrt(vv);
 }
