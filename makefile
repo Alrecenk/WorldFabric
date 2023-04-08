@@ -104,7 +104,10 @@ API_SRC    =${API_DIR}source/Variant.cpp\
 			${API_DIR}source/SphereField.cpp\
 			${API_DIR}source/FieldImage.cpp\
 			${API_DIR}source/FieldImageSet.cpp\
-			${API_DIR}source/DepthPanel.cpp
+			${API_DIR}source/DepthPanel.cpp\
+			${API_DIR}source/HologramPanel.cpp\
+			${API_DIR}source/HologramView.cpp\
+			${API_DIR}source/Hologram.cpp
 
 			
 default: all
