@@ -124,7 +124,7 @@ bool HologramView::checkVisibility(const glm::vec3 &p){
     vec2 tex = getTextureCoordinates(v);
     int tx = (int)tex.x ;
     int ty = (int)tex.y ;
-    if(tx < 0 || ty < 0 || tx > width || ty > width){ // not in frame taken
+    if(tx <= 0 || ty <= 0 || tx >= width || ty >= height){ // not in frame taken
         return false;
     }
     int i = (ty * width + tx)*channels  ;
@@ -134,14 +134,9 @@ bool HologramView::checkVisibility(const glm::vec3 &p){
         return true; // is visible cause we saw all the way through
     }
     float image_depth = depth_map[di];
-    /*
-    if(di >1 && di < 255){
-        float range = fabs(depth_map[di+1] - depth_map[di-1])  ;
-        return fabs(depth-image_depth) < range ;
-    }else{
-        */
-        return depth < image_depth*1.02f; // occlusion check
-    //}
+    
+    return depth <= image_depth*1.015f; // occlusion check
+
 }
 
 //scores how well this image aligns for a ray starting at p0 and hitting a solid at intersect (lower is better)
@@ -162,7 +157,7 @@ float HologramView::blendWeight(const glm::vec3& p0, const glm::vec3& intersect)
     // minimize angle between ray to user view and ray to this image 
     float cos = glm::dot(v0,vi)/ sqrt(glm::dot(v0,v0) * glm::dot(vi,vi));
     if(cos > 0){
-        return 1/(1-cos+0.001f);
+        return 1/((1-cos+0.001f)*(1-cos+0.001f));
     }else{
         return 0 ; 
     }

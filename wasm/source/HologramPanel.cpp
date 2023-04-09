@@ -238,15 +238,15 @@ glm::vec3 HologramPanel::firstPointHit(const glm::vec3 &p, const glm::vec3 &v){
     }
 
     if(tperx > 0){
-        exit_t = fmin(exit_t, (width-first_x)*tperx);
+        exit_t = fmin(exit_t, (width-1-first_x)*tperx);
     }else{
-        exit_t = fmin(exit_t, (0-first_x)*tperx);
+        exit_t = fmin(exit_t, (1-first_x)*tperx);
     }
 
     if(tpery > 0){
-        exit_t = fmin(exit_t, (height-first_y)*tpery);
+        exit_t = fmin(exit_t, (height-1-first_y)*tpery);
     }else{
-        exit_t = fmin(exit_t, (0-first_y)*tpery);
+        exit_t = fmin(exit_t, (1-first_y)*tpery);
     }
 
     int xstep  ;
@@ -271,6 +271,8 @@ glm::vec3 HologramPanel::firstPointHit(const glm::vec3 &p, const glm::vec3 &v){
 
     int x = (int)first_x ;
     int y = (int)first_y ;
+    x = std::min(std::max(x,0),width-1) ;// push starting point onto grid if it is slightly off to prevent out of bounds error
+    y = std::min(std::max(y,0),height-1) ;
     float t = 0 ;
     float z = first_z ;
     byte* image = depth_texture.getByteArray();

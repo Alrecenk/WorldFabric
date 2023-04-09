@@ -7,7 +7,7 @@ using glm::vec3 ;
 using std::vector;
 
 int BSPNode::iter = 0;
-int BSPNode::max_iter= 2000;
+int BSPNode::max_iter= 8000;
 
 BSPNode::BSPNode(std::shared_ptr<GLTF> mesh){
 
