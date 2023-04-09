@@ -68,7 +68,80 @@ glm::vec2 HologramView::getTextureCoordinates(const glm::vec3 &v){
 glm::vec3 HologramView::getColor(int tx, int ty){
     int i = (ty * width + tx)*channels;
     byte* image = texture.getByteArray();
-    return glm::vec3(image[i]/255.0f, image[i+1]/255.0f, image[i+2]/255.0f);
+    return glm::vec3(image[i+red_channel]/255.0f, image[i+green_channel]/255.0f, image[i+blue_channel]/255.0f);
+}
+
+
+// sets depths and depth map by k-means clustering
+//Also adjusts zero position so depths efficiently cover the whole range
+void HologramView::setDepth(std::vector<std::vector<float>>& depth){
+    float min_depth = std::numeric_limits<float>::max() ;
+    float max_depth = -std::numeric_limits<float>::max() ;
+    for(int x=0;x<width;x++){
+        for(int y=0;y<height;y++){
+            float d = depth[x][y];
+            if(d >= 0){
+                min_depth = fmin(min_depth, d);
+            }
+            max_depth = fmax(max_depth, d);
+        }
+    }
+    
+    // adjust zero point so min_depth is at Z = 0
+
+    // linearly map the depth values over the range
+    depth_map.reserve(256);
+    for(int k=0;k<256;k++){
+        depth_map.push_back(min_depth + (k-1)*(max_depth-min_depth)/254); // [1] needs to be 0 
+    }
+    // map depths to indices into new depth array
+    byte* texture_bytes = texture.getByteArray();
+    if(channels!=4){
+        printf("Hologram view should have 4 channels, aborting depth set!\n"); 
+        return ; 
+    }
+    for(int x=0;x<width;x++){
+        for(int y=0;y<height;y++){
+            float d = depth[x][y] ;
+            int di = 0 ;
+            if(d >= 0){
+                di = 1 + (int)((d-min_depth)*254/(max_depth-min_depth)) ;
+                //printf("d:%f, di: %d\n", d, di);
+                di = std::min(255,std::max(1,di));
+            }
+            texture_bytes[channels * ( width * y + x) + depth_channel] = di ;
+        }
+    }
+}
+
+// return true if the given point is visible by this image
+bool HologramView::checkVisibility(const glm::vec3 &p){
+    vec3 v = p - position ;
+    float depth = glm::dot(v,normal) ;
+    if(depth < 0){ // behind camera
+        return false;
+    }
+    vec2 tex = getTextureCoordinates(v);
+    int tx = (int)tex.x ;
+    int ty = (int)tex.y ;
+    if(tx < 0 || ty < 0 || tx > width || ty > width){ // not in frame taken
+        return false;
+    }
+    int i = (ty * width + tx)*channels  ;
+    byte* image = texture.getByteArray();
+    int di = image[i+depth_channel] ;
+    if(di == 0 ){ // transparent pixel
+        return true; // is visible cause we saw all the way through
+    }
+    float image_depth = depth_map[di];
+    /*
+    if(di >1 && di < 255){
+        float range = fabs(depth_map[di+1] - depth_map[di-1])  ;
+        return fabs(depth-image_depth) < range ;
+    }else{
+        */
+        return depth < image_depth*1.02f; // occlusion check
+    //}
 }
 
 //scores how well this image aligns for a ray starting at p0 and hitting a solid at intersect (lower is better)
@@ -82,6 +155,10 @@ float HologramView::scoreAlignment(const glm::vec3& p0, const glm::vec3& interse
 float HologramView::blendWeight(const glm::vec3& p0, const glm::vec3& intersect){
     vec3 v0 = p0-intersect;
     vec3 vi = position-intersect ;
+    bool visible = checkVisibility(intersect);
+    if(!visible){
+        return 0 ;
+    }
     // minimize angle between ray to user view and ray to this image 
     float cos = glm::dot(v0,vi)/ sqrt(glm::dot(v0,v0) * glm::dot(vi,vi));
     if(cos > 0){

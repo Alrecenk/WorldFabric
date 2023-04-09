@@ -1177,27 +1177,35 @@ byte* addHologramView(byte* ptr){
     //std::unique_ptr<BSPNode> root = make_unique<BSPNode>(model) ;
 
     auto build = now();
+    vector<vector<float>> depth ;
+    depth.resize(width);
     for(int x=0;x< width; x++){
+        depth[x].resize(height);
         for(int y = 0; y < height; y++){
             int i = (y * width + x)*4 ;
             vec3 color = vec3(0,0,0);
+            float d = 0.01f ; // make sure the one we don't trace occlude
             if(x > 50 && y > 50 && x < width-50 && y < height-50){ // border to save time
+                d = -1.0f;
                 // Get the pixel vector in screen space using viewport parameters.
                 v = getPixelRay(x, y, width, height, pos, invMatrix) ;
                 float t =  root->rayTrace(pos,v);
                 if(t > 0 && t < 999999.0){
                     color = model->rayTraceColor(pos,v, light_point, 0.7f, 0.3f);
+                    d = t ;
                 }
             }
             image_data[i] = (byte)(255*color[0]) ;
             image_data[i+1] = (byte)(255*color[1]) ;
             image_data[i+2] = (byte)(255*color[2]) ;
             image_data[i+3] = (byte)255 ;
+            depth[x][y] = d ;
         }
     }
 
     Variant view_texture = Variant(image_data, width*height*4) ;
     view.moveImage(view_texture,  width,height, 4);
+    view.setDepth(depth);
     hologram.addView(view);
 
     int time = millisBetween(start,now());
