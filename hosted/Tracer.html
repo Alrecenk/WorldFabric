@@ -156,6 +156,7 @@ var imports = url_params.get("import") ? url_params.get("import").split(',') : [
 
 var tools  ; // a map containing several things above so execution modes can access them
 var views = 0, panels = 0 ;
+var updating = false, needs_updated = true;
 
 function canvasApp() {
     //The canvas this app is running on.
@@ -164,7 +165,7 @@ function canvasApp() {
     var context = theCanvas.getContext("2d");
 
     var mouse_x, mouse_y, mouse_down_x, mouse_down_y ;
-    var updating = false, needs_updated = true;
+    
 
 
 	function init() {
@@ -205,7 +206,6 @@ function canvasApp() {
                 if(views > 0 && panels > 0){
                     holoTrace();
                 }
-                //panelTrace();
                 
                 needs_updated = false;
                 updating = false;
@@ -467,7 +467,7 @@ function panelTrace(){
     }
 
     //console.log(image);
-    context.putImageData(image, 0, 0);
+    //context.putImageData(image, 0, 0);
     tools.renderer.hold_ui_context = true;
 }
 
@@ -497,42 +497,50 @@ function addHologramPanel(){
     trace_input.size = 256 ;
     trace_input.block_size = 16;
     
-    console.log("trace_input:");
-    console.log(trace_input);
+    //console.log("trace_input:");
+    //console.log(trace_input);
     var trace_output = tools.API.call("addHologramPanel",trace_input, new Serializer());
     panels++;
 }
 
 function addHologramView(){
+    updating = true;
     var context = tools.canvas.getContext("2d");;
     var image = context.createImageData(tools.canvas.width, tools.canvas.height);
-    console.log("Tracing " + image.width +" x " + image.height);
+    console.log("View Tracing " + image.width +" x " + image.height);
     
     let trace_input = getCameraTraceInput();
     
-    console.log("trace_input:");
-    console.log(trace_input);
+    //console.log("trace_input:");
+    //console.log(trace_input);
+
     var trace_output = tools.API.call("addHologramView",trace_input, new Serializer());
+    /*
     for(var k=0;k<trace_output.image.length;k++){
         image.data[k] = trace_output.image[k] >= 0  ? trace_output.image[k] : trace_output.image[k] + 256;
     }
+    */
 
     //console.log(image);
-    context.putImageData(image, 0, 0);
+    //context.putImageData(image, 0, 0);
     tools.renderer.hold_ui_context = true;
     views++;
+    console.log("View complete! Panel tracing...");
     addHologramPanel();
+    console.log("Panel complete!");
     tools.buttons["views_label"].text = "views: " + views;
+    updating = false;
+    needs_updated = true ;
 }
 
 function holoTrace(){
     var context = tools.canvas.getContext("2d");;
     var image = context.createImageData(tools.canvas.width, tools.canvas.height);
-    console.log("Tracing " + image.width +" x " + image.height);
+    //console.log("Holo Tracing " + image.width +" x " + image.height +"...");
     
     let trace_input = getCameraTraceInput();
-    console.log("trace_input:");
-    console.log(trace_input);
+    //console.log("trace_input:");
+    //console.log(trace_input);
     var trace_output = tools.API.call("getHologramTraceImage",trace_input, new Serializer());
     for(var k=0;k<trace_output.image.length;k++){
         image.data[k] = trace_output.image[k] >= 0  ? trace_output.image[k] : trace_output.image[k] + 256;

@@ -106,6 +106,6 @@ all: serverexe wasm
 serverexe: ${SERVER_DIR}source/Main.cpp
 	g++ -pthread -std=c++17 ${CPP_OPTS} ${CPP_DEFS} -o Main.exe -I${API_DIR} ${API_INC} ${SRC_INC} ${INCS_DIRS} ${SERVER_DIR}source/Main.cpp ${API_SRC} ${SRC} ${LIBS_DIRS} ${LIBS} 
 wasm: ${API_DIR}source/api.cpp
-	emcc -std=c++17 -g -sEXPORT_NAME="'initializeCPPAPI'" -sMODULARIZE=1 -sALLOW_MEMORY_GROWTH=1 -sMAXIMUM_MEMORY=4GB -O3 -sASSERTIONS=1 ${API_MAIN} ${API_SRC} --post-js ${API_DIR}source/api_post.js -o ${WASM_OUT}api.js ${API_INC} -s"EXPORTED_FUNCTIONS=${EXPORTED_FUNCTIONS}" -s"EXPORTED_RUNTIME_METHODS=${EXTRA_EXPORTED_RUNTIME_METHODS}"
+	emcc -std=c++17 -g -sEXPORT_NAME="'initializeCPPAPI'" -sMODULARIZE=1 -sTOTAL_MEMORY=1024mb -O3 -sASSERTIONS=1 ${API_MAIN} ${API_SRC} --post-js ${API_DIR}source/api_post.js -o ${WASM_OUT}api.js ${API_INC} -s"EXPORTED_FUNCTIONS=${EXPORTED_FUNCTIONS}" -s"EXPORTED_RUNTIME_METHODS=${EXTRA_EXPORTED_RUNTIME_METHODS}"
 clean:
 	$(RM) -r ${SERVER_OUT}Main.exe ${WASM_OUT}api.js ${WASM_OUT}api.wasm

@@ -6,6 +6,9 @@ using glm::dvec3;
 using glm::vec3 ;
 using std::vector;
 
+int BSPNode::iter = 0;
+int BSPNode::max_iter= 2000;
+
 BSPNode::BSPNode(std::shared_ptr<GLTF> mesh){
 
     vec3 max(-std::numeric_limits<float>::max(),-std::numeric_limits<float>::max(),-std::numeric_limits<float>::max());
@@ -94,6 +97,7 @@ void BSPNode::build(const std::vector<Polygon>& poly){
 }
 
 double BSPNode::rayTrace(const glm::dvec3& p, const glm::dvec3& v) const{
+    iter = 0 ;
     return rayTrace(p, v, 0);
 }
 
@@ -107,7 +111,7 @@ double BSPNode::rayTrace(const glm::dvec3& p, const glm::dvec3& v, double enter_
             double best_t = std::numeric_limits<float>::max() ;
             BSPNode* best = nullptr;
             BSPNode* next = parent;
-            while(next){
+            while(next && iter++ <= max_iter){
                 double nv = glm::dot(next->N,v);
 		        double cross_t = fabs(nv) >= EPSILON ? (next->d + glm::dot(p,next->N))/-nv : std::numeric_limits<float>::max() ;
                 if(cross_t > enter_t && cross_t < best_t){
@@ -116,13 +120,20 @@ double BSPNode::rayTrace(const glm::dvec3& p, const glm::dvec3& v, double enter_
                 }
                 next = next->parent;
             }
-            if(best == nullptr){
+            if(best == nullptr || iter > max_iter){
+                if(iter > max_iter){
+                    printf("BSP tree hit max iter somehow? L125\n");
+                }
                 return -1.0; // No hit
             }else{
                 return best->rayTrace(p, v, best_t + EPSILON);
             }
         }
     }else{ // If in a branch, find the leaf
+        if(iter++ > max_iter){
+            printf("BSP tree hit max iter somehow? L134\n");
+            return -1.0f;
+        }
         if(glm::dot(N,p + (v * enter_t)) + d < 0){
             return inner->rayTrace(p, v, enter_t);
         }else{

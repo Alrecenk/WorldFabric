@@ -22,6 +22,8 @@ class BSPNode{
         double volume_inside = 0;
         double volume_outside = 0;
 
+        static int iter,  max_iter;
+
         BSPNode();
         // Builds a tree from a mesh
         // Assumes mesh is a single closed surface
