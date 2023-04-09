@@ -72,11 +72,12 @@ std::unordered_map<int, TObject*> descriptor_cache ;
 
 
 // Image used for the BSP image training test
+/*
 Variant original_image ;
 int original_image_width;
 int original_image_height;
 int original_image_channels;
-
+*/
 /*
 int unlocked_field_rows = 2;
 ImageField image_field(unlocked_field_rows);
@@ -86,6 +87,8 @@ ImageField image_field(unlocked_field_rows);
 FieldImageSet image_set ;
 
 */
+
+std::unique_ptr<BSPNode> root ;
 
 DepthPanel panel = DepthPanel::generateTestPanel(vec3(0,0,0), 1.0f, vec3(0,1.0f,0)) ;
 
@@ -262,6 +265,7 @@ byte* setModel(byte* ptr){
     int millis = millisBetween(start_time, now());
     printf("Total model load time: %d ms\n", millis);
 
+    root = make_unique<BSPNode>(model) ;
     return pack(ret_map);
 }
 
@@ -903,8 +907,7 @@ byte* getSimpleTraceImage(byte* ptr){
 
 
     std::shared_ptr<GLTF> model = meshes[my_avatar];
-    model->applyTransforms();
-    std::unique_ptr<BSPNode> root = make_unique<BSPNode>(model) ;
+    //model->applyTransforms();
 
     auto build = now();
     for(int x=0;x< width; x++){
@@ -912,17 +915,16 @@ byte* getSimpleTraceImage(byte* ptr){
              // Get the pixel vector in screen space using viewport parameters.
             v = getPixelRay(x, y, width, height, pos, invMatrix) ;
             float t =  root->rayTrace(pos,v);
-
+            int i = (y * width + x)*4 ;
             if(t > 0 && t < 999999.0){
                 vec3 color = model->rayTraceColor(pos,v, light_point, 0.7f, 0.3f);
-                int i = (y * width + x)*4 ;
+                
                 image_data[i] = (byte)(255*color[0]) ;
                 image_data[i+1] = (byte)(255*color[1]) ;
                 image_data[i+2] = (byte)(255*color[2]) ;
                 image_data[i+3] = (byte)255 ;
             }else{
                 int c = 0;
-                int i = (y * width + x)*4 ;
                 image_data[i] = (byte)c ;
                 image_data[i+1] = (byte)c ;
                 image_data[i+2] = (byte)c ;
@@ -994,7 +996,7 @@ byte* setDepthPanelToTrace(byte* ptr){
 
     mat4 invMatrix = glm::inverse((*pMatrix)*(*mvMatrix)) ;
     std::shared_ptr<GLTF> model = meshes[my_avatar];
-    model->applyTransforms();
+    //model->applyTransforms();
     std::unique_ptr<BSPNode> root = make_unique<BSPNode>(model) ;
     auto build = now();
 
@@ -1079,7 +1081,7 @@ byte* addHologramPanel(byte* ptr){
 
     mat4 invMatrix = glm::inverse((*pMatrix)*(*mvMatrix)) ;
     std::shared_ptr<GLTF> model = meshes[my_avatar];
-    model->applyTransforms();
+    //model->applyTransforms();
     //std::unique_ptr<BSPNode> root = make_unique<BSPNode>(model) ;
     auto build = now();
 
@@ -1113,7 +1115,9 @@ byte* addHologramPanel(byte* ptr){
             float rayfrom = 5.0f ;
              // Get the pixel vector in screen space using viewport parameters.
             //vec3 v = getPixelRay(x, y, width, height, pos, invMatrix) ;
-            float t = model->rayTrace(p+normal*rayfrom,-normal); // trace orthogonal to depth field
+
+            float t =  root->rayTrace(p+normal*rayfrom,-normal); // trace orthogonal to depth field
+            //float t = model->rayTrace(p+normal*rayfrom,-normal); // trace orthogonal to depth field
 
             if(t > 0 && t < 999999.0){
                 depth[x][y] = (rayfrom-t) ; // depth is out of panel into camera
@@ -1164,13 +1168,12 @@ byte* addHologramView(byte* ptr){
     for(auto& p : ps){
         vec3 ve = getPixelRay(p.x, p.y, width, height, pos, invMatrix)*2.0 ;
         glm::vec2 vt = view.getTextureCoordinates(ve);
-        printf("%f,%f = %f,%f\n", p.x,p.y,vt.x,vt.y);
+        //printf("%f,%f = %f,%f\n", p.x,p.y,vt.x,vt.y);
     }
 
-    
 
     std::shared_ptr<GLTF> model = meshes[my_avatar];
-    model->applyTransforms();
+    //model->applyTransforms();
     //std::unique_ptr<BSPNode> root = make_unique<BSPNode>(model) ;
 
     auto build = now();
@@ -1181,7 +1184,10 @@ byte* addHologramView(byte* ptr){
             if(x > 50 && y > 50 && x < width-50 && y < height-50){ // border to save time
                 // Get the pixel vector in screen space using viewport parameters.
                 v = getPixelRay(x, y, width, height, pos, invMatrix) ;
-                color = model->rayTraceColor(pos,v, light_point, 0.7f, 0.3f);
+                float t =  root->rayTrace(pos,v);
+                if(t > 0 && t < 999999.0){
+                    color = model->rayTraceColor(pos,v, light_point, 0.7f, 0.3f);
+                }
             }
             image_data[i] = (byte)(255*color[0]) ;
             image_data[i+1] = (byte)(255*color[1]) ;
@@ -1199,7 +1205,7 @@ byte* addHologramView(byte* ptr){
     int trace_time = millisBetween(build,now());
     printf("Raytracing Time (To add hologram view): %d ms ( %d build, %d trace)\n", time, build_time, trace_time);
     map<string, Variant> ret_map;
-    ret_map["image"] = Variant(image_data, width*height*4);
+    //ret_map["image"] = Variant(image_data, width*height*4);
     free(image_data);
     return pack(ret_map);
 }
@@ -1217,7 +1223,6 @@ byte* getHologramTraceImage(byte* ptr){
     mat4 invMatrix = glm::inverse((*pMatrix)*(*mvMatrix)) ;
 
     byte* image_data = (byte*)malloc(width*height*4); // TODO use fillable variant
-
     auto build = now();
     for(int x=0;x< width; x++){
         for(int y = 0; y < height; y++){
@@ -1240,7 +1245,7 @@ byte* getHologramTraceImage(byte* ptr){
     int time = millisBetween(start,now());
     int build_time = millisBetween(start,build);
     int trace_time = millisBetween(build,now());
-    printf("CPU Holo Raytracing Time: %d ms ( %d build, %d trace)\n", time, build_time, trace_time);
+    //printf("CPU Holo Raytracing Time: %d ms ( %d build, %d trace)\n", time, build_time, trace_time);
     //printf("Ray calls: %d, Ray Steps: %d, Block Steps:%d average steps: %d average block steps:%d\n", panel.ray_calls, panel.ray_steps,panel.block_steps, panel.ray_steps/panel.ray_calls,panel.block_steps/panel.ray_calls);
     map<string, Variant> ret_map;
     ret_map["image"] = Variant(image_data, width*height*4);
