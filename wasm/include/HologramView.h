@@ -34,5 +34,7 @@ class HologramView{
         //scores how well this image aligns for a ray starting at p0 and hitting a solid at intersect (lower is better)
         float scoreAlignment(const glm::vec3& p0, const glm::vec3& intersect);
 
+        float blendWeight(const glm::vec3& p0, const glm::vec3& intersect);
+
 };
 #endif // #ifndef _HOLOGRAM_VIEW_H_

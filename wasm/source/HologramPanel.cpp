@@ -186,8 +186,6 @@ glm::vec3 HologramPanel::getFirstPointInBlock(const glm::vec3 &p, const glm::vec
     float max_z = depth_map[255]+0.001f ;
     int depth = depth_image[by * bwidth + bx] ;
     int first_depth = depth ;
-    int steps = 0 ;
-  
     while(z < max_z && bx >= 0 && bx < bwidth && by >=0 && by < bheight && z > depth_map[depth] && (depth > 0 || z >0)){
         block_steps++;
         // step horizontally or vertically based on which you would hit next
@@ -205,7 +203,6 @@ glm::vec3 HologramPanel::getFirstPointInBlock(const glm::vec3 &p, const glm::vec
             by += ystep;
         }
         depth = depth_image[by * bwidth + bx] ;
-        steps++;
         //printf(" bx: %d, by:%d, depth: %d,  steps: %d\n", bx, by, depth, steps);
     }
 
@@ -286,7 +283,6 @@ glm::vec3 HologramPanel::firstPointHit(const glm::vec3 &p, const glm::vec3 &v){
     float depth_value = depth_map[depth] ;
     float tperxstep = tperx*xstep ;
     float tperystep = tpery*ystep ;
-
     //while(z < max_z && x >=0 && x < width && y >=0 && y < height && z > depth_map[depth] && (depth > 0 || z >0)){
      while(t < exit_t && z > depth_value){ // while in box and not hitting a bar
         // step horizontally or vertically based on which you would hit next

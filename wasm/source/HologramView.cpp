@@ -78,3 +78,15 @@ float HologramView::scoreAlignment(const glm::vec3& p0, const glm::vec3& interse
     // minimize angle between ray to user view and ray to this image 
     return -glm::dot(v0,vi)/ sqrt(glm::dot(v0,v0) * glm::dot(vi,vi));
 }
+
+float HologramView::blendWeight(const glm::vec3& p0, const glm::vec3& intersect){
+    vec3 v0 = p0-intersect;
+    vec3 vi = position-intersect ;
+    // minimize angle between ray to user view and ray to this image 
+    float cos = glm::dot(v0,vi)/ sqrt(glm::dot(v0,v0) * glm::dot(vi,vi));
+    if(cos > 0){
+        return 1/(1-cos+0.001f);
+    }else{
+        return 0 ; 
+    }
+}

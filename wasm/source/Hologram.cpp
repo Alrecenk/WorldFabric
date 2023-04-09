@@ -72,6 +72,7 @@ glm::vec3 Hologram::getColor(const glm::vec3 &p, const glm::vec3 &v){
         return intersect ;
     }
 
+    /*
     int best_view = 0 ;
     float best_score = view[0].scoreAlignment(p, intersect);
     for(int k=1;k<view.size();k++){
@@ -83,5 +84,18 @@ glm::vec3 Hologram::getColor(const glm::vec3 &p, const glm::vec3 &v){
     }
     //printf("Hologram getColor-best_view:%d, score%f\n",best_view,best_score);
     return view[best_view].getColor(intersect);
+
+    */
+    vec3 color_total(0,0,0);
+    float weight_total = 0 ;
+    for(int k=0;k<view.size();k++){
+        float w = view[k].blendWeight(p, intersect);
+        if(w > 0){
+            color_total+= w*view[k].getColor(intersect);
+            weight_total+=w ;
+        }
+    }
+
+    return color_total / weight_total ;
     
 }

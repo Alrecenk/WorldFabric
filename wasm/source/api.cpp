@@ -1178,7 +1178,7 @@ byte* addHologramView(byte* ptr){
         for(int y = 0; y < height; y++){
             int i = (y * width + x)*4 ;
             vec3 color = vec3(0,0,0);
-            if(x > 80 && y > 80 && x < width-80 && y < height-80){ // border to save time
+            if(x > 50 && y > 50 && x < width-50 && y < height-50){ // border to save time
                 // Get the pixel vector in screen space using viewport parameters.
                 v = getPixelRay(x, y, width, height, pos, invMatrix) ;
                 color = model->rayTraceColor(pos,v, light_point, 0.7f, 0.3f);
@@ -1222,7 +1222,7 @@ byte* getHologramTraceImage(byte* ptr){
     for(int x=0;x< width; x++){
         for(int y = 0; y < height; y++){
             vec3 color = vec3(0,0,0);
-            if(x > 80 && y > 80 && x < width-80 && y < height-80){ // border to save time
+            if(x > 50 && y > 50 && x < width-50 && y < height-50){ // border to save time
 
                 // Get the pixel vector in screen space using viewport parameters.
                 vec3 v = getPixelRay(x, y, width, height, pos, invMatrix) ;
