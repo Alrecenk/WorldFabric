@@ -143,6 +143,7 @@ class GLTF : public OptimizationProblem, public TableInterface {
         bool model_changed = false;
         bool bones_changed = false;
         int last_traced_tri ; // Index of last triangle hit by raytrace
+        float last_traced_t=0;
 
         // Constructor
         GLTF();

@@ -1298,11 +1298,14 @@ float GLTF::rayTrace(const vec3 &p, const vec3 &v){
         if(t > 0 && t < min_t){
             min_t = t ;
             last_traced_tri  = k ;
+            
         }
     }
     if(min_t < std::numeric_limits<float>::max() ){
+        last_traced_t = min_t ;
         return min_t ;
     }else{
+        last_traced_t = -1.0f ;
         return -1;
     }
 }

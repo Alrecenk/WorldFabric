@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 #include <math.h>
+#include <queue>
 
 using glm::vec3 ;
 using glm::mat4;
@@ -50,16 +51,56 @@ void Hologram::addView(glm::vec3 p, glm::vec3 n , const std::vector<std::pair<gl
 
 // get the point a ray would hit by intersecting it with the appropriate panel
 glm::vec3 Hologram::getPoint(const glm::vec3 &p, const glm::vec3 &v){
-    int best_panel = 0 ;
-    float best_score = panel[0].scoreAlignment(p,v);
-    for(int k=1;k<panel.size();k++){
+
+    std::priority_queue<std::pair<float, int>> best_panels ;
+    
+    //bool print = rand()%100 < 2 ;
+
+    int max_panel_blend = 1 ;
+    for(int k=0;k<panel.size();k++){
         float score = panel[k].scoreAlignment(p,v);
-        if(score < best_score){ 
-            best_score = score ;
-            best_panel = k ;
+        //if(print)printf("panel check %d score: %f\n", k, score);
+        best_panels.push(std::pair<float, int>(score,k)) ; // we wan the worst at the top so we pop off the worst
+        if(best_panels.size()>max_panel_blend){
+            best_panels.pop();
         }
     }
-    return panel[best_panel].rayTrace(p,v);
+
+    vec3 total_point = vec3(0,0,0) ;
+    float total_weight=0;
+    // weight of best hi and best miss 
+    float best_miss = 0 ;
+    float best_hit = 0 ;
+    while(!best_panels.empty()){
+        
+        std::pair<float, int> bp = best_panels.top() ;
+        //if(print)printf("queue panel %d score: %f\n", bp.second, bp.first);
+        best_panels.pop();
+        // 1 is optimal alignment, 0 is perpendicular
+        float start_blend = 0.5f;
+        float alignment = -bp.first ;
+        if(alignment > start_blend){ // pretty close to start blending
+
+            float weight = (alignment-start_blend)*(alignment-start_blend) ;
+            vec3 point = panel[bp.second].rayTrace(p,v) ;
+            // don't blend a miss with a hit
+            if(point.x == 0.0f && point.y == 0.0f && point.z == 0.0f){
+                best_miss = fmax(weight,best_miss) ;
+            }else{
+                best_hit = fmax(weight,best_hit);
+                total_point += point * weight;
+                total_weight += weight;
+            }
+        }
+    }
+
+    //if(print)printf("total_weight, %f best_miss: %f best_hit %f\n", total_weight, best_miss, best_hit);
+    // if we got no valid panels or betsscoring panel was a miss
+    if(total_weight <= 0.0f || best_miss > best_hit){
+        return vec3(0.0f,0.0f,0.0f); // then it was a miss
+    }else{
+        return total_point/total_weight; // blend hits
+    }
     //printf("Hologram getPoint-best_panel:%d, score%f, t: %f\n",best_panel,best_score,t);
 
 }

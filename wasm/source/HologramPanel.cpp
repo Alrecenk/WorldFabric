@@ -346,5 +346,5 @@ float HologramPanel::rayPlaneIntersect(const glm::vec3 &p, const glm::vec3 &v, c
 float HologramPanel::scoreAlignment(const glm::vec3 &p, const glm::vec3 &v){
     float vv = glm::dot(v,v);
     float vn = glm::dot(v, Z);
-    return vn/sqrt(vv);
+    return vn/sqrt(vv); // -1 is perfect alignment, 0 is perpendicular
 }
