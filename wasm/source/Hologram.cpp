@@ -51,15 +51,10 @@ void Hologram::addView(glm::vec3 p, glm::vec3 n , const std::vector<std::pair<gl
 
 // get the point a ray would hit by intersecting it with the appropriate panel
 glm::vec3 Hologram::getPoint(const glm::vec3 &p, const glm::vec3 &v){
-
     std::priority_queue<std::pair<float, int>> best_panels ;
-    
-    //bool print = rand()%100 < 2 ;
-
-    int max_panel_blend = 1 ;
+    int max_panel_blend = 3 ;
     for(int k=0;k<panel.size();k++){
         float score = panel[k].scoreAlignment(p,v);
-        //if(print)printf("panel check %d score: %f\n", k, score);
         best_panels.push(std::pair<float, int>(score,k)) ; // we wan the worst at the top so we pop off the worst
         if(best_panels.size()>max_panel_blend){
             best_panels.pop();
@@ -72,9 +67,7 @@ glm::vec3 Hologram::getPoint(const glm::vec3 &p, const glm::vec3 &v){
     float best_miss = 0 ;
     float best_hit = 0 ;
     while(!best_panels.empty()){
-        
         std::pair<float, int> bp = best_panels.top() ;
-        //if(print)printf("queue panel %d score: %f\n", bp.second, bp.first);
         best_panels.pop();
         // 1 is optimal alignment, 0 is perpendicular
         float start_blend = 0.5f;
@@ -94,49 +87,52 @@ glm::vec3 Hologram::getPoint(const glm::vec3 &p, const glm::vec3 &v){
         }
     }
 
-    //if(print)printf("total_weight, %f best_miss: %f best_hit %f\n", total_weight, best_miss, best_hit);
     // if we got no valid panels or betsscoring panel was a miss
     if(total_weight <= 0.0f || best_miss > best_hit){
         return vec3(0.0f,0.0f,0.0f); // then it was a miss
     }else{
         return total_point/total_weight; // blend hits
     }
-    //printf("Hologram getPoint-best_panel:%d, score%f, t: %f\n",best_panel,best_score,t);
 
 }
 
 // get the color of a ray
 glm::vec3 Hologram::getColor(const glm::vec3 &p, const glm::vec3 &v){
-    //printf("C\n");
     vec3 intersect = getPoint(p,v);
     if(intersect.x == 0.0f && intersect.y == 0.0f && intersect.z == 0.0f){
         return intersect ;
     }
 
-    /*
-    int best_view = 0 ;
-    float best_score = view[0].scoreAlignment(p, intersect);
-    for(int k=1;k<view.size();k++){
-        float score = view[k].scoreAlignment(p, intersect);
-        if(score < best_score){ 
-            best_score = score ;
-            best_view= k ;
-        }
-    }
-    //printf("Hologram getColor-best_view:%d, score%f\n",best_view,best_score);
-    return view[best_view].getColor(intersect);
-
-    */
-    vec3 color_total(0,0,0);
-    float weight_total = 0 ;
+    std::priority_queue<std::pair<float, int>> best_views ;
+    int max_view_blend = 3 ;
     for(int k=0;k<view.size();k++){
         float w = view[k].blendWeight(p, intersect);
         if(w > 0){
-            color_total+= w*view[k].getColor(intersect);
-            weight_total+=w ;
+            //if(print)printf("panel check %d score: %f\n", k, score);
+            best_views.push(std::pair<float, int>(-w,k)) ; // we want the worst at the top so we pop off the worst
+            if(best_views.size()>max_view_blend){
+                best_views.pop();
+            }
         }
     }
 
-    return color_total / weight_total ;
+    vec3 total_color= vec3(0,0,0) ;
+    float total_weight=0;
+    while(!best_views.empty()){
+        
+        std::pair<float, int> bv = best_views.top() ;
+        best_views.pop();
+        float weight = -bv.first ;
+        vec3 color = view[bv.second].getColor(intersect);
+        total_color += color * weight;
+        total_weight += weight;
+            
+    }
+
+    if(total_weight <= 0.0f){
+        return vec3(0.0f,0.0f,0.0f); // then it was a miss
+    }else{
+        return total_color/total_weight; // blend hits
+    }
     
 }

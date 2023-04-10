@@ -135,7 +135,7 @@ bool HologramView::checkVisibility(const glm::vec3 &p){
     }
     float image_depth = depth_map[di];
     
-    return depth <= image_depth*1.015f; // occlusion check
+    return depth <= image_depth*1.015f && depth >= image_depth*0.5f; // occlusion check
 
 }
 
