@@ -189,6 +189,17 @@ Variant::Variant(const float *data, int array_length) {
     memcpy(ptr + 4, data, 4 * array_length);
 }
 
+Variant::Variant(const std::vector<float>& data){
+    int array_length=data.size();
+    type_ = FLOAT_ARRAY;
+    ptr = (byte *) malloc(4 + 4 * array_length);
+    ((int *) ptr)[0] = array_length;
+    float* f = (float *) (ptr + 4) ;
+    for(int k=0;k<array_length;k++){
+        f[k] = data[k];
+    }
+}
+
 Variant::Variant(const glm::vec3& data){
     type_ = FLOAT_ARRAY;
     int array_length = 3 ;
@@ -699,6 +710,18 @@ double *Variant::getDoubleArray() const {
 
 short *Variant::getShortArray() const {
     return (short *) (ptr + 4); // skip length
+}
+
+// can be used on a float array to get a vector instead (performs a deep copy)
+std::vector<float> Variant::getFloatVector() const {
+    int length = getArrayLength() ;
+    float* p = getFloatArray();
+    vector<float> vec;
+    vec.resize(length);
+    for(int k=0;k<length;k++){
+        vec[k] = p[k];
+    }
+    return vec ;
 }
 
 /* Numbers passed from javascript could be int, double, or float depending on how they're writtten or stored

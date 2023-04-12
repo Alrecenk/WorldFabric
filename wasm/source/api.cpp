@@ -273,20 +273,6 @@ byte* requestModel(byte* ptr){
     auto obj = Variant::deserializeObject(ptr);
     string key = obj["key"].getString() ;
     meshes.requestRemoteMesh(key);
-
-    /*
-    string select = my_avatar;
-
-    
-    std::shared_ptr<GLTF> model = meshes[select];
-
-    auto start_time = now();
-    
-
-    model->requestTableData(key);
-
-    */
-
     return emptyReturn();
 }
 
@@ -1258,6 +1244,35 @@ byte* getHologramTraceImage(byte* ptr){
     map<string, Variant> ret_map;
     ret_map["image"] = Variant(image_data, width*height*4);
     free(image_data);
+    return pack(ret_map);
+}
+
+
+byte* downloadHologram(byte* ptr){
+    //auto obj = Variant::deserializeObject(ptr);
+    Variant serialized = hologram.serialize() ;
+    Hologram h2 ;
+
+    h2.set(serialized);
+
+    Variant s2 = h2.serialize();
+    printf("hash check: %d == %d \n", serialized.hash(), s2.hash());
+    return pack(serialized);
+}
+
+byte* loadHologram(byte* ptr){
+
+    auto obj = Variant::deserializeObject(ptr);
+    Variant obj_variant(
+            Variant::OBJECT, obj["data"].getByteArray());
+    hologram.set(obj_variant);
+    
+    Variant s2 = hologram.serialize() ;
+    printf("hash check: %d == %d \n", obj_variant.hash(), s2.hash());
+
+    map<string, Variant> ret_map;
+    ret_map["views"] = Variant((int)hologram.view.size());
+    ret_map["panels"] = Variant((int)hologram.panel.size());
     return pack(ret_map);
 }
 

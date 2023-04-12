@@ -157,6 +157,7 @@ var imports = url_params.get("import") ? url_params.get("import").split(',') : [
 var tools  ; // a map containing several things above so execution modes can access them
 var views = 0, panels = 0 ;
 var updating = false, needs_updated = true;
+var filename = "test";
 
 function canvasApp() {
     //The canvas this app is running on.
@@ -364,10 +365,12 @@ function setMainMenuButtons(){
     
     
 
-    tools.buttons["holo_view"] = new InterfaceButton(5, 130, 100, 40, "Add View", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, addHologramView);
+    tools.buttons["holo_view"] = new InterfaceButton(5, 90, 100, 40, "Add View", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, addHologramView);
     //tools.buttons["holo_panel"] = new InterfaceButton(5, 290, 100, 40, "Add Panel", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, addHologramPanel);
-    tools.buttons["holo_trace"] = new InterfaceButton(5, 170, 100, 40, "Hologram", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, holoTrace);
+    tools.buttons["holo_trace"] = new InterfaceButton(5, 130, 100, 40, "Hologram", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, holoTrace);
     //tools.buttons["grow_field"] = new InterfaceButton(5, 210, 100, 40, "Grow Field", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, growField);
+
+    tools.buttons["download_holo"] = new InterfaceButton(5, 170, 100, 40, "Download", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, downloadHolo);
 }
 
 function onBodyLoad(){
@@ -378,7 +381,7 @@ function onBodyLoad(){
     // Wait for the WASM module to finish loading before booting up the socket and app
     window.initializeCPPAPI().then(function(Module){
         tools.API = Module ;
-        tools.table_link = new TableClient(9004, tools.API);
+        //tools.table_link = new TableClient(9004, tools.API);
         tools.new_file = false;
         tools.brush_size = 1 ;
         app = canvasApp(); // Start the app
@@ -387,8 +390,14 @@ function onBodyLoad(){
     });
 }
 
-function loadGLBFile() {
-    var file    = document.getElementById('loader').files[0];
+function loadFile() {
+    var file  = document.getElementById('loader').files[0];
+    console.log(file) ;
+    var ext = file.name.split(".");
+    filename = ext[ext.length-2] ;
+    ext = ext[ext.length-1].toLowerCase();
+    
+
 	var reader  = new FileReader();
 	reader.onloadend = function () {
         let load_data = new Int8Array(reader.result);
@@ -396,8 +405,20 @@ function loadGLBFile() {
         if(load_data!= null){
             let params = {};
             params.data = load_data;
-            tools.renderer.removeMesh("default_avatar");
-            let m = tools.API.call("setModel", params, new Serializer()) ;
+            if(ext == "glb" || ext == "vrm"){
+                tools.renderer.removeMesh("default_avatar");
+                let m = tools.API.call("setModel", params, new Serializer()) ;
+            }else if(ext == "hi1"){
+                updating = true ;
+                let m = tools.API.call("loadHologram", params, new Serializer()) ;
+                views = m.views ;
+                panels=m.panels;
+                tools.buttons["views_label"].text = "views: " + views;
+                updating = false;
+                needs_updated = true ;
+            }else{
+                console.log("file extension not recognized:" + ext);
+            }
         }
     }
 
@@ -494,7 +515,7 @@ function addHologramPanel(){
     
     let trace_input = getCameraTraceInput();
 
-    trace_input.size = 512;
+    trace_input.size = 256;
     trace_input.block_size = 16;
     
     //console.log("trace_input:");
@@ -551,6 +572,39 @@ function holoTrace(){
     tools.renderer.hold_ui_context = true;
 }
 
+//creates a download popup for the raw bytes returned by an API call
+function downloadAPIReturn(api_function,params, default_file_name="data.bin"){
+    let request_ptr = tools.API.call(api_function, params, new Serializer(), true) ;
+    if(request_ptr){ // can cometimes be called before table_module fully initialized
+        let request_size = tools.API.getReturnSize();
+        let data = tools.API.getByteArray(request_ptr, request_size);
+
+
+        // create a Blob with the data
+        var blob = new Blob([data], {type: "application/octet-stream"});
+
+        // create a URL for the Blob
+        var url = URL.createObjectURL(blob);
+
+        // create a link element for the download
+        var link = document.createElement("a");
+        link.href = url;
+        link.download = default_file_name;
+
+        // trigger the download
+        document.body.appendChild(link);
+        link.click();
+
+        // cleanup
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    }
+}
+
+function downloadHolo(){
+    downloadAPIReturn("downloadHologram",{test:"some test text"},filename+".hi1");
+}
+
 
 </script>
 </head>
@@ -560,7 +614,7 @@ function holoTrace(){
 	<canvas id="webgl" style="border: none;" width="1024" height="720" oncontextmenu="return false;"></canvas>
 	</div>
     <p align="center">
-        <input id="loader" type="file" onchange='loadGLBFile()' autocomplete="off">
+        <input id="loader" type="file" onchange='loadFile()' autocomplete="off">
         </p>
 </body>
 </html>

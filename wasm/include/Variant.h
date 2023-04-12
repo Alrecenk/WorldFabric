@@ -68,6 +68,8 @@ class Variant {
 
     Variant(const float* data, int array_length);
 
+    Variant(const std::vector<float>& data);
+
     Variant(const glm::vec3& data); // maps to float*
 
     Variant(const glm::mat4& data); // maps to float*
@@ -158,8 +160,6 @@ class Variant {
     Variant operator [](Variant i);
 
     bool defined() const;
-    
-
 
     // Convenience functions for extracting raw types
     int getInt() const;
@@ -193,8 +193,11 @@ class Variant {
 
     short* getShortArray() const;
 
-/* Numbers passed from javascript could be int, double, or float depending on how they're writtten or stored
-This function detects what type came in and converts it to a 32 bit float */
+    // can be used on a float array to get a vector instead (performs a deep copy)
+    std::vector<float> getFloatVector() const ;
+
+    /* Numbers passed from javascript could be int, double, or float depending on how they're writtten or stored
+    This function detects what type came in and converts it to a 32 bit float */
     float getNumberAsFloat() const;
 
     // Prints this variant to the console using printf (no newline)
