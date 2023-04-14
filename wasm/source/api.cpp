@@ -312,6 +312,40 @@ byte* getUpdatedBuffers(byte* ptr){
     return pack(buffers) ;
 }
 
+byte* getUpdatedHologramBuffers(byte* ptr){
+
+    map<string,Variant> buffers;
+    vector<string> mesh_keys = meshes.getAllKeys();
+    bool has_hand = false;
+    for(auto &name : mesh_keys){
+        std::shared_ptr<GLTF> mesh = meshes[name];
+        //st = now();
+        if(mesh->position_changed || mesh->model_changed || mesh->bones_changed){
+            for(auto const & [material_id, mat]: mesh->materials){
+                std::stringstream ss;
+                ss << name << "-m=" << material_id;
+                string s_id = ss.str();
+                buffers[s_id] = mesh->getChangedBuffer(material_id) ;
+            }
+            mesh->position_changed = false;
+            mesh->model_changed = false;
+            mesh->bones_changed = false;                
+        }
+        if(name == "HAND"){
+            has_hand = true;
+        }
+    }
+
+    if(!has_hand){
+        shared_ptr<ConvexShape> shape = std::make_unique<ConvexShape>(ConvexShape::makeSphere(glm::vec3(0,0,0), 0.01, 0));
+        meshes.addLocalShapeMesh("HAND", shape, vec3(0.85, 0.85, 1.0));
+    }
+
+    //ms = millisBetween(st, now());
+    //printf("api get all buffers: %d ms\n", ms);
+    return pack(buffers) ;
+}
+
 //expects an object with p and v, retruns a serialized single float for t
 byte* rayTrace(byte* ptr){
     std::shared_ptr<GLTF> model = meshes[my_avatar];

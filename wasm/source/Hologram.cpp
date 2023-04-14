@@ -186,6 +186,4 @@ void Hologram::set(Variant& serialized){
     for(int k=0;k<views.size();k++){
         view.emplace_back(views[k]);
     }
-    
-    
 }
