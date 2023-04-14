@@ -30,7 +30,13 @@
 #include "MoveSimpleSolid.h"
 #include "SetConvexSolid.h"
 #include "BSPNode.h"
-
+//#include "SphereField.h"
+//#include "ImageField.h"
+//#include "stb_image.h"
+//#include "FieldImage.h"
+//#include "FieldImageSet.h"
+#include "DepthPanel.h"
+#include "Hologram.h"
 
 using std::vector;
 using std::string;
@@ -62,6 +68,31 @@ float action_delay = 0.05;
 
 std::unordered_map<int, TObject*> descriptor_cache ;
 
+
+
+
+// Image used for the BSP image training test
+/*
+Variant original_image ;
+int original_image_width;
+int original_image_height;
+int original_image_channels;
+*/
+/*
+int unlocked_field_rows = 2;
+ImageField image_field(unlocked_field_rows);
+
+//SphereField sphere_field(vec3(0,0,0), 0.9f, 4);
+
+FieldImageSet image_set ;
+
+*/
+
+std::unique_ptr<BSPNode> root ;
+
+DepthPanel panel = DepthPanel::generateTestPanel(vec3(0,0,0), 1.0f, vec3(0,1.0f,0)) ;
+
+Hologram hologram(vec3(0,0,0), 1) ;
 
 long timeMilliseconds() {
     return std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -164,6 +195,13 @@ Variant getVariantMatrix(glm::quat q){
     return matrix ;
 }
 
+glm::dvec3 getPixelRay(int x, int y, int width, int height, const glm::dvec3& pos, const glm::mat4& invMatrix){
+    glm::dvec4 p = vec4(2*x/(float)width-1, -1*(2*y/(float)height-1), 1, 1);
+    p = invMatrix * p ;
+    glm::dvec3 v = vec3(p.x/p.w-pos.x, p.y/p.w-pos.y, p.z/p.w-pos.z) ;
+    v = glm::normalize(v);
+    return v;
+}
 
 extern "C" { // Prevents C++ from mangling the exported name apparently
 
@@ -205,11 +243,16 @@ byte* setModel(byte* ptr){
     }
 
     model->transform = mat4(1);
-    if(size < 0.5 || size > 3){
-        model->transform  = glm::scale(mat4(1), {(1.0f/size),(1.0f/size),(1.0f/size)});
-        model->transform  = glm::translate(model->transform, center*-1.0f);
-    }
+    model->transform  = glm::scale(mat4(1), {(1.0f/size),(1.0f/size),(1.0f/size)});
+    model->transform  = glm::translate(model->transform, center*-1.0f);
+
+    //model->transform  = glm::translate(model->transform, center*-1.0f);
+    //model->transform  = glm::scale(model->transform, {(1.0f/size),(1.0f/size),(1.0f/size)});
     
+    center = vec3(0,0,0);
+    size = 1.0f ;
+
+
     model->computeNodeMatrices();
     model->applyTransforms();
     
@@ -217,10 +260,12 @@ byte* setModel(byte* ptr){
     map<string, Variant> ret_map;
     ret_map["center"] = Variant(center);
     ret_map["size"] = Variant(size);
+    
 
     int millis = millisBetween(start_time, now());
     printf("Total model load time: %d ms\n", millis);
 
+    root = make_unique<BSPNode>(model) ;
     return pack(ret_map);
 }
 
@@ -228,26 +273,46 @@ byte* requestModel(byte* ptr){
     auto obj = Variant::deserializeObject(ptr);
     string key = obj["key"].getString() ;
     meshes.requestRemoteMesh(key);
-
-    /*
-    string select = my_avatar;
-
-    
-    std::shared_ptr<GLTF> model = meshes[select];
-
-    auto start_time = now();
-    
-
-    model->requestTableData(key);
-
-    */
-
     return emptyReturn();
 }
 
 
 
 byte* getUpdatedBuffers(byte* ptr){
+
+    map<string,Variant> buffers;
+    vector<string> mesh_keys = meshes.getAllKeys();
+    bool has_hand = false;
+    for(auto &name : mesh_keys){
+        std::shared_ptr<GLTF> mesh = meshes[name];
+        //st = now();
+        if(mesh->position_changed || mesh->model_changed || mesh->bones_changed){
+            for(auto const & [material_id, mat]: mesh->materials){
+                std::stringstream ss;
+                ss << name << "-m=" << material_id;
+                string s_id = ss.str();
+                buffers[s_id] = mesh->getChangedBuffer(material_id) ;
+            }
+            mesh->position_changed = false;
+            mesh->model_changed = false;
+            mesh->bones_changed = false;                
+        }
+        if(name == "HAND"){
+            has_hand = true;
+        }
+    }
+
+    if(!has_hand){
+        shared_ptr<ConvexShape> shape = std::make_unique<ConvexShape>(ConvexShape::makeSphere(glm::vec3(0,0,0), 0.01, 0));
+        meshes.addLocalShapeMesh("HAND", shape, vec3(0.85, 0.85, 1.0));
+    }
+
+    //ms = millisBetween(st, now());
+    //printf("api get all buffers: %d ms\n", ms);
+    return pack(buffers) ;
+}
+
+byte* getUpdatedHologramBuffers(byte* ptr){
 
     map<string,Variant> buffers;
     vector<string> mesh_keys = meshes.getAllKeys();
@@ -835,6 +900,409 @@ byte* setIKParams(byte* ptr){
     }
 
     return emptyReturn();
+}
+
+
+byte* getSimpleTraceImage(byte* ptr){
+    auto start = now();
+    auto obj = Variant::deserializeObject(ptr);
+    int width = obj["width"].getInt();
+    int height = obj["height"].getInt();
+    vec3 pos = obj["camera_pos"].getVec3();
+    vec3 light_point = obj["light_point"].getVec3();
+    mat4* pMatrix = (mat4*)obj["pMatrix"].getFloatArray();
+    mat4* mvMatrix = (mat4*)obj["mvMatrix"].getFloatArray();
+    mat4 invMatrix = glm::inverse((*pMatrix)*(*mvMatrix)) ;
+    byte* image_data = (byte*)malloc(width*height*4);
+    // Get the pixel vector in screen space using viewport parameters.
+    vec4 pv (0, 0, 1, 1);
+    pv = invMatrix * pv ;
+    vec3 v(pv.x/pv.w-pos.x, pv.y/pv.w-pos.y, pv.z/pv.w-pos.z) ;
+    //v = glm::normalize(v); // v through center of screen, useful but not used here
+
+
+    std::shared_ptr<GLTF> model = meshes[my_avatar];
+    //model->applyTransforms();
+
+    auto build = now();
+    for(int x=0;x< width; x++){
+        for(int y = 0; y < height; y++){
+             // Get the pixel vector in screen space using viewport parameters.
+            v = getPixelRay(x, y, width, height, pos, invMatrix) ;
+            float t =  root->rayTrace(pos,v);
+            int i = (y * width + x)*4 ;
+            if(t > 0 && t < 999999.0){
+                vec3 color = model->rayTraceColor(pos,v, light_point, 0.7f, 0.3f);
+                
+                image_data[i] = (byte)(255*color[0]) ;
+                image_data[i+1] = (byte)(255*color[1]) ;
+                image_data[i+2] = (byte)(255*color[2]) ;
+                image_data[i+3] = (byte)255 ;
+            }else{
+                int c = 0;
+                image_data[i] = (byte)c ;
+                image_data[i+1] = (byte)c ;
+                image_data[i+2] = (byte)c ;
+                image_data[i+3] = (byte)255 ;
+            }
+        }
+    }
+
+    int time = millisBetween(start,now());
+    int build_time = millisBetween(start,build);
+    int trace_time = millisBetween(build,now());
+    printf("Simple Raytracing Time: %d ms ( %d build, %d trace)\n", time, build_time, trace_time);
+    map<string, Variant> ret_map;
+    ret_map["image"] = Variant(image_data, width*height*4);
+    free(image_data);
+    return pack(ret_map);
+}
+
+byte* getDepthPanelTraceImage(byte* ptr){
+    auto start = now();
+    auto obj = Variant::deserializeObject(ptr);
+    int width = obj["width"].getInt();
+    int height = obj["height"].getInt();
+    vec3 pos = obj["camera_pos"].getVec3();
+    //vec3 light_point = obj["light_point"].getVec3();
+    mat4* pMatrix = (mat4*)obj["pMatrix"].getFloatArray();
+    mat4* mvMatrix = (mat4*)obj["mvMatrix"].getFloatArray();
+
+    mat4 invMatrix = glm::inverse((*pMatrix)*(*mvMatrix)) ;
+
+    byte* image_data = (byte*)malloc(width*height*4); // TODO use fillable variant
+
+    auto build = now();
+    for(int x=0;x< width; x++){
+        for(int y = 0; y < height; y++){
+             // Get the pixel vector in screen space using viewport parameters.
+            vec3 v = getPixelRay(x, y, width, height, pos, invMatrix) ;
+            
+            vec3 color = panel.getColor(pos,v);
+            int i = (y * width + x)*4 ;
+            image_data[i] = (byte)(255*color[0]) ;
+            image_data[i+1] = (byte)(255*color[1]) ;
+            image_data[i+2] = (byte)(255*color[2]) ;
+            image_data[i+3] = (byte)255 ;
+                
+        }
+    }
+    //printf("d");
+    int time = millisBetween(start,now());
+    int build_time = millisBetween(start,build);
+    int trace_time = millisBetween(build,now());
+    printf("CPU Panel Raytracing Time: %d ms ( %d build, %d trace)\n", time, build_time, trace_time);
+    printf("Ray calls: %d, Ray Steps: %d, Block Steps:%d average steps: %d average block steps:%d\n", panel.ray_calls, panel.ray_steps,panel.block_steps, panel.ray_steps/panel.ray_calls,panel.block_steps/panel.ray_calls);
+    map<string, Variant> ret_map;
+    ret_map["image"] = Variant(image_data, width*height*4);
+    free(image_data);
+    return pack(ret_map);
+}
+
+byte* setDepthPanelToTrace(byte* ptr){
+    auto start = now();
+    auto obj = Variant::deserializeObject(ptr);
+    int image_size = obj["size"].getInt();
+    int block_size = obj["block_size"].getInt();
+    vec3 pos = obj["camera_pos"].getVec3();
+    vec3 light_point = obj["light_point"].getVec3();
+    mat4* pMatrix = (mat4*)obj["pMatrix"].getFloatArray();
+    mat4* mvMatrix = (mat4*)obj["mvMatrix"].getFloatArray();
+
+    mat4 invMatrix = glm::inverse((*pMatrix)*(*mvMatrix)) ;
+    std::shared_ptr<GLTF> model = meshes[my_avatar];
+    //model->applyTransforms();
+    std::unique_ptr<BSPNode> root = make_unique<BSPNode>(model) ;
+    auto build = now();
+
+    // Get the pixel vector in screen space using viewport parameters.
+    vec4 pv (0, 0, 1, 1);
+    pv = invMatrix * pv ;
+    vec3 normal(pv.x/pv.w-pos.x, pv.y/pv.w-pos.y, pv.z/pv.w-pos.z) ;
+    normal = -glm::normalize(normal);
+    vec3 center = vec3(0,0,0);
+    float radius = 1 ;
+    int width = image_size, height = image_size, channels = 3;
+
+    // Make a basis where panel Y roughly matches real world Y
+    vec3 Y(-0.002,1,0.01);
+    vec3 X = glm::cross(normal, Y);
+    Y = glm::cross(normal, X);
+    vec3 Z = glm::normalize(normal);
+    // X and Y are per pixel, so, we want the image to cover a radius witha border
+    X = glm::normalize(X) * (float)(radius*2/width);
+    Y = glm::normalize(Y) * (float)(radius*2/height);
+ 
+    glm::vec3 zero = center - X*(float)(width/2) - Y*(float)(height/2) - Z*0.5f ;
+    panel = DepthPanel (zero, X, Y , Z);
+    
+    
+    Variant texture ;
+    texture.makeFillableByteArray(width*height*channels);
+    byte* image_bytes = texture.getByteArray();
+
+    vector<vector<float>> depth ;
+    depth.resize(width);
+
+    for(int x=0;x< width; x++){
+        depth[x].resize(height);
+        for(int y = 0; y < height; y++){
+            vec3 p = zero + X*(float)x +Y*(float)y ; // get 3D point on backplate
+            float rayfrom = 5.0f ;
+             // Get the pixel vector in screen space using viewport parameters.
+            //vec3 v = getPixelRay(x, y, width, height, pos, invMatrix) ;
+            float t =  root->rayTrace(p+normal*rayfrom,-normal); // trace orthogonal to depth field
+
+            if(t > 0 && t < 999999.0){
+                vec3 color = model->rayTraceColor(p+normal*rayfrom,-normal, light_point, 0.7f, 0.3f);
+                int i = (y * width + x)*channels ;
+                image_bytes[i] = (byte)(255*color[0]) ;
+                image_bytes[i+1] = (byte)(255*color[1]) ;
+                image_bytes[i+2] = (byte)(255*color[2]) ;
+                depth[x][y] = (rayfrom-t) ;
+            }else{
+                int c = 0;
+                int i = (y * width + x)*channels;
+                image_bytes[i] = (byte)c ;
+                image_bytes[i+1] = (byte)c ;
+                image_bytes[i+2] = (byte)c ;
+                depth[x][y] = -1.0f; // negative depth indicates transparency
+            }
+        }
+    }
+
+    panel.moveImage(texture, width,height, channels);
+    panel.setDepth(depth);
+    if(block_size >0){
+        panel.buildBlockImage(block_size);
+    }
+
+    int time = millisBetween(start,now());
+    int build_time = millisBetween(start,build);
+    int trace_time = millisBetween(build,now());
+    printf("Raytracing Time(to build panel): %d ms ( %d build, %d trace)\n", time, build_time, trace_time);
+    return emptyReturn();
+}
+
+byte* addHologramPanel(byte* ptr){
+    auto start = now();
+    auto obj = Variant::deserializeObject(ptr);
+    int image_size = obj["size"].getInt();
+    int block_size = obj["block_size"].getInt();
+    vec3 pos = obj["camera_pos"].getVec3();
+    vec3 light_point = obj["light_point"].getVec3();
+    mat4* pMatrix = (mat4*)obj["pMatrix"].getFloatArray();
+    mat4* mvMatrix = (mat4*)obj["mvMatrix"].getFloatArray();
+
+    mat4 invMatrix = glm::inverse((*pMatrix)*(*mvMatrix)) ;
+    std::shared_ptr<GLTF> model = meshes[my_avatar];
+    //model->applyTransforms();
+    //std::unique_ptr<BSPNode> root = make_unique<BSPNode>(model) ;
+    auto build = now();
+
+    // Get the pixel vector in screen space using viewport parameters.
+    vec4 pv (0, 0, 1, 1);
+    pv = invMatrix * pv ;
+    vec3 normal(pv.x/pv.w-pos.x, pv.y/pv.w-pos.y, pv.z/pv.w-pos.z) ;
+    normal = -glm::normalize(normal);
+    vec3 center = vec3(0,0,0);
+    float radius = 1 ;
+    int width = image_size, height = image_size, channels = 3;
+
+    // Make a basis where panel Y roughly matches real world Y
+    vec3 Y(-0.002,1,0.01);
+    vec3 X = glm::cross(normal, Y);
+    Y = glm::cross(normal, X);
+    vec3 Z = glm::normalize(normal);
+    // X and Y are per pixel, so, we want the image to cover a radius witha border
+    X = glm::normalize(X) * (float)(radius*2/width);
+    Y = glm::normalize(Y) * (float)(radius*2/height);
+ 
+    glm::vec3 zero = center - X*(float)(width/2) - Y*(float)(height/2) - Z*0.5f ;
+ 
+    vector<vector<float>> depth ;
+    depth.resize(width);
+
+    for(int x=0;x< width; x++){
+        depth[x].resize(height);
+        for(int y = 0; y < height; y++){
+            vec3 p = zero + X*(float)x +Y*(float)y ; // get 3D point on backplate
+            float rayfrom = 5.0f ;
+             // Get the pixel vector in screen space using viewport parameters.
+            //vec3 v = getPixelRay(x, y, width, height, pos, invMatrix) ;
+
+            float t =  root->rayTrace(p+normal*rayfrom,-normal); // trace orthogonal to depth field
+            //float t = model->rayTrace(p+normal*rayfrom,-normal); // trace orthogonal to depth field
+
+            if(t > 0 && t < 999999.0){
+                depth[x][y] = (rayfrom-t) ; // depth is out of panel into camera
+            }else{
+                depth[x][y] = -1.0f; // negative depth indicates transparency
+            }
+        }
+    }
+
+    hologram.addPanel(zero, X, Y, Z, depth, block_size);
+
+    int time = millisBetween(start,now());
+    int build_time = millisBetween(start,build);
+    int trace_time = millisBetween(build,now());
+    printf("Raytracing Time(to build panel): %d ms ( %d build, %d trace)\n", time, build_time, trace_time);
+    return emptyReturn();
+
+}
+
+byte* addHologramView(byte* ptr){
+    auto start = now();
+    auto obj = Variant::deserializeObject(ptr);
+    int width = obj["width"].getInt();
+    int height = obj["height"].getInt();
+    vec3 pos = obj["camera_pos"].getVec3();
+    vec3 light_point = obj["light_point"].getVec3();
+    mat4* pMatrix = (mat4*)obj["pMatrix"].getFloatArray();
+    mat4* mvMatrix = (mat4*)obj["mvMatrix"].getFloatArray();
+
+    mat4 invMatrix = glm::inverse((*pMatrix)*(*mvMatrix)) ;
+
+    byte* image_data = (byte*)malloc(width*height*4);
+    // Get the pixel vector in screen space using viewport parameters.
+    vec4 pv (0, 0, 1, 1);
+    pv = invMatrix * pv ;
+    vec3 v(pv.x/pv.w-pos.x, pv.y/pv.w-pos.y, pv.z/pv.w-pos.z) ;
+    v = glm::normalize(v); // ray through center of screen
+
+    std::vector<glm::vec2> ps = {glm::vec2(0,0), glm::vec2(width,0), glm::vec2(width,height), glm::vec2(0,height)};
+    std::vector<std::pair<glm::vec3, glm::vec2>> ray_examples;
+    for(auto& p : ps){
+        ray_examples.push_back(std::pair<glm::vec3, glm::vec2>(getPixelRay(p.x, p.y, width, height, pos, invMatrix), p));
+    }
+
+
+
+    HologramView view(pos, v , ray_examples);
+    for(auto& p : ps){
+        vec3 ve = getPixelRay(p.x, p.y, width, height, pos, invMatrix)*2.0 ;
+        glm::vec2 vt = view.getTextureCoordinates(ve);
+        //printf("%f,%f = %f,%f\n", p.x,p.y,vt.x,vt.y);
+    }
+
+
+    std::shared_ptr<GLTF> model = meshes[my_avatar];
+    //model->applyTransforms();
+    //std::unique_ptr<BSPNode> root = make_unique<BSPNode>(model) ;
+
+    auto build = now();
+    vector<vector<float>> depth ;
+    depth.resize(width);
+    for(int x=0;x< width; x++){
+        depth[x].resize(height);
+        for(int y = 0; y < height; y++){
+            int i = (y * width + x)*4 ;
+            vec3 color = vec3(0,0,0);
+            float d = 0.01f ; // make sure the one we don't trace occlude
+            if(x > 50 && y > 50 && x < width-50 && y < height-50){ // border to save time
+                d = -1.0f;
+                // Get the pixel vector in screen space using viewport parameters.
+                v = getPixelRay(x, y, width, height, pos, invMatrix) ;
+                float t =  root->rayTrace(pos,v);
+                if(t > 0 && t < 999999.0){
+                    color = model->rayTraceColor(pos,v, light_point, 0.7f, 0.3f);
+                    d = t ;
+                }
+            }
+            image_data[i] = (byte)(255*color[0]) ;
+            image_data[i+1] = (byte)(255*color[1]) ;
+            image_data[i+2] = (byte)(255*color[2]) ;
+            image_data[i+3] = (byte)255 ;
+            depth[x][y] = d ;
+        }
+    }
+
+    Variant view_texture = Variant(image_data, width*height*4) ;
+    view.moveImage(view_texture,  width,height, 4);
+    view.setDepth(depth);
+    hologram.addView(view);
+
+    int time = millisBetween(start,now());
+    int build_time = millisBetween(start,build);
+    int trace_time = millisBetween(build,now());
+    printf("Raytracing Time (To add hologram view): %d ms ( %d build, %d trace)\n", time, build_time, trace_time);
+    map<string, Variant> ret_map;
+    //ret_map["image"] = Variant(image_data, width*height*4);
+    free(image_data);
+    return pack(ret_map);
+}
+
+byte* getHologramTraceImage(byte* ptr){
+    auto start = now();
+    auto obj = Variant::deserializeObject(ptr);
+    int width = obj["width"].getInt();
+    int height = obj["height"].getInt();
+    vec3 pos = obj["camera_pos"].getVec3();
+    //vec3 light_point = obj["light_point"].getVec3();
+    mat4* pMatrix = (mat4*)obj["pMatrix"].getFloatArray();
+    mat4* mvMatrix = (mat4*)obj["mvMatrix"].getFloatArray();
+
+    mat4 invMatrix = glm::inverse((*pMatrix)*(*mvMatrix)) ;
+
+    byte* image_data = (byte*)malloc(width*height*4); // TODO use fillable variant
+    auto build = now();
+    for(int x=0;x< width; x++){
+        for(int y = 0; y < height; y++){
+            vec3 color = vec3(0,0,0);
+            if(x > 50 && y > 50 && x < width-50 && y < height-50){ // border to save time
+
+                // Get the pixel vector in screen space using viewport parameters.
+                vec3 v = getPixelRay(x, y, width, height, pos, invMatrix) ;
+                
+                color = hologram.getColor(pos,v);
+            }
+            int i = (y * width + x)*4 ;
+            image_data[i] = (byte)(255*color[0]) ;
+            image_data[i+1] = (byte)(255*color[1]) ;
+            image_data[i+2] = (byte)(255*color[2]) ;
+            image_data[i+3] = (byte)255 ;
+                
+        }
+    }
+    int time = millisBetween(start,now());
+    int build_time = millisBetween(start,build);
+    int trace_time = millisBetween(build,now());
+    //printf("CPU Holo Raytracing Time: %d ms ( %d build, %d trace)\n", time, build_time, trace_time);
+    //printf("Ray calls: %d, Ray Steps: %d, Block Steps:%d average steps: %d average block steps:%d\n", panel.ray_calls, panel.ray_steps,panel.block_steps, panel.ray_steps/panel.ray_calls,panel.block_steps/panel.ray_calls);
+    map<string, Variant> ret_map;
+    ret_map["image"] = Variant(image_data, width*height*4);
+    free(image_data);
+    return pack(ret_map);
+}
+
+
+byte* downloadHologram(byte* ptr){
+    //auto obj = Variant::deserializeObject(ptr);
+    Variant serialized = hologram.serialize() ;
+    Hologram h2 ;
+
+    h2.set(serialized);
+
+    Variant s2 = h2.serialize();
+    printf("hash check: %d == %d \n", serialized.hash(), s2.hash());
+    return pack(serialized);
+}
+
+byte* loadHologram(byte* ptr){
+
+    auto obj = Variant::deserializeObject(ptr);
+    Variant obj_variant(
+            Variant::OBJECT, obj["data"].getByteArray());
+    hologram.set(obj_variant);
+    
+    Variant s2 = hologram.serialize() ;
+    printf("hash check: %d == %d \n", obj_variant.hash(), s2.hash());
+
+    map<string, Variant> ret_map;
+    ret_map["views"] = Variant((int)hologram.view.size());
+    ret_map["panels"] = Variant((int)hologram.panel.size());
+    return pack(ret_map);
 }
 
 }// end extern C

@@ -1,4 +1,4 @@
-class Renderer{
+class HoloRenderer{
 
     gl; // WebGl instance
     shaderProgram; 
@@ -60,7 +60,7 @@ class Renderer{
         //console.log(gl);
         this.setLightPosition([this.camera_pos[0], this.camera_pos[1] , this.camera_pos[2]]);
 
-        requestAnimationFrame(Renderer.onFrame); // Timer at 60 hertz.
+        requestAnimationFrame(HoloRenderer.onFrame); // Timer at 60 hertz.
     }
 
     // Initialize webGL on a canvas
@@ -140,8 +140,6 @@ class Renderer{
         this.shaderProgram.mvMatrixUniform = gl.getUniformLocation(this.shaderProgram, "uMVMatrix");
         this.shaderProgram.light_point = gl.getUniformLocation(this.shaderProgram, "u_light_point");
         this.shaderProgram.texture = gl.getUniformLocation(this.shaderProgram, "u_texture");
-        this.shaderProgram.bones_texture = gl.getUniformLocation(this.shaderProgram, "bones_texture");
-        this.shaderProgram.boneless = gl.getUniformLocation(this.shaderProgram, "boneless");
         this.shaderProgram.has_texture = gl.getUniformLocation(this.shaderProgram, "u_has_texture");
         this.shaderProgram.alpha_cutoff = gl.getUniformLocation(this.shaderProgram, "u_alpha_cutoff");
         this.shaderProgram.nearness_cutoff = gl.getUniformLocation(this.shaderProgram, "u_nearness_cutoff");
@@ -198,7 +196,7 @@ class Renderer{
             gl.finish();
         }
         if(!r.xr_session){ // Stop drawing regular frames when VR sessions is entered
-            requestAnimationFrame(Renderer.onFrame);
+            requestAnimationFrame(HoloRenderer.onFrame);
         }
     }
 
@@ -208,7 +206,7 @@ class Renderer{
         // Get a ray through the center of the screen
         let ray = this.getRay([gl.viewportWidth*0.5, gl.viewportHeight*0.5]) ;
         //intersect it with the ground
-        return Renderer.getGroundIntersect(ray, ground_height) ;
+        return HoloRenderer.getGroundIntersect(ray, ground_height) ;
     }
 
     static getGroundIntersect(ray, ground_height){
@@ -317,7 +315,7 @@ class Renderer{
     // Takes a pixel position on the screen and creates a 3D ray from the viewpoint toward that pixel in voxel space.
     // returns an object with p and v both float32 arrays with 3 elements (compatible with CPP API raytrace)
     getRay(screen_pos){
-        return Renderer.getPixelRay(this.camera_pos, screen_pos, this.pMatrix, this.mvMatrix, this.gl);
+        return HoloRenderer.getPixelRay(this.camera_pos, screen_pos, this.pMatrix, this.mvMatrix, this.gl);
     }
     static getPixelRay(camera_pos, screen_pos, pMatrix, mvMatrix, gl){
         // recreate the transformation used by the viewing pipleline
@@ -440,12 +438,10 @@ class Renderer{
             }
         }
 
-        this.buffers[id].bones = buffer_data.bones ;
-        this.buffers[id].boneless = buffer_data.boneless
         this.buffers[id].ready = true;
     }
 
-    drawModel(buffer, bones = null){
+    drawModel(buffer){
         //console.log(buffer);
         let gl = this.gl ;
         if(buffer.ready){
@@ -468,27 +464,6 @@ class Renderer{
             gl.bindBuffer(gl.ARRAY_BUFFER, weights_buffer);
             gl.vertexAttribPointer(this.shaderProgram.weightsAttribute, weights_buffer.itemSize, gl.FLOAT, false, 0, 0);
 
-            if(!bones){
-                bones = buffer.bones ;
-            }
-            if(bones){
-                gl.uniform1i(this.shaderProgram.boneless, buffer.boneless);
-                if(buffer.boneless != 1){
-                    if(!this.bone_tex){
-                        this.bone_tex = gl.createTexture();
-                    }
-                    gl.activeTexture(gl.TEXTURE0 + 1);
-                    gl.bindTexture(gl.TEXTURE_2D, this.bone_tex);
-                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-                    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-                    
-                    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, 32, 32, 0, gl.RGBA, gl.FLOAT, bones);
-                    gl.uniform1i(this.shaderProgram.bones_texture, 1);
-                }
-                
-            }
 
             if(buffer.has_texture){
                 gl.activeTexture(gl.TEXTURE0 + 2 );
@@ -513,7 +488,7 @@ class Renderer{
         }
     }
 
-    drawMesh(mesh_name, transform = null, bones = null){
+    drawHologram(holo_name, transform = null){
         if(!transform){
             transform = mat4.create();
             mat4.identity(transform);
@@ -521,55 +496,55 @@ class Renderer{
         let M = mat4.create();
         mat4.multiply(M,this.mvMatrix, transform);
         this.gl.uniformMatrix4fv(this.shaderProgram.mvMatrixUniform, false, M);
-        if(mesh_name in this.buffer_lookup){ // cache mesh_name to material buffers mapping
-            for(let buffer_name of this.buffer_lookup[mesh_name]){
-                this.drawModel(this.buffers[buffer_name],bones);
+        if(holo_name in this.buffer_lookup){ // cache holo_name to material buffers mapping
+            for(let buffer_name of this.buffer_lookup[holo_name]){
+                this.drawModel(this.buffers[buffer_name]);
             }
         }else{
-            this.buffer_lookup[mesh_name] = [];
+            this.buffer_lookup[holo_name] = [];
             for(let buffer_name in this.buffers){
                 //console.log(buffer_name);
-                //console.log(buffer_name.substring(0,mesh_name.length));
-                if(buffer_name.substring(0,mesh_name.length+3) == mesh_name+"-m="){
-                    this.drawModel(this.buffers[buffer_name],bones);
-                    this.buffer_lookup[mesh_name].push(buffer_name);
+                //console.log(buffer_name.substring(0,holo_name.length));
+                if(buffer_name.substring(0,holo_name.length+3) == holo_name+"-m="){
+                    this.drawModel(this.buffers[buffer_name]);
+                    this.buffer_lookup[holo_name].push(buffer_name);
                 }
             }
         }
     }
 
-    hasMesh(mesh_name){
+    hasMesh(holo_name){
         for(let buffer_name in this.buffers){
             //console.log(buffer_name);
-            //console.log(buffer_name.substring(0,mesh_name.length));
-            if(buffer_name.substring(0,mesh_name.length+3) == mesh_name+"-m="){
+            //console.log(buffer_name.substring(0,holo_name.length));
+            if(buffer_name.substring(0,holo_name.length+3) == holo_name+"-m="){
                 return true ;
             }
         }
         return false;
     }
 
-    removeMesh(mesh_name){
+    removeMesh(holo_name){
         let to_delete = [];
         for(let buffer_name in this.buffers){
-            if(buffer_name.substring(0,mesh_name.length) == mesh_name){
+            if(buffer_name.substring(0,holo_name.length) == holo_name){
                 to_delete.push(buffer_name);
             }
         }
         for(let d of to_delete){
             delete this.buffers[d] ;
         }
-        delete this.buffer_lookup[mesh_name] ;
+        delete this.buffer_lookup[holo_name] ;
     }
 
-    setMeshDoubleSided(mesh_name, double_sided){
-        if(mesh_name in this.buffer_lookup){ // cache mesh_name to material buffers mapping
-            for(let buffer_name of this.buffer_lookup[mesh_name]){
+    setMeshDoubleSided(holo_name, double_sided){
+        if(holo_name in this.buffer_lookup){ // cache holo_name to material buffers mapping
+            for(let buffer_name of this.buffer_lookup[holo_name]){
                 this.buffers[buffer_name].double_sided = double_sided ;
             }
         }else{
             for(let buffer_name in this.buffers){
-                if(buffer_name.substring(0,mesh_name.length) == mesh_name){
+                if(buffer_name.substring(0,holo_name.length) == holo_name){
                     this.buffers[buffer_name].double_sided = double_sided ;
                 }
             }

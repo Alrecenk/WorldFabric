@@ -13,21 +13,23 @@ class BSPNode{
     public:
         BSPNode* parent = nullptr;
         glm::dvec3 N ;
-        double d ;
+        double d = 0;
         std::unique_ptr<BSPNode> inner, outer;
         bool leaf = true;
         bool leaf_inside = false;
         std::vector<Polygon> shape;
-        static constexpr double EPSILON = 0.0001;
-        double volume_inside;
-        double volume_outside;
+        static constexpr double EPSILON = 0.0000001;
+        double volume_inside = 0;
+        double volume_outside = 0;
+
+        static int iter,  max_iter;
 
         BSPNode();
         // Builds a tree from a mesh
         // Assumes mesh is a single closed surface
         BSPNode(std::shared_ptr<GLTF> mesh);
 
-        // Used internal to recursively build a tree from a soup of polygons fro ma closed mesh
+        // Used internal to recursively build a tree from a soup of polygons from a closed mesh
         //shape is the current convex boundary of this node
         BSPNode(const std::vector<Polygon>& poly, std::vector<Polygon>& shape);
 

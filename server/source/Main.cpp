@@ -356,7 +356,7 @@ int main(int argc, const char** argv) {
 
     //Timeline* timeline = generateBallTimeline() ;
     Timeline* timeline = initializeChatTimeline() ;
-    addScenery(timeline, table, "default_world", mat4(1), 10000,20, 7, false);
+    //addScenery(timeline, table, "default_world", mat4(1), 10000,20, 7, false);
     addTestShapes(timeline);
     mat4 sky_mat(1.0);
     sky_mat[0][0] = 0 ;

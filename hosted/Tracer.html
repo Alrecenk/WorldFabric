@@ -1,0 +1,620 @@
+<html>
+<head>
+<title>GLB+VRM viewer</title>
+<meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1">
+<style>
+.container {
+    position: relative;
+    overflow: hidden;
+}
+#ui {
+    background-color: transparent;  /* set 2D canvas to overlap webgl canvas and be transparent*/
+    position: absolute;
+    left: 0px;
+    top: 0px;
+    z-index: 10;
+    overflow: hidden;
+}
+
+body {
+  position: relative;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+</style>
+
+<script type="text/javascript" src="gl-matrix-min.js"></script>
+<script type="text/javascript" src="Renderer.js"></script>
+<script type="text/javascript" src="InterfaceButton.js"></script>
+<script type="text/javascript" src="ExecutionMode.js"></script>
+<script type="text/javascript" src="generated/api.js"></script>
+<script type="text/javascript" src="Serializer.js"></script>
+<script type="text/javascript" src="TraceMode.js"></script>
+<script type="text/javascript" src="TableClient.js"></script>
+
+<script id="shader-fs" type="x-shader/x-fragment">#version 300 es
+    // A simple fragment shader with a single point light
+    precision mediump float;
+
+    in vec4 v_color;
+	in vec3 v_position;
+	in vec3 v_normal;
+    in vec2 v_texcoord;
+	
+	uniform vec3 u_light_point;
+    uniform sampler2D u_texture;
+    uniform int u_has_texture ;
+    uniform float u_alpha_cutoff ;
+    uniform float u_nearness_cutoff ;
+	
+	out vec4 frag_color;
+
+	float lightFrom(vec3 light_point){
+		vec3 light_ray = v_position - light_point;
+		float direct = max(0., -dot(light_ray, v_normal)/length(light_ray));
+		return direct ;
+	}
+	
+    void main(void) {
+		float direct = lightFrom(u_light_point) ;
+		float indirect = 1.;
+		float l = 0.5*indirect + 0.5 * direct ; // Add some ambient light
+        frag_color = vec4(l *v_color.r ,l * v_color.g,l*v_color.b , v_color.a) ;
+        if(u_has_texture > 0){
+            vec4 t_color = texture(u_texture, v_texcoord);
+            frag_color.r *= t_color.r ;
+            frag_color.g *= t_color.g ;
+            frag_color.b *= t_color.b ;
+            frag_color.a *= t_color.a ;
+        }
+
+        if(frag_color.a < u_alpha_cutoff || dot(v_position,v_position) < u_nearness_cutoff ){
+            discard ;
+        }		
+    }
+</script>
+
+<script id="shader-vs" type="x-shader/x-vertex">#version 300 es
+    // A Very simple passthrough vertex shader
+	in vec3 aVertexPosition;
+    in vec4 aVertexColor;
+	in vec3 aNormal;
+    in vec2 aTexcoord;
+    in vec4 aJoints;
+    in vec4 aWeights;
+
+    uniform mat4 uMVMatrix;
+    uniform mat4 uPMatrix;
+    uniform sampler2D bones_texture;
+    uniform int boneless ;
+
+    out vec4 v_color;
+	out vec3 v_position;
+	out vec3 v_normal;
+    out vec2 v_texcoord;
+
+    vec4 getBoneElem(int index){
+        int y = index/32;
+		int x = index - (y*32) ;
+		return texelFetch(bones_texture, ivec2(x, y), 0);
+	}
+
+    mat4 getBone(float index){
+        int i = int(round(index));
+        mat4 bone ;
+        bone[0] = getBoneElem(4*i);
+        bone[1] = getBoneElem(4*i+1);
+        bone[2] = getBoneElem(4*i+2);
+        bone[3] = getBoneElem(4*i+3);
+        return bone ;
+    }
+
+    void main(void) {
+        if(boneless == 1){
+            v_position = aVertexPosition ;
+            v_normal = aNormal ;
+        }else{
+            vec4 x = vec4(aVertexPosition, 1) ;
+
+            v_position = vec3(getBone(aJoints[0]) * x * aWeights[0] + 
+                            getBone(aJoints[1]) * x * aWeights[1] + 
+                            getBone(aJoints[2]) * x * aWeights[2] + 
+                            getBone(aJoints[3]) * x * aWeights[3] );
+
+            vec4 n = vec4(aNormal,0);
+
+            v_normal = vec3(getBone(aJoints[0]) * n * aWeights[0] + 
+                            getBone(aJoints[1]) * n * aWeights[1] + 
+                            getBone(aJoints[2]) * n * aWeights[2] + 
+                            getBone(aJoints[3]) * n * aWeights[3] );
+
+            v_normal = normalize(v_normal); 
+        }              
+        v_color = aVertexColor;
+        if(length(v_position) < 0.01f){
+            v_position = aVertexPosition;
+            v_color = vec4(1.0,0.0,0.0, 1.0);            
+        }
+
+		//v_position = aVertexPosition; 
+		//v_normal = aNormal;
+        v_texcoord = aTexcoord;
+        
+        gl_Position = uPMatrix * uMVMatrix * vec4(v_position, 1.0);
+        v_position = vec3(uMVMatrix * vec4(v_position, 1.0));
+        v_normal = vec3(uMVMatrix * vec4(v_normal, 0.0));
+    }
+</script>
+
+<script type="text/javascript">
+"use strict";
+const url_params = new URLSearchParams(window.location.search) ;
+var app; // The main app running on the CAD canvas
+var imports = url_params.get("import") ? url_params.get("import").split(',') : [];
+
+var tools  ; // a map containing several things above so execution modes can access them
+var views = 0, panels = 0 ;
+var updating = false, needs_updated = true;
+var filename = "test";
+
+function canvasApp() {
+    //The canvas this app is running on.
+	var theCanvas = document.getElementById("ui");
+	// 2D context you can use to draw on.
+    var context = theCanvas.getContext("2d");
+
+    var mouse_x, mouse_y, mouse_down_x, mouse_down_y ;
+    
+
+
+	function init() {
+        // Add event listeners to the canvas or window as appropriate
+		theCanvas.addEventListener("mousedown", mouseDownListener, false);
+		window.addEventListener("mousemove", mouseMoveListener, false);
+		window.addEventListener("mouseup", mouseUpListener, false);
+		window.addEventListener('keydown',keyDownListener,false);
+		window.addEventListener('keyup',keyUpListener,false);
+		window.addEventListener('mousewheel', mouseWheelListener);//For Chrome
+        window.addEventListener('DOMMouseScroll', mouseWheelListener);// For Firefox
+
+        //touchHandler simulates mouse events on single touch
+		document.addEventListener("touchstart", touchHandler, true);
+		document.addEventListener("touchmove", touchHandler, true);
+		document.addEventListener("touchend", touchHandler, true);
+		document.addEventListener("touchcancel", touchHandler, true);
+
+
+        //document.addEventListener('pointermove', pointerMove, true) ;
+            
+	
+        window.setInterval(timeListener, 1000.0/120.0);
+	}
+
+    function timeListener(){
+
+
+
+        if(tools.current_mode!=null){
+            if(tools.renderer.has_new_xr_input){
+                tools.current_mode.vrInputSourcesUpdated(tools.renderer.xr_input);
+                tools.renderer.has_new_xr_input = false;
+            }
+            tools.current_mode.timer();  
+            if(needs_updated && !updating && tools.renderer.hold_ui_context){
+                updating = true;
+                if(views > 0 && panels > 0){
+                    holoTrace();
+                }
+                
+                needs_updated = false;
+                updating = false;
+            }
+
+        }
+
+        if(tools.table_link != null && tools.table_link.ready() && !tools.table_link.active){
+            tools.table_link.sendPendingRequests(true); // This works to start even if there aren't any pending requests yet
+        }
+    }
+
+	function keyDownListener(evt) {
+        if(tools.current_mode!=null){
+            tools.current_mode.keyDownListener(evt);
+        }
+	}
+
+	function keyUpListener(evt) {
+        if(tools.current_mode!=null){
+            tools.current_mode.keyUpListener(evt);
+        }
+    }
+
+    // Map touchevents
+	function touchHandler(event){
+		//event.preventDefault();
+		var touches = event.touches;
+		var pointers = [];
+		for(let k=0;k<touches.length;k++){
+            //TODO get position relative to canvas if canvas isn't whole screen?
+            /*
+            this.mouse_down_x = (event.clientX - bRect.left)*(tools.canvas.width/bRect.width);
+            this.mouse_down_y = (event.clientY - bRect.top)*(tools.canvas.height/bRect.height);
+            */
+			pointers.push({x: touches[k].clientX, y: touches[k].clientY, button:10}); // using 10 for touch events
+		}
+		switch(event.type)
+		{
+			case "touchstart": pointerDown(pointers); break;
+			case "touchmove":  pointerMove(pointers); break;
+			case "touchend":  pointerUp(pointers);   break;
+			default:           return;
+		}
+	}
+
+	function mouseDownListener(event) {
+		pointerDown([{x:event.clientX, y:event.clientY, button:event.button}]);
+    }
+
+	function mouseMoveListener(event){
+		pointerMove([{x:event.clientX, y:event.clientY, button:event.button}]);
+	}
+	function mouseUpListener(event){
+		pointerUp([]); // On mouse up there are no pointers down
+	}
+
+ 
+
+	function pointerDown(pointers) {
+
+        if(tools.renderer.xr_session != null){ // Kill XR session if interacting with canvas
+            tools.renderer.xr_session.end().then(tools.renderer.onXRSessionEnded);
+        }
+
+		mouse_down_x = pointers[0].x;
+        mouse_down_y = pointers[0].y;
+
+        // Buttons are executed in mouse up, this just prevents calling underlying mode when clicking a button.
+        let pressed_button = false;
+        for (let button_name in tools.buttons) {
+            if (tools.buttons.hasOwnProperty(button_name)) {
+                var b = tools.buttons[button_name];
+                if( b.inside(mouse_down_x, mouse_down_y)){
+                    pressed_button = true;
+                }
+            }
+        }
+
+        if(tools.current_mode!=null && !pressed_button){
+            tools.current_mode.pointerDown(pointers);
+        }
+	}
+
+	function pointerUp(pointers) {
+        // Execute buttons if it was clicked (mouse down and up on it)
+        let pressed_button = false;
+        for (let button_name in tools.buttons) {
+            if (tools.buttons.hasOwnProperty(button_name)) {
+                var b = tools.buttons[button_name];
+                if(b.inside(mouse_x, mouse_y) && b.inside(mouse_down_x, mouse_down_y)){
+                    b.execute();
+                    pressed_button = true;
+                }
+            }
+        }
+
+        if(tools.current_mode!=null && !pressed_button){
+            tools.current_mode.pointerUp(pointers);
+        }
+	}
+
+	function pointerMove(pointers) {
+        if(pointers.x){ // not an array, must be a real pointer event
+            pointers.preventDefault()
+            pointers = [{x:pointers.x,y:pointers.y}];
+        }
+        mouse_x = pointers[0].x;
+		mouse_y = pointers[0].y;
+        if(tools.current_mode!=null){
+            tools.current_mode.pointerMove(pointers);
+            needs_updated = true;
+        }
+    }
+
+	function mouseWheelListener(evt){
+        if(tools.current_mode!=null){
+            tools.current_mode.mouseWheelListener(evt);
+        }
+	}
+
+
+
+    init(); //TODO this a janky way to boot up an app, maybe change it?
+}
+
+// Switch main execution mode (expects mode to be an ExecutionMode)
+function switchExecutionMode(next_mode){
+    if(tools.current_mode != null){
+        tools.current_mode.exit(next_mode);
+    }
+    var last_mode = tools.current_mode ;
+    tools.current_mode = next_mode ;
+    next_mode.enter(last_mode);
+
+}
+
+
+function initializeModes(){
+    tools.modes = {} ;
+    tools.modes.trace_mode = new TraceMode(tools);
+    switchExecutionMode(tools.modes.trace_mode) ;
+}
+
+function setMainMenuButtons(){
+    tools.buttons = {};
+    tools.buttons["fps_label"] = new InterfaceButton(tools.canvas.width-80, 10, 80, 40, "FPS:?", 20, "#FFFFFF", "#000000", "#000000", 3, null);
+    tools.buttons["views_label"] = new InterfaceButton(tools.canvas.width-90, 70, 90, 40, "views:0", 20, "#FFFFFF", "#000000", "#000000", 3, null);
+    //tools.buttons["enter_vr"] = new InterfaceButton(5, 10, 100, 40, "Enter VR", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, () => {tools.renderer.startXRSession();});
+    
+    tools.buttons["cpu_trace"] = new InterfaceButton(5, 10, 100, 40, "Raytrace", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, CPUTrace);
+    tools.buttons["clear_trace"] = new InterfaceButton(5, 50, 100, 40, "Clear Trace", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, clearTrace);
+    
+    //tools.buttons["panel_set"] = new InterfaceButton(5, 130, 100, 40, "Build Panel", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, buildPanel);
+    //tools.buttons["panel_trace"] = new InterfaceButton(5, 170, 100, 40, "Panel Trace", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, panelTrace);
+    
+    
+
+    tools.buttons["holo_view"] = new InterfaceButton(5, 90, 100, 40, "Add View", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, addHologramView);
+    //tools.buttons["holo_panel"] = new InterfaceButton(5, 290, 100, 40, "Add Panel", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, addHologramPanel);
+    tools.buttons["holo_trace"] = new InterfaceButton(5, 130, 100, 40, "Hologram", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, holoTrace);
+    //tools.buttons["grow_field"] = new InterfaceButton(5, 210, 100, 40, "Grow Field", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, growField);
+
+    tools.buttons["download_holo"] = new InterfaceButton(5, 170, 100, 40, "Download", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, downloadHolo);
+}
+
+function onBodyLoad(){
+    tools = {};
+    tools.renderer = new Renderer("webgl", "ui", "shader-fs", "shader-vs", 100);
+    tools.canvas = document.getElementById("ui"); ;
+
+    // Wait for the WASM module to finish loading before booting up the socket and app
+    window.initializeCPPAPI().then(function(Module){
+        tools.API = Module ;
+        //tools.table_link = new TableClient(9004, tools.API);
+        tools.new_file = false;
+        tools.brush_size = 1 ;
+        app = canvasApp(); // Start the app
+        initializeModes();
+        setMainMenuButtons();
+    });
+}
+
+function loadFile() {
+    var file  = document.getElementById('loader').files[0];
+    console.log(file) ;
+    var ext = file.name.split(".");
+    filename = ext[ext.length-2] ;
+    ext = ext[ext.length-1].toLowerCase();
+    
+
+	var reader  = new FileReader();
+	reader.onloadend = function () {
+        let load_data = new Int8Array(reader.result);
+        //console.log(reader.result);
+        if(load_data!= null){
+            let params = {};
+            params.data = load_data;
+            if(ext == "glb" || ext == "vrm"){
+                tools.renderer.removeMesh("default_avatar");
+                let m = tools.API.call("setModel", params, new Serializer()) ;
+            }else if(ext == "hi1"){
+                updating = true ;
+                let m = tools.API.call("loadHologram", params, new Serializer()) ;
+                views = m.views ;
+                panels=m.panels;
+                tools.buttons["views_label"].text = "views: " + views;
+                updating = false;
+                needs_updated = true ;
+            }else{
+                console.log("file extension not recognized:" + ext);
+            }
+        }
+    }
+
+	if (file) {
+		reader.readAsArrayBuffer(file);
+	} else {
+		console.log("Failed to read file");
+	}
+}
+
+function getCameraTraceInput(){
+    var trace_input ={};
+    trace_input.width = tools.canvas.width;
+    trace_input.height = tools.canvas.height;
+    trace_input.camera_pos = new Float32Array(3);
+    trace_input.light_point = new Float32Array(3);
+    for(var k=0;k<3;k++){
+        trace_input.camera_pos[k] = tools.renderer.camera_pos[k];
+        trace_input.light_point[k] = tools.renderer.light_point[k];
+    }
+    trace_input.pMatrix = new Float32Array(16);
+    trace_input.mvMatrix = new Float32Array(16);
+    for(var k=0;k<16;k++){
+        trace_input.pMatrix[k] = tools.renderer.pMatrix[k];
+        trace_input.mvMatrix[k] = tools.renderer.mvMatrix[k];
+    }
+    return trace_input ;
+}
+
+function CPUTrace(){
+    var context = tools.canvas.getContext("2d");;
+    var image = context.createImageData(tools.canvas.width, tools.canvas.height);
+    console.log("Tracing " + image.width +" x " + image.height);
+    
+    let trace_input = getCameraTraceInput();
+    console.log("trace_input:");
+    console.log(trace_input);
+    var trace_output = tools.API.call("getSimpleTraceImage",trace_input, new Serializer());
+    for(var k=0;k<trace_output.image.length;k++){
+        image.data[k] = trace_output.image[k] >= 0  ? trace_output.image[k] : trace_output.image[k] + 256;
+    }
+
+    //console.log(image);
+    context.putImageData(image, 0, 0);
+    tools.renderer.hold_ui_context = true;
+}
+
+
+
+
+function clearTrace(){
+    console.log("clear trace");
+    tools.renderer.hold_ui_context = false;
+}
+
+function panelTrace(){
+    var context = tools.canvas.getContext("2d");;
+    var image = context.createImageData(tools.canvas.width, tools.canvas.height);
+    console.log("Tracing " + image.width +" x " + image.height);
+    
+    let trace_input = getCameraTraceInput();
+    console.log("trace_input:");
+    console.log(trace_input);
+    var trace_output = tools.API.call("getDepthPanelTraceImage",trace_input, new Serializer());
+    for(var k=0;k<trace_output.image.length;k++){
+        image.data[k] = trace_output.image[k] >= 0  ? trace_output.image[k] : trace_output.image[k] + 256;
+    }
+
+    //console.log(image);
+    //context.putImageData(image, 0, 0);
+    tools.renderer.hold_ui_context = true;
+}
+
+function buildPanel(){
+    var context = tools.canvas.getContext("2d");;
+    var image = context.createImageData(tools.canvas.width, tools.canvas.height);
+    console.log("Tracing " + image.width +" x " + image.height);
+    
+    let trace_input = getCameraTraceInput();
+
+    trace_input.size = 512 ;
+    trace_input.block_size = 16;
+    
+    console.log("trace_input:");
+    console.log(trace_input);
+    var trace_output = tools.API.call("setDepthPanelToTrace",trace_input, new Serializer());
+}
+
+
+function addHologramPanel(){
+    var context = tools.canvas.getContext("2d");;
+    var image = context.createImageData(tools.canvas.width, tools.canvas.height);
+    console.log("Tracing " + image.width +" x " + image.height);
+    
+    let trace_input = getCameraTraceInput();
+
+    trace_input.size = 256;
+    trace_input.block_size = 16;
+    
+    //console.log("trace_input:");
+    //console.log(trace_input);
+    var trace_output = tools.API.call("addHologramPanel",trace_input, new Serializer());
+    panels++;
+}
+
+function addHologramView(){
+    updating = true;
+    var context = tools.canvas.getContext("2d");;
+    var image = context.createImageData(tools.canvas.width, tools.canvas.height);
+    console.log("View Tracing " + image.width +" x " + image.height);
+    
+    let trace_input = getCameraTraceInput();
+    
+    //console.log("trace_input:");
+    //console.log(trace_input);
+
+    var trace_output = tools.API.call("addHologramView",trace_input, new Serializer());
+    /*
+    for(var k=0;k<trace_output.image.length;k++){
+        image.data[k] = trace_output.image[k] >= 0  ? trace_output.image[k] : trace_output.image[k] + 256;
+    }
+    */
+
+    //console.log(image);
+    //context.putImageData(image, 0, 0);
+    tools.renderer.hold_ui_context = true;
+    views++;
+    console.log("View complete! Panel tracing...");
+    addHologramPanel();
+    console.log("Panel complete!");
+    tools.buttons["views_label"].text = "views: " + views;
+    updating = false;
+    needs_updated = true ;
+}
+
+function holoTrace(){
+    var context = tools.canvas.getContext("2d");;
+    var image = context.createImageData(tools.canvas.width, tools.canvas.height);
+    //console.log("Holo Tracing " + image.width +" x " + image.height +"...");
+    
+    let trace_input = getCameraTraceInput();
+    //console.log("trace_input:");
+    //console.log(trace_input);
+    var trace_output = tools.API.call("getHologramTraceImage",trace_input, new Serializer());
+    for(var k=0;k<trace_output.image.length;k++){
+        image.data[k] = trace_output.image[k] >= 0  ? trace_output.image[k] : trace_output.image[k] + 256;
+    }
+
+    //console.log(image);
+    context.putImageData(image, 0, 0);
+    tools.renderer.hold_ui_context = true;
+}
+
+//creates a download popup for the raw bytes returned by an API call
+function downloadAPIReturn(api_function,params, default_file_name="data.bin"){
+    let request_ptr = tools.API.call(api_function, params, new Serializer(), true) ;
+    if(request_ptr){ // can cometimes be called before table_module fully initialized
+        let request_size = tools.API.getReturnSize();
+        let data = tools.API.getByteArray(request_ptr, request_size);
+
+
+        // create a Blob with the data
+        var blob = new Blob([data], {type: "application/octet-stream"});
+
+        // create a URL for the Blob
+        var url = URL.createObjectURL(blob);
+
+        // create a link element for the download
+        var link = document.createElement("a");
+        link.href = url;
+        link.download = default_file_name;
+
+        // trigger the download
+        document.body.appendChild(link);
+        link.click();
+
+        // cleanup
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    }
+}
+
+function downloadHolo(){
+    downloadAPIReturn("downloadHologram",{test:"some test text"},filename+".hi1");
+}
+
+
+</script>
+</head>
+<body onload="onBodyLoad();">
+	<div class="container">
+	<canvas id="ui" style="border: none;" width="1024" height="720" oncontextmenu="return false;"></canvas>
+	<canvas id="webgl" style="border: none;" width="1024" height="720" oncontextmenu="return false;"></canvas>
+	</div>
+    <p align="center">
+        <input id="loader" type="file" onchange='loadFile()' autocomplete="off">
+        </p>
+</body>
+</html>

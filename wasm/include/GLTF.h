@@ -143,6 +143,7 @@ class GLTF : public OptimizationProblem, public TableInterface {
         bool model_changed = false;
         bool bones_changed = false;
         int last_traced_tri ; // Index of last triangle hit by raytrace
+        float last_traced_t=0;
 
         // Constructor
         GLTF();
@@ -230,6 +231,10 @@ class GLTF : public OptimizationProblem, public TableInterface {
         // return negative if no collision
         float rayTrace(const glm::vec3 &p, const glm::vec3 &v);
 
+        // Given a ray in model space (p + v*t) and a single point light
+        // returns the color that the simple World Fabric shader would
+        glm::vec3 rayTraceColor(const glm::vec3 &p, const glm::vec3 &v, const glm::vec3 &light_point, const float diffuse, const float ambient);
+
         // Returns the index of the closest vertex to the given point
         int getClosestVertex(const glm::vec3 &p);
 
@@ -296,9 +301,7 @@ class GLTF : public OptimizationProblem, public TableInterface {
         // Given a ray (p + v*t) return the t value of the nearest collision
         // with the given triangle
         // returns negative if no collision
-        float trace(Triangle tri, const glm::vec3 &p, const glm::vec3 &v);
-
-        
+        float trace(Triangle &tri, const glm::vec3 &p, const glm::vec3 &v);
         
 
 };
