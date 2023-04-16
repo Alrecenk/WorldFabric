@@ -154,7 +154,7 @@ Variant Hologram::serialize(){
     //Variant serialized = Variant(serial) ;
     //serialized.printFormatted();
     */
-    printf("A\n");
+    //printf("A\n");
     vector<float> floats;
     floats.reserve(10000);
     vector<int> ints;
@@ -163,7 +163,7 @@ Variant Hologram::serialize(){
     bytes.reserve(10000);
     append(floats,ints,bytes);
 
-printf("Appended Floats:%d, Ints:%d, Bytes:%d\n", (int)floats.size(), (int)ints.size(), (int)bytes.size());
+//printf("Appended Floats:%d, Ints:%d, Bytes:%d\n", (int)floats.size(), (int)ints.size(), (int)bytes.size());
     
 
 
@@ -180,7 +180,7 @@ printf("Appended Floats:%d, Ints:%d, Bytes:%d\n", (int)floats.size(), (int)ints.
     //floats.clear();
     //ints.clear();
     //bytes.clear();
-
+/*
     printf("Packed:%d\n", p.getArrayLength());
 
     
@@ -243,7 +243,7 @@ printf("E\n");
     }
 printf("F\n");
 
-
+*/
     return p;
 }
 
@@ -279,7 +279,7 @@ void Hologram::set(Variant& serialized){
     vector<byte> bytes ;
     bytes.reserve(10000);
     unpack(serialized,floats,ints,bytes);
-    printf("Unpacked Floats:%d, Ints:%d, Bytes:%d\n", (int)floats.size(), (int)ints.size(), (int)bytes.size());
+    //printf("Unpacked Floats:%d, Ints:%d, Bytes:%d\n", (int)floats.size(), (int)ints.size(), (int)bytes.size());
     setFrom(floats,ints,bytes,0,0,0);
 
 }

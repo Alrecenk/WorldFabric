@@ -1270,6 +1270,7 @@ byte* downloadHologram(byte* ptr){
     //auto obj = Variant::deserializeObject(ptr);
     Variant serialized = hologram.serialize() ;
     printf("Saved hash: %d\n", serialized.hash());
+    /*
     byte* sb = serialized.getByteArray();
     printf("serialized:%d",sb[0]);
 
@@ -1292,7 +1293,7 @@ byte* downloadHologram(byte* ptr){
         printf(",%d", sb[k]);
     }
     printf("\n");
-    
+    */
     return pack(serialized);
 }
 
@@ -1301,7 +1302,9 @@ byte* loadHologram(byte* ptr){
     Variant serialized(Variant::BYTE_ARRAY, ptr);
     //auto obj = Variant::deserializeObject(ptr);
     //Variant serialized = obj["data"].clone();
+    
     printf("Loaded data hash: %d\n", serialized.hash());
+    /*
     byte* sb = serialized.getByteArray();
     printf("loaded data in wasm API:%d",sb[0]);
     for(int k=1;k<100;k++){
@@ -1309,9 +1312,10 @@ byte* loadHologram(byte* ptr){
     }
     printf("\n");
 
-    
+    */
     hologram.set(serialized);
     
+    /*
     Variant s2 = hologram.serialize() ;
     printf("hash check: %d == %d \n", serialized.hash(), s2.hash());
     
@@ -1323,7 +1327,7 @@ byte* loadHologram(byte* ptr){
     }
     printf("\n");
 
-
+*/
     map<string, Variant> ret_map;
     ret_map["views"] = Variant((int)hologram.view.size());
     ret_map["panels"] = Variant((int)hologram.panel.size());
