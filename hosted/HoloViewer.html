@@ -345,7 +345,8 @@ function setMainMenuButtons(){
     tools.buttons["views_label"] = new InterfaceButton(tools.canvas.width-90, 70, 90, 40, "views:0", 20, "#FFFFFF", "#000000", "#000000", 3, null);
     tools.buttons["enter_vr"] = new InterfaceButton(5, 10, 100, 40, "Enter VR", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, () => {tools.renderer.startXRSession();});
     tools.buttons["resetView"] = new InterfaceButton(5, 50, 100, 40, "Reset View", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, resetView);
-    tools.buttons["holo_trace"] = new InterfaceButton(5, 190, 100, 40, "CPU trace", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, holoTrace);
+    tools.buttons["holo_trace"] = new InterfaceButton(5, 150, 100, 40, "CPU trace", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, holoTrace);
+    tools.buttons["clear_trace"] = new InterfaceButton(5, 190, 100, 40, "Clear Trace", 14, "#D0D0F0", "#606060", "#FFFFFF", 3, clearTrace);
 }
 
 function onBodyLoad(){
@@ -365,7 +366,6 @@ function onBodyLoad(){
 
 function loadFile() {
 
-
     var file  = document.getElementById('loader').files[0];
     console.log(file) ;
     var ext = file.name.split(".");
@@ -384,7 +384,7 @@ function loadFile() {
                 tools.renderer.removeMesh("default_avatar");
                 let m = tools.API.call("setModel", params, new Serializer()) ;
             }else if(ext == "hi1"){
-                let m = tools.API.call("loadHologram", params, new Serializer()) ;
+                let m = tools.API.call("loadHologram", load_data, new Serializer(), false,true) ;
                 views = m.views ;
                 panels=m.panels;
                 tools.buttons["views_label"].text = "views: " + views;
@@ -439,9 +439,14 @@ function holoTrace(){
     tools.renderer.hold_ui_context = true;
 }
 
+function clearTrace(){
+    console.log("clear trace");
+    tools.renderer.hold_ui_context = false;
+}
+
 function resetView(){
-    // TODO
     //reset view to default
+    tools.renderer.setDefaultView();
 }
 
 </script>

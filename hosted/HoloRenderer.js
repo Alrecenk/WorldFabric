@@ -54,13 +54,17 @@ class HoloRenderer{
         
 
         mat4.perspective(this.pMatrix, 45, gl.viewportWidth / gl.viewportHeight, 0.1, 3000.0);
-        this.camera_pos = [1,1,1];
-        mat4.lookAt(this.mvMatrix, this.camera_pos, [0,0,0], [0,1,0] );
+        this.setDefaultView();
 
         //console.log(gl);
         this.setLightPosition([this.camera_pos[0], this.camera_pos[1] , this.camera_pos[2]]);
 
         requestAnimationFrame(HoloRenderer.onFrame); // Timer at 60 hertz.
+    }
+
+    setDefaultView(){
+        this.camera_pos = [1,1,1];
+        mat4.lookAt(this.mvMatrix, this.camera_pos, [0,0,0], [0,1,0] );
     }
 
     // Initialize webGL on a canvas
