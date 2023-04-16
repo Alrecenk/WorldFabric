@@ -77,13 +77,13 @@ void TableServer::onMessage(
     vector<Variant> packet = packet_variant.getVariantArray();
     map<string, Variant> result;
     for (auto& request : packet) {
-        if(request.type_ == Variant::STRING){ // Read requests are a single string
+        if(request.type == Variant::STRING){ // Read requests are a single string
             string key_string = request.getString();
             result[key_string] = TableServer::getEntry(key_string);
             if(!result[key_string].defined()){
                 null_requests.insert(key_string);
             }
-        }else if(request.type_ == Variant::OBJECT){ //write requests are an object with keyand value
+        }else if(request.type == Variant::OBJECT){ //write requests are an object with keyand value
             //printf("Got write:\n");
             //request.printFormatted();
             string key_string = request[TableInterface::KEY].getString();

@@ -364,12 +364,15 @@ function onBodyLoad(){
 }
 
 function loadFile() {
+
+
     var file  = document.getElementById('loader').files[0];
     console.log(file) ;
     var ext = file.name.split(".");
     filename = ext[ext.length-2] ;
     ext = ext[ext.length-1].toLowerCase();
     
+
 	var reader  = new FileReader();
 	reader.onloadend = function () {
         let load_data = new Int8Array(reader.result);
@@ -377,9 +380,11 @@ function loadFile() {
         if(load_data!= null){
             let params = {};
             params.data = load_data;
-            if(ext == "hi1"){
+            if(ext == "glb" || ext == "vrm"){
+                tools.renderer.removeMesh("default_avatar");
+                let m = tools.API.call("setModel", params, new Serializer()) ;
+            }else if(ext == "hi1"){
                 let m = tools.API.call("loadHologram", params, new Serializer()) ;
-                console.log(m);
                 views = m.views ;
                 panels=m.panels;
                 tools.buttons["views_label"].text = "views: " + views;
@@ -394,6 +399,26 @@ function loadFile() {
 	} else {
 		console.log("Failed to read file");
 	}
+}
+
+
+function getCameraTraceInput(){
+    var trace_input ={};
+    trace_input.width = tools.canvas.width;
+    trace_input.height = tools.canvas.height;
+    trace_input.camera_pos = new Float32Array(3);
+    trace_input.light_point = new Float32Array(3);
+    for(var k=0;k<3;k++){
+        trace_input.camera_pos[k] = tools.renderer.camera_pos[k];
+        trace_input.light_point[k] = tools.renderer.light_point[k];
+    }
+    trace_input.pMatrix = new Float32Array(16);
+    trace_input.mvMatrix = new Float32Array(16);
+    for(var k=0;k<16;k++){
+        trace_input.pMatrix[k] = tools.renderer.pMatrix[k];
+        trace_input.mvMatrix[k] = tools.renderer.mvMatrix[k];
+    }
+    return trace_input ;
 }
 
 function holoTrace(){

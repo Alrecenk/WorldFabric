@@ -55,7 +55,7 @@ Variant GLTF::getFloatBuffer(std::vector<glm::vec3>& point_list, int material){
     // Maybe here should be an array constructor that just takes type and size
     // and then the get array provides a shallow pointer that can't be freed?
     Variant buffer;
-    buffer.type_ = Variant::FLOAT_ARRAY;
+    buffer.type = Variant::FLOAT_ARRAY;
     buffer.ptr = (byte*)malloc(4 + num_triangles * 9 * sizeof(float));
     
     *((int*)buffer.ptr) = num_triangles * 9 ;// number of floats in array
@@ -100,7 +100,7 @@ Variant GLTF::getFloatBuffer(std::vector<glm::vec2>& point_list, int material){
     // Maybe here should be an array constructor that just takes type and size
     // and then the get array provides a shallow pointer that can't be freed?
     Variant buffer;
-    buffer.type_ = Variant::FLOAT_ARRAY;
+    buffer.type = Variant::FLOAT_ARRAY;
     buffer.ptr = (byte*)malloc(4 + num_triangles * 6 * sizeof(float));
     
     *((int*)buffer.ptr) = num_triangles * 6 ;// number of floats in array
@@ -144,7 +144,7 @@ Variant GLTF::getFloatBuffer(std::vector<glm::vec4>& point_list, int material){
     // Maybe here should be an array constructor that just takes type and size
     // and then the get array provides a shallow pointer that can't be freed?
     Variant buffer;
-    buffer.type_ = Variant::FLOAT_ARRAY;
+    buffer.type = Variant::FLOAT_ARRAY;
     buffer.ptr = (byte*)malloc(4 + num_triangles * 12 * sizeof(float));
     
     *((int*)buffer.ptr) = num_triangles * 12 ;// number of floats in array
@@ -193,7 +193,7 @@ Variant GLTF::getFloatBuffer(std::vector<glm::ivec4>& point_list, int material){
     // Maybe here should be an array constructor that just takes type and size
     // and then the get array provides a shallow pointer that can't be freed?
     Variant buffer;
-    buffer.type_ = Variant::FLOAT_ARRAY;
+    buffer.type = Variant::FLOAT_ARRAY;
     buffer.ptr = (byte*)malloc(4 + num_triangles * 12 * sizeof(float));
     
     *((int*)buffer.ptr) = num_triangles * 12 ;// number of floats in array
@@ -242,14 +242,14 @@ Variant GLTF::getChangedBuffer(int selected_material){
 
     if(this->position_changed){
         Variant& pos_buffer = buffers["position"];
-        pos_buffer.type_ = Variant::FLOAT_ARRAY;
+        pos_buffer.type = Variant::FLOAT_ARRAY;
         pos_buffer.ptr = (byte*)malloc(4 + num_triangles * 9 * sizeof(float));
         
         *((int*)pos_buffer.ptr) = num_triangles * 9 ;// number of floats in array
         float* pos_buffer_array =  (float*)(pos_buffer.ptr+4) ; // pointer to start of float array
 
         Variant& norm_buffer = buffers["normal"];
-        norm_buffer.type_ = Variant::FLOAT_ARRAY;
+        norm_buffer.type = Variant::FLOAT_ARRAY;
         norm_buffer.ptr = (byte*)malloc(4 + num_triangles * 9 * sizeof(float));
         
         *((int*)norm_buffer.ptr) = num_triangles * 9 ;// number of floats in array
@@ -348,7 +348,7 @@ Variant GLTF::getBoneData(){
     int num_bones = nodes.size() ;
     int shader_num_bones = 256; // TODO avoid duplicate constant definition with bones texture
     Variant bone_buffer;
-    bone_buffer.type_ = Variant::FLOAT_ARRAY;
+    bone_buffer.type = Variant::FLOAT_ARRAY;
     bone_buffer.ptr = (byte*)malloc(4 + shader_num_bones * 16 * sizeof(float));
     *((int*)bone_buffer.ptr) = shader_num_bones * 16 ;// number of floats in array
     float* bone_buffer_array =  (float*)(bone_buffer.ptr+4) ; // pointer to start of float array
@@ -648,16 +648,16 @@ GLTF::Accessor GLTF::access(int accessor_id, vector<Variant>& accessors, vector<
     }
 
     if(c_type == 5126){ // 32 bit float
-        result.data.type_ = Variant::FLOAT_ARRAY;
+        result.data.type = Variant::FLOAT_ARRAY;
     }else if(c_type == 5120 || 5121){ // signed and unsigned byte
-        result.data.type_ = Variant::BYTE_ARRAY ;
+        result.data.type = Variant::BYTE_ARRAY ;
     }else if(c_type == 5122 || c_type == 5123){ // shorts
-        result.data.type_ = Variant::SHORT_ARRAY ;
+        result.data.type = Variant::SHORT_ARRAY ;
     }else if(c_type == 5125){ // unsigned int
-        result.data.type_ = Variant::INT_ARRAY ;
+        result.data.type = Variant::INT_ARRAY ;
     }else{
         printf("unrecognized accessor component type, behavior undefined!\n");
-        result.data.type_ = Variant::BYTE_ARRAY ;
+        result.data.type = Variant::BYTE_ARRAY ;
     }
 
     return result ;

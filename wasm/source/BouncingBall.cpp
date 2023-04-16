@@ -75,7 +75,7 @@ std::unique_ptr<TObject> BouncingBall::getObserved(double time, const std::weak_
 std::unique_ptr<TObject> BouncingBall::createObject(const Variant& serialized){
     //printf("callec create ball object!\n");
     //serialized.printFormatted();
-    if(serialized.type_ != Variant::OBJECT){
+    if(serialized.type != Variant::OBJECT){
         printf("timeline attemped to create an object with a nonobject variabnt!\n");
     }
     auto map = serialized.getObject() ;
@@ -92,19 +92,19 @@ std::unique_ptr<TObject> BouncingBall::createObject(const Variant& serialized){
 std::unique_ptr<TEvent> BouncingBall::createEvent(const Variant& serialized){
     
     //TODO add a type system to make this check more intuitive
-    if(serialized.type_ == Variant::NULL_VARIANT){ // events can hold poiners to other events which may be null
+    if(serialized.type == Variant::NULL_VARIANT){ // events can hold poiners to other events which may be null
         return std::unique_ptr<TEvent>(nullptr);
     }
     auto map = serialized.getObject() ;
     std::unique_ptr<TEvent> event ;
     //TODO better way to distinguish event types
-    if(map["o"].type_ == Variant::OBJECT){
+    if(map["o"].type == Variant::OBJECT){
         event = std::make_unique<CreateObject>();
-    }else if(map["dt"].type_ == Variant::DOUBLE){
+    }else if(map["dt"].type == Variant::DOUBLE){
         event = std::make_unique<MoveBouncingBall>();
-    }else if(map["v"].type_ == Variant::FLOAT_ARRAY){
+    }else if(map["v"].type == Variant::FLOAT_ARRAY){
         event = std::make_unique<ChangeBallVelocity>();
-    }else if(map["i"].type_ == Variant::FLOAT_ARRAY){
+    }else if(map["i"].type == Variant::FLOAT_ARRAY){
         event = std::make_unique<ApplyBallImpulse>();
     }else{
         printf("Event not parsed!\n");

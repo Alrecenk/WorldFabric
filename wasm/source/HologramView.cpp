@@ -114,7 +114,7 @@ void HologramView::setDepth(std::vector<std::vector<float>>& depth){
     // map depths to indices into new depth array
     byte* texture_bytes = texture.getByteArray();
     if(channels!=4){
-        printf("Hologram view should have 4 channels, aborting depth set!\n"); 
+        printf("Hologram view should have 4 channels (not %d), aborting depth set!\n", channels); 
         return ; 
     }
     for(int x=0;x<width;x++){
@@ -204,4 +204,69 @@ Variant HologramView::serialize(){
     */
 
     return Variant(serial);
+}
+
+// Appends this view to the given arrays
+void HologramView::append(std::vector<float>& floats, std::vector<int>& ints, std::vector<byte>& bytes){
+    floats.push_back(position.x);
+    floats.push_back(position.y);
+    floats.push_back(position.z);
+
+    floats.push_back(normal.x);
+    floats.push_back(normal.y);
+    floats.push_back(normal.z);
+
+    floats.push_back(to_pixel[0].x);
+    floats.push_back(to_pixel[0].y);
+    floats.push_back(to_pixel[0].z);
+
+    floats.push_back(to_pixel[1].x);
+    floats.push_back(to_pixel[1].y);
+    floats.push_back(to_pixel[1].z);
+
+    ints.push_back(width);
+    ints.push_back(height);
+    if(channels != 4){
+        printf("Error appending view, expecting 4 channels, did you for get to compute depth before exporting?\n");
+        return ;
+    }
+    int* tex = texture.getIntArray();
+    for(int i=0;i<width*height;i++){
+        ints.push_back(tex[i]);
+    }
+
+    for(int i=0;i<256;i++){
+        floats.push_back(depth_map[i]);
+    }
+}
+// sets this panel read from the given arrays starting at the given indices
+HologramView::HologramView(std::vector<float>& floats, std::vector<int>& ints, std::vector<byte>& bytes, int float_ptr, int int_ptr, int byte_ptr){
+    position.x = floats[float_ptr++];
+    position.y = floats[float_ptr++];
+    position.z = floats[float_ptr++];
+
+    normal.x = floats[float_ptr++];
+    normal.y = floats[float_ptr++];
+    normal.z = floats[float_ptr++];
+
+    to_pixel[0].x = floats[float_ptr++];
+    to_pixel[0].y = floats[float_ptr++];
+    to_pixel[0].z = floats[float_ptr++];
+
+    to_pixel[1].x = floats[float_ptr++];
+    to_pixel[1].y = floats[float_ptr++];
+    to_pixel[1].z = floats[float_ptr++];
+
+    width = ints[int_ptr++];
+    height = ints[int_ptr++];
+    channels = 4 ;
+    texture.makeFillableIntArray(width*height);
+    int* tex = texture.getIntArray();
+    for(int i=0;i<width*height;i++){
+        tex[i] = ints[int_ptr++];
+    }
+    depth_map = vector<float>();
+    for(int i=0;i<256;i++){
+        depth_map.push_back(floats[float_ptr++]);
+    }
 }

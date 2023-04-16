@@ -10,14 +10,14 @@ function _deserializeFromHeap(serializer, type) {
     return out;
 }
 
-Module["call"] = function (function_name, parameters = null, serializer = null, skip_output_deserialization = false) {
+Module["call"] = function (function_name, parameters = null, serializer = null, skip_output_deserialization = false, skip_input_deserialization = false) {
     if(!packet_ptr){
         packet_ptr = Module._malloc(max_packet_size);
         //console.log("APIPost call Packet pointer mallocated:" + packet_ptr);
         return Module.ccall('setPacketPointer', 'number', ['number'], [packet_ptr]);
     }
     if (parameters != null)  {
-        if (serializer == null) { // if no serializer then assume being passed int8Array
+        if (serializer == null || skip_input_deserialization) { // if no serializer then assume being passed int8Array
             if (parameters instanceof Int8Array) {
                 let view = new Int8Array(Module.HEAPU8.buffer, packet_ptr, parameters.length);
                 view.set(parameters); // copy data

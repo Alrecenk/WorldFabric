@@ -8,12 +8,12 @@ using std::vector;
 
 
 Variant::Variant() {
-    type_ = NULL_VARIANT;
+    type = NULL_VARIANT;
     ptr = nullptr;
 }
 
 Variant::Variant(const map<string, Variant>& obj) {
-    type_ = OBJECT;
+    type = OBJECT;
     int total_size = Variant::getSize(obj);
     //printf("total size: %i\n", total_size);
     ptr = (byte *) malloc(total_size);
@@ -33,7 +33,7 @@ Variant::Variant(const map<string, Variant>& obj) {
         int key_size = 4 + str_length ;
 
         input_ptr += key_size;
-        input_ptr[0] = data.type_;
+        input_ptr[0] = data.type;
         input_ptr += 1;
         ((int *) input_ptr)[0] = 0; // place holder for relative position
         linker[key] = (int *) input_ptr;
@@ -53,7 +53,7 @@ Variant::Variant(const map<string, Variant>& obj) {
 
 
 Variant::Variant(const map<int, Variant> &obj) {
-    type_ = INT_OBJECT;
+    type = INT_OBJECT;
     int total_size = Variant::getSize(obj);
     //printf("total size: %i\n", total_size);
     ptr = (byte *) malloc(total_size);
@@ -67,7 +67,7 @@ Variant::Variant(const map<int, Variant> &obj) {
         int key_size = keyvar.getSize();
         memcpy(input_ptr, keyvar.ptr, key_size);
         input_ptr += key_size;
-        input_ptr[0] = data.type_;
+        input_ptr[0] = data.type;
         input_ptr += 1;
         ((int *) input_ptr)[0] = 0; // place holder for relative position
         linker[key] = (int *) input_ptr;
@@ -88,7 +88,7 @@ Variant::Variant(const map<int, Variant> &obj) {
 
 
 Variant::Variant(const map<byte, Variant> &obj) {
-    type_ = BYTE_OBJECT;
+    type = BYTE_OBJECT;
     int total_size = Variant::getSize(obj);
     //printf("total size: %i\n", total_size);
     ptr = (byte *) malloc(total_size);
@@ -102,7 +102,7 @@ Variant::Variant(const map<byte, Variant> &obj) {
         int key_size = keyvar.getSize();
         memcpy(input_ptr, keyvar.ptr, key_size);
         input_ptr += key_size;
-        input_ptr[0] = data.type_;
+        input_ptr[0] = data.type;
         input_ptr += 1;
         ((int *) input_ptr)[0] = 0; // place holder for relative position
         linker[key] = (int *) input_ptr;
@@ -125,65 +125,65 @@ Variant::Variant(const map<byte, Variant> &obj) {
 Variant::Variant(const string& data) {
     //printf("Making variant from string: %s\n", data.c_str());
     int length = data.length();
-    type_ = STRING;
+    type = STRING;
     ptr = (byte *) malloc(4 + length);
     ((int *) ptr)[0] = length;
     memcpy(ptr + 4, data.c_str(), length);
 }
 
 Variant::Variant(int data) {
-    type_ = INT;
+    type = INT;
     ptr = (byte *) malloc(4);
     ((int *) ptr)[0] = data;
 }
 
 Variant::Variant(short data) {
-    type_ = SHORT;
+    type = SHORT;
     ptr = (byte *) malloc(2);
     ((short *) ptr)[0] = data;
 }
 
 Variant::Variant(byte data) {
-    type_ = BYTE;
+    type = BYTE;
     ptr = (byte *) malloc(1);
     (ptr)[0] = data;
 }
 
 Variant::Variant(float data) {
-    type_ = FLOAT;
+    type = FLOAT;
     ptr = (byte *) malloc(4);
     ((float *) ptr)[0] = data;
 }
 
 Variant::Variant(double data) {
-    type_ = DOUBLE;
+    type = DOUBLE;
     ptr = (byte *) malloc(8);
     ((double *) ptr)[0] = data;
 }
 
 Variant::Variant(const int *data, int array_length) {
-    type_ = INT_ARRAY;
+    type = INT_ARRAY;
     ptr = (byte *) malloc(4 + 4 * array_length);
     ((int *) ptr)[0] = array_length;
     memcpy(ptr + 4, data, 4 * array_length);
 }
 
 Variant::Variant(const short *data, int array_length) {
-    type_ = SHORT_ARRAY;
+    type = SHORT_ARRAY;
     ptr = (byte *) malloc(4 + 2 * array_length);
     ((int *) ptr)[0] = array_length;
     memcpy(ptr + 4, data, 2 * array_length);
 }
 
 Variant::Variant(const byte *data, int array_length) {
-    type_ = BYTE_ARRAY;
+    type = BYTE_ARRAY;
     ptr = (byte *) malloc(4 + array_length);
     ((int *) ptr)[0] = array_length;
     memcpy(ptr + 4, data, array_length);
 }
 
 Variant::Variant(const float *data, int array_length) {
-    type_ = FLOAT_ARRAY;
+    type = FLOAT_ARRAY;
     ptr = (byte *) malloc(4 + 4 * array_length);
     ((int *) ptr)[0] = array_length;
     memcpy(ptr + 4, data, 4 * array_length);
@@ -191,7 +191,7 @@ Variant::Variant(const float *data, int array_length) {
 
 Variant::Variant(const std::vector<float>& data){
     int array_length=data.size();
-    type_ = FLOAT_ARRAY;
+    type = FLOAT_ARRAY;
     ptr = (byte *) malloc(4 + 4 * array_length);
     ((int *) ptr)[0] = array_length;
     float* f = (float *) (ptr + 4) ;
@@ -200,8 +200,30 @@ Variant::Variant(const std::vector<float>& data){
     }
 }
 
+Variant::Variant(const std::vector<int>& data){
+    int array_length=data.size();
+    type = INT_ARRAY;
+    ptr = (byte *) malloc(4 + 4 * array_length);
+    ((int *) ptr)[0] = array_length;
+    int* f = (int *) (ptr + 4) ;
+    for(int k=0;k<array_length;k++){
+        f[k] = data[k];
+    }
+}
+
+Variant::Variant(const std::vector<byte>& data){
+    int array_length=data.size();
+    type = BYTE_ARRAY;
+    ptr = (byte *) malloc(4 + array_length);
+    ((int *) ptr)[0] = array_length;
+    byte* f = (byte *) (ptr + 4) ;
+    for(int k=0;k<array_length;k++){
+        f[k] = data[k];
+    }
+}
+
 Variant::Variant(const glm::vec3& data){
-    type_ = FLOAT_ARRAY;
+    type = FLOAT_ARRAY;
     int array_length = 3 ;
     ptr = (byte *) malloc(4 + 4 * array_length);
     ((int *) ptr)[0] = array_length;
@@ -209,7 +231,7 @@ Variant::Variant(const glm::vec3& data){
 }
 
 Variant::Variant(const glm::mat4& data){
-    type_ = FLOAT_ARRAY;
+    type = FLOAT_ARRAY;
     int array_length = 16 ;
     ptr = (byte *) malloc(4 + 4 * array_length);
     ((int *) ptr)[0] = array_length;
@@ -217,7 +239,7 @@ Variant::Variant(const glm::mat4& data){
 }
 
 Variant::Variant(const glm::quat& data){
-    type_ = FLOAT_ARRAY;
+    type = FLOAT_ARRAY;
     int array_length = 4 ;
     ptr = (byte *) malloc(4 + 4 * array_length);
     ((int *) ptr)[0] = array_length;
@@ -225,14 +247,14 @@ Variant::Variant(const glm::quat& data){
 }
 
 Variant::Variant(const double *data, int array_length) {
-    type_ = DOUBLE_ARRAY;
+    type = DOUBLE_ARRAY;
     ptr = (byte *) malloc(4 + 8 * array_length);
     ((int *) ptr)[0] = array_length;
     memcpy(ptr + 4, data, 8 * array_length);
 }
 
 Variant::Variant(const vector<Variant> &array) {
-    type_ = VARIANT_ARRAY;
+    type = VARIANT_ARRAY;
     int total_size = Variant::getSize(array);
     ptr = (byte *) malloc(total_size);
     byte *input_ptr = ptr;
@@ -242,7 +264,7 @@ Variant::Variant(const vector<Variant> &array) {
     //printf("total size: %i\n", total_size);
     // Write the list of types and allocate pointers
     for (int k = 0; k < array.size(); k++) {
-        input_ptr[0] = array[k].type_;
+        input_ptr[0] = array[k].type;
         input_ptr += 1;
         //((int*)input_ptr)[0] = 0; // place holder for relative position
         linker[k] = input_ptr;
@@ -260,8 +282,8 @@ Variant::Variant(const vector<Variant> &array) {
 }
 
 Variant::Variant(const Variant *source) {
-    type_ = source->type_;
-    if (source->type_ != NULL_VARIANT) {
+    type = source->type;
+    if (source->type != NULL_VARIANT) {
         int size = source->getSize();
         ptr = (byte *) malloc(size);
         memcpy(ptr, source->ptr, size);
@@ -271,8 +293,8 @@ Variant::Variant(const Variant *source) {
 }
 
 Variant::Variant(const Variant &source) {
-    type_ = source.type_;
-    if (source.type_ != NULL_VARIANT) {
+    type = source.type;
+    if (source.type != NULL_VARIANT) {
         int size = source.getSize();
         ptr = (byte *) malloc(size);
         memcpy(ptr, source.ptr, size);
@@ -281,8 +303,8 @@ Variant::Variant(const Variant &source) {
     }
 }
 
-Variant::Variant(const Type type, const byte *input_ptr) {
-    type_ = type;
+Variant::Variant(const Type type_, const byte *input_ptr) {
+    type = type_;
     if(type != NULL_VARIANT){
         int size = Variant::getSize(type, input_ptr);
         ptr = (byte *) malloc(size);
@@ -293,15 +315,15 @@ Variant::Variant(const Type type, const byte *input_ptr) {
 }
 
 Variant::Variant(Variant &&source) noexcept {
-    type_ = source.type_;
+    type = source.type;
     ptr = source.ptr;
-    source.type_ = NULL_VARIANT;
+    source.type = NULL_VARIANT;
     source.ptr = nullptr;
 }
 
 // Variants own their pointers and free them when deallocated
 Variant::~Variant() {
-    if(ptr != nullptr && type_ == NULL_VARIANT){
+    if(ptr != nullptr && type == NULL_VARIANT){
         printf ("Freeing null variant with a pointer! Serialized data is corrupted. \n");
     }
     free(ptr);
@@ -310,9 +332,9 @@ Variant::~Variant() {
 
 Variant &Variant::operator=(Variant &&source) {
     free(ptr);
-    type_ = source.type_;
+    type = source.type;
     ptr = source.ptr;
-    source.type_ = NULL_VARIANT;
+    source.type = NULL_VARIANT;
     source.ptr = nullptr;
 
     cached_array = std::vector<Variant>();
@@ -324,7 +346,7 @@ Variant &Variant::operator=(Variant &&source) {
 }
 
 int Variant::getSize() const {
-    return Variant::getSize(type_, ptr);
+    return Variant::getSize(type, ptr);
 }
 
 // returns the size of the data pointed to by a variant's pointer (does not include type)
@@ -545,24 +567,24 @@ map<byte, Variant> Variant::deserializeByteObject(byte *input_ptr) {
 
 // Returns the object on a Variant holding an Object
 map<string, Variant> Variant::getObject() const {
-    if (type_ != OBJECT) {
-        printf("string object is not a string object! %i\n", type_);
+    if (type != OBJECT) {
+        printf("string object is not a string object! %i\n", type);
     }
     return Variant::deserializeObject(ptr);
 }
 
 // Returns the object on a Variant holding an Object
 map<int, Variant> Variant::getIntObject() const {
-    if (type_ != INT_OBJECT) {
-        printf("int object is not an int object! %i\n", type_);
+    if (type != INT_OBJECT) {
+        printf("int object is not an int object! %i\n", type);
     }
     return Variant::deserializeIntObject(ptr);
 }
 
 // Returns the object on a Variant holding an Object
 map<byte, Variant> Variant::getByteObject() const {
-    if (type_ != BYTE_OBJECT) {
-        printf("byte object is not a byte object! %i\n", type_);
+    if (type != BYTE_OBJECT) {
+        printf("byte object is not a byte object! %i\n", type);
     }
     return Variant::deserializeByteObject(ptr);
 }
@@ -593,7 +615,7 @@ vector<Variant> Variant::getVariantArray() const {
 }
 
 Variant  Variant::operator [](int i){
-    if(type_ == VARIANT_ARRAY){
+    if(type == VARIANT_ARRAY){
         if(cached_array.size() == 0){
             cached_array = getVariantArray();
         }
@@ -603,19 +625,19 @@ Variant  Variant::operator [](int i){
             return Variant();
         }
         //return getVariantArray()[i];
-    }else if(type_ == INT_OBJECT){
+    }else if(type == INT_OBJECT){
         return getIntObject()[i];
-    }else if(type_ == BYTE_OBJECT){
+    }else if(type == BYTE_OBJECT){
         return getByteObject()[(byte)i];
-    }else if(type_ == INT_ARRAY){
+    }else if(type == INT_ARRAY){
         return Variant(getIntArray()[i]);
-    }else if(type_ == FLOAT_ARRAY){
+    }else if(type == FLOAT_ARRAY){
         return Variant(getFloatArray()[i]);
-    }else if(type_ == DOUBLE_ARRAY){
+    }else if(type == DOUBLE_ARRAY){
         return Variant(getDoubleArray()[i]);
-    }else if(type_ == BYTE_ARRAY){
+    }else if(type == BYTE_ARRAY){
         return Variant(getByteArray()[i]);
-    }else if(type_ == SHORT_ARRAY){
+    }else if(type == SHORT_ARRAY){
         return Variant(getShortArray()[i]);
     }else{
         return Variant();
@@ -623,7 +645,7 @@ Variant  Variant::operator [](int i){
 }
 
 Variant  Variant::operator [](std::string i){
-    if(type_ == OBJECT){
+    if(type == OBJECT){
         if(cached_object.size() == 0){
             cached_object = getObject();
         }
@@ -638,9 +660,9 @@ Variant  Variant::operator [](std::string i){
 }
 
 Variant Variant::operator [](Variant i){
-    if(i.type_ == INT){
+    if(i.type == INT){
         return this->operator[](i.getInt());
-    }else if(i.type_ == STRING){
+    }else if(i.type == STRING){
         return this->operator[](i.getString());
     }else{
         return Variant();
@@ -649,7 +671,7 @@ Variant Variant::operator [](Variant i){
 }
 
 bool Variant::defined() const{
-    return type_ != 0;
+    return type != 0;
 }
 
 // Convenience functions for extracting raw types
@@ -724,14 +746,38 @@ std::vector<float> Variant::getFloatVector() const {
     return vec ;
 }
 
+// can be used on an int array to get a vector instead (performs a deep copy)
+std::vector<int> Variant::getIntVector() const {
+    int length = getArrayLength() ;
+    int* p = getIntArray();
+    vector<int> vec;
+    vec.resize(length);
+    for(int k=0;k<length;k++){
+        vec[k] = p[k];
+    }
+    return vec ;
+}
+
+// can be used on a byte array to get a vector instead (performs a deep copy)
+std::vector<byte> Variant::getByteVector() const {
+    int length = getArrayLength() ;
+    byte* p = getByteArray();
+    vector<byte> vec;
+    vec.resize(length);
+    for(int k=0;k<length;k++){
+        vec[k] = p[k];
+    }
+    return vec ;
+}
+
 /* Numbers passed from javascript could be int, double, or float depending on how they're writtten or stored
 This function detects what type came in and converts it to a 32 bit float */
 float Variant::getNumberAsFloat() const{
-    if(type_ == Variant::INT){
+    if(type == Variant::INT){
         return (float)*((int*)(ptr)) ;
-    }else if(type_ == Variant::DOUBLE){
+    }else if(type == Variant::DOUBLE){
         return (float)*((double*)(ptr)) ;
-    }else if(type_ == Variant::FLOAT){
+    }else if(type == Variant::FLOAT){
         return *((float*)(ptr)) ;
     }else{
         return 0;
@@ -740,7 +786,7 @@ float Variant::getNumberAsFloat() const{
 
 // Prints this variant to the console using printf (no newline)
 void Variant::print() const {
-    printf("%s", Variant::deserializeToString(type_, ptr).c_str());
+    printf("%s", Variant::deserializeToString(type, ptr).c_str());
 }
 
 // Prints a serialized object to a string
@@ -766,7 +812,7 @@ string Variant::deserializeToString(char type, byte *input_ptr) {
             }
             first = false;
             res += key + ":";
-            res += deserializeToString(data.type_, data.ptr);
+            res += deserializeToString(data.type, data.ptr);
         }
         res += "}";
     } else if (type == INT_OBJECT) {
@@ -779,7 +825,7 @@ string Variant::deserializeToString(char type, byte *input_ptr) {
             }
             first = false;
             res += std::to_string(key) + ":";
-            res += deserializeToString(data.type_, data.ptr);
+            res += deserializeToString(data.type, data.ptr);
         }
         res += "}";
     } else if (type == BYTE_OBJECT) {
@@ -792,7 +838,7 @@ string Variant::deserializeToString(char type, byte *input_ptr) {
             }
             first = false;
             res += std::to_string(key) + ":";
-            res += deserializeToString(data.type_, data.ptr);
+            res += deserializeToString(data.type, data.ptr);
 
         }
         res += "}";
@@ -808,7 +854,7 @@ string Variant::deserializeToString(char type, byte *input_ptr) {
             }
             first = false;
             Variant data = array[k];
-            res += deserializeToString(data.type_, data.ptr);
+            res += deserializeToString(data.type, data.ptr);
         }
         res += "]";
     } else if (type == INT_ARRAY) {
@@ -890,7 +936,7 @@ string Variant::deserializeToString(char type, byte *input_ptr) {
 }
 
 string Variant::toString() const {
-    return Variant::deserializeToString(type_, ptr);
+    return Variant::deserializeToString(type, ptr);
 }
 
 
@@ -1041,7 +1087,7 @@ std::pair<Variant,int> Variant::parseJSONValue(const std::string& json, int valu
 
 void Variant::printFormatted() const{
     std::string s = this->toString() ;
-    if(type_ != Variant::OBJECT){
+    if(type != Variant::OBJECT){
         printf("%s\n", s.c_str());
     }else{
         Variant::printJSON(s);
@@ -1155,37 +1201,37 @@ uint32_t Variant::murmur(const uint8_t* key, size_t len, uint32_t seed) {
 }
 
 void Variant::makeFillableByteArray(int size){
-    if(type_ != NULL_VARIANT){
+    if(type != NULL_VARIANT){
         free(ptr);
     }
-    type_ = Variant::BYTE_ARRAY ;
+    type = Variant::BYTE_ARRAY ;
     ptr = (byte*) malloc(4 + size) ;
     *(int*)(ptr) = size ;
 }
 
 void Variant::makeFillableIntArray(int size){
-    if(type_ != NULL_VARIANT){
+    if(type != NULL_VARIANT){
         free(ptr);
     }
-    type_ = Variant::INT_ARRAY ;
+    type = Variant::INT_ARRAY ;
     ptr = (byte*) malloc(4 * ( 1 + size)) ;
     *(int*)(ptr) = size ;
 }
 
 void Variant::makeFillableFloatArray(int size){
-    if(type_ != NULL_VARIANT){
+    if(type != NULL_VARIANT){
         free(ptr);
     }
-    type_ = Variant::FLOAT_ARRAY ;
+    type = Variant::FLOAT_ARRAY ;
     ptr = (byte*) malloc(4 * ( 1 + size)) ;
     *(int*)(ptr) = size ;
 }
 
 void Variant::makeFillableDoubleArray(int size){
-    if(type_ != NULL_VARIANT){
+    if(type != NULL_VARIANT){
         free(ptr);
     }
-    type_ = Variant::DOUBLE_ARRAY ;
+    type = Variant::DOUBLE_ARRAY ;
     ptr = (byte*) malloc(4 + 8 * size) ;
     *(int*)(ptr) = size ;
 }

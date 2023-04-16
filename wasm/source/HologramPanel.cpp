@@ -407,3 +407,67 @@ Variant HologramPanel::serialize(){
     serial["block_size"] = Variant(block_size);
     return Variant(serial);
 }
+
+// Appends this panel to the given arrays
+void HologramPanel::append(std::vector<float>& floats, std::vector<int>& ints, std::vector<byte>& bytes){
+    floats.push_back(zero_position.x);
+    floats.push_back(zero_position.y);
+    floats.push_back(zero_position.z);
+
+    floats.push_back(X.x);
+    floats.push_back(X.y);
+    floats.push_back(X.z);
+
+    floats.push_back(Y.x);
+    floats.push_back(Y.y);
+    floats.push_back(Y.z);
+
+    floats.push_back(Z.x);
+    floats.push_back(Z.y);
+    floats.push_back(Z.z);
+
+    ints.push_back(width);
+    ints.push_back(height);
+
+    byte* b = depth_texture.getByteArray();
+
+    for(int i=0;i<width*height;i++){
+        bytes.push_back(b[i]);
+    }
+    for(int i=0;i<256;i++){
+        floats.push_back(depth_map[i]);
+    }
+}
+
+
+// sets this panel read from the given arrays starting at the given indices
+HologramPanel::HologramPanel(std::vector<float>& floats, std::vector<int>& ints, std::vector<byte>& bytes, int float_ptr, int int_ptr, int byte_ptr){
+    zero_position.x = floats[float_ptr++];
+    zero_position.y = floats[float_ptr++];
+    zero_position.z = floats[float_ptr++];
+
+    X.x = floats[float_ptr++];
+    X.y = floats[float_ptr++];
+    X.z = floats[float_ptr++];
+
+    Y.x = floats[float_ptr++];
+    Y.y = floats[float_ptr++];
+    Y.z = floats[float_ptr++];
+
+    Z.x = floats[float_ptr++];
+    Z.y = floats[float_ptr++];
+    Z.z = floats[float_ptr++];
+
+    width = ints[int_ptr++];
+    height = ints[int_ptr++];
+    depth_texture.makeFillableByteArray(width*height);
+    byte* b = depth_texture.getByteArray();
+    for(int i=0;i<width*height;i++){
+        b[i] = bytes[byte_ptr++];
+    }
+    depth_map = vector<float>();
+    for(int i=0;i<256;i++){
+        depth_map.push_back(floats[float_ptr++]);
+    }
+}
+

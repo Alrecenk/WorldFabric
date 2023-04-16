@@ -57,14 +57,13 @@ EXPORTED_FUNCTIONS =\
 	'_setIKParams',\
 	'_setAvatar',\
 	'_getSimpleTraceImage',\
-	'_getDepthPanelTraceImage',\
-	'_setDepthPanelToTrace',\
 	'_addHologramPanel',\
 	'_addHologramView',\
 	'_getHologramTraceImage',\
 	'_downloadHologram',\
 	'_loadHologram',\
 	'_getUpdatedHologramBuffers',\
+	'_wasteTimeandSpace',\
 	'_free'
 EXTRA_EXPORTED_RUNTIME_METHODS=['ccall']
 API_MAIN = ${API_DIR}source/api.cpp
@@ -97,7 +96,6 @@ API_SRC    =${API_DIR}source/Variant.cpp\
 			${API_DIR}source/Polygon.cpp\
 			${API_DIR}source/BSPNode.cpp\
 			${API_DIR}source/RadialVolume.cpp\
-			${API_DIR}source/DepthPanel.cpp\
 			${API_DIR}source/HologramPanel.cpp\
 			${API_DIR}source/HologramView.cpp\
 			${API_DIR}source/Hologram.cpp
@@ -109,6 +107,6 @@ all: serverexe wasm
 serverexe: ${SERVER_DIR}source/Main.cpp
 	g++ -pthread -std=c++17 ${CPP_OPTS} ${CPP_DEFS} -o Main.exe -I${API_DIR} ${API_INC} ${SRC_INC} ${INCS_DIRS} ${SERVER_DIR}source/Main.cpp ${API_SRC} ${SRC} ${LIBS_DIRS} ${LIBS} 
 wasm: ${API_DIR}source/api.cpp
-	emcc -std=c++17 -g -sEXPORT_NAME="'initializeCPPAPI'" -sMODULARIZE=1 -s NO_DISABLE_EXCEPTION_CATCHING -sTOTAL_MEMORY=2048mb -O3 -sASSERTIONS=1 ${API_MAIN} ${API_SRC} --post-js ${API_DIR}source/api_post.js -o ${WASM_OUT}api.js ${API_INC} -s"EXPORTED_FUNCTIONS=${EXPORTED_FUNCTIONS}" -s"EXPORTED_RUNTIME_METHODS=${EXTRA_EXPORTED_RUNTIME_METHODS}"
+	emcc -std=c++17 -g -sEXPORT_NAME="'initializeCPPAPI'" -sMODULARIZE=1 -s -sALLOW_MEMORY_GROWTH=1 -sMAXIMUM_MEMORY=2048MB -sINITIAL_MEMORY=512MB -sTOTAL_STACK=256MB -sTOTAL_MEMORY=1024MB -O3 -sASSERTIONS=1 ${API_MAIN} ${API_SRC} --post-js ${API_DIR}source/api_post.js -o ${WASM_OUT}api.js ${API_INC} -s"EXPORTED_FUNCTIONS=${EXPORTED_FUNCTIONS}" -s"EXPORTED_RUNTIME_METHODS=${EXTRA_EXPORTED_RUNTIME_METHODS}"
 clean:
 	$(RM) -r ${SERVER_OUT}Main.exe ${WASM_OUT}api.js ${WASM_OUT}api.wasm

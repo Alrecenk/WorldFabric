@@ -35,7 +35,7 @@
 //#include "stb_image.h"
 //#include "FieldImage.h"
 //#include "FieldImageSet.h"
-#include "DepthPanel.h"
+//#include "DepthPanel.h"
 #include "Hologram.h"
 
 using std::vector;
@@ -49,6 +49,9 @@ using std::unique_ptr ;
 using std::make_unique ;
 using std::weak_ptr;
 using std::shared_ptr;
+
+
+
 
 // Outermost API holds a global reference to the core data model
 //map<string,GLTF> meshes;
@@ -68,31 +71,9 @@ float action_delay = 0.05;
 
 std::unordered_map<int, TObject*> descriptor_cache ;
 
-
-
-
-// Image used for the BSP image training test
-/*
-Variant original_image ;
-int original_image_width;
-int original_image_height;
-int original_image_channels;
-*/
-/*
-int unlocked_field_rows = 2;
-ImageField image_field(unlocked_field_rows);
-
-//SphereField sphere_field(vec3(0,0,0), 0.9f, 4);
-
-FieldImageSet image_set ;
-
-*/
-
 std::unique_ptr<BSPNode> root ;
 
-DepthPanel panel = DepthPanel::generateTestPanel(vec3(0,0,0), 1.0f, vec3(0,1.0f,0)) ;
-
-Hologram hologram(vec3(0,0,0), 1) ;
+Hologram hologram;
 
 long timeMilliseconds() {
     return std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -303,7 +284,7 @@ byte* getUpdatedBuffers(byte* ptr){
     }
 
     if(!has_hand){
-        shared_ptr<ConvexShape> shape = std::make_unique<ConvexShape>(ConvexShape::makeSphere(glm::vec3(0,0,0), 0.01, 0));
+        shared_ptr<ConvexShape> shape = std::make_unique<ConvexShape>(ConvexShape::makeSphere(glm::vec3(0,0,0), 0.01, 3));
         meshes.addLocalShapeMesh("HAND", shape, vec3(0.85, 0.85, 1.0));
     }
 
@@ -337,6 +318,7 @@ byte* getUpdatedHologramBuffers(byte* ptr){
     }
 
     if(!has_hand){
+        printf("adding hand mesh!\n");
         shared_ptr<ConvexShape> shape = std::make_unique<ConvexShape>(ConvexShape::makeSphere(glm::vec3(0,0,0), 0.01, 0));
         meshes.addLocalShapeMesh("HAND", shape, vec3(0.85, 0.85, 1.0));
     }
@@ -962,7 +944,7 @@ byte* getSimpleTraceImage(byte* ptr){
     free(image_data);
     return pack(ret_map);
 }
-
+/*
 byte* getDepthPanelTraceImage(byte* ptr){
     auto start = now();
     auto obj = Variant::deserializeObject(ptr);
@@ -1088,6 +1070,7 @@ byte* setDepthPanelToTrace(byte* ptr){
     printf("Raytracing Time(to build panel): %d ms ( %d build, %d trace)\n", time, build_time, trace_time);
     return emptyReturn();
 }
+*/
 
 byte* addHologramPanel(byte* ptr){
     auto start = now();
@@ -1283,30 +1266,74 @@ byte* getHologramTraceImage(byte* ptr){
 
 
 byte* downloadHologram(byte* ptr){
+    
     //auto obj = Variant::deserializeObject(ptr);
     Variant serialized = hologram.serialize() ;
+    printf("Saved hash: %d\n", serialized.hash());
+    byte* sb = serialized.getByteArray();
+    printf("serialized:%d",sb[0]);
+
+    for(int k=1;k<100;k++){
+        printf(",%d", sb[k]);
+    }
+    printf("\n");
+
     Hologram h2 ;
 
     h2.set(serialized);
 
     Variant s2 = h2.serialize();
     printf("hash check: %d == %d \n", serialized.hash(), s2.hash());
+
+    sb = s2.getByteArray();
+    printf("saving s2:%d",sb[0]);
+
+    for(int k=1;k<100;k++){
+        printf(",%d", sb[k]);
+    }
+    printf("\n");
+    
     return pack(serialized);
 }
 
 byte* loadHologram(byte* ptr){
 
-    auto obj = Variant::deserializeObject(ptr);
-    Variant obj_variant(
-            Variant::OBJECT, obj["data"].getByteArray());
-    hologram.set(obj_variant);
+    Variant serialized(Variant::BYTE_ARRAY, ptr);
+    //auto obj = Variant::deserializeObject(ptr);
+    //Variant serialized = obj["data"].clone();
+    printf("Loaded data hash: %d\n", serialized.hash());
+    byte* sb = serialized.getByteArray();
+    printf("loaded data in wasm API:%d",sb[0]);
+    for(int k=1;k<100;k++){
+        printf(",%d", sb[k]);
+    }
+    printf("\n");
+
+    
+    hologram.set(serialized);
     
     Variant s2 = hologram.serialize() ;
-    printf("hash check: %d == %d \n", obj_variant.hash(), s2.hash());
+    printf("hash check: %d == %d \n", serialized.hash(), s2.hash());
+    
+    sb = s2.getByteArray();
+    printf("loading s2:%d",sb[0]);
+
+    for(int k=1;k<100;k++){
+        printf(",%d", sb[k]);
+    }
+    printf("\n");
+
 
     map<string, Variant> ret_map;
     ret_map["views"] = Variant((int)hologram.view.size());
     ret_map["panels"] = Variant((int)hologram.panel.size());
+    return pack(ret_map);
+}
+
+byte* wasteTimeandSpace(byte* ptr){
+    auto obj = Variant::deserializeObject(ptr);    
+    map<string, Variant> ret_map;
+    ret_map["data"] = Variant(obj["data"]);
     return pack(ret_map);
 }
 

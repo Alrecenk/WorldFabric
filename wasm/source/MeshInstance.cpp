@@ -76,7 +76,7 @@ std::unique_ptr<TObject> MeshInstance::createObject(const Variant& serialized){
     /*printf("Creating object:\n");
     serialized.printFormatted();*/
 
-    if(serialized.type_ != Variant::OBJECT){
+    if(serialized.type != Variant::OBJECT){
         printf("timeline attemped to create an object with a nonobject variant!\n");
     }
     auto map = serialized.getObject() ;
@@ -102,7 +102,7 @@ std::unique_ptr<TEvent> MeshInstance::createEvent(const Variant& serialized){
     serialized.printFormatted();
     */
 
-    if(serialized.type_ == Variant::NULL_VARIANT){ // events can hold poiners to other events which may be null
+    if(serialized.type == Variant::NULL_VARIANT){ // events can hold poiners to other events which may be null
         return std::unique_ptr<TEvent>(nullptr);
     }
     auto map = serialized.getObject() ;

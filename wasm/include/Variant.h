@@ -31,7 +31,7 @@ class Variant {
         BYTE_OBJECT = 15
     };
     //TODO make const and use initializer lists on constructors or make private and provide accessors that give copies?
-    Type type_ = NULL_VARIANT; // Type of object pointed to by ptr
+    Type type = NULL_VARIANT; // Type of object pointed to by ptr
     byte* ptr = nullptr; // Pointer to data
 
 
@@ -69,6 +69,10 @@ class Variant {
     Variant(const float* data, int array_length);
 
     Variant(const std::vector<float>& data);
+
+    Variant(const std::vector<int>& data);
+
+    Variant(const std::vector<byte>& data);
 
     Variant(const glm::vec3& data); // maps to float*
 
@@ -195,6 +199,12 @@ class Variant {
 
     // can be used on a float array to get a vector instead (performs a deep copy)
     std::vector<float> getFloatVector() const ;
+
+    // can be used on an int array to get a vector instead (performs a deep copy)
+    std::vector<int> getIntVector() const ;
+
+    // can be used on a byte array to get a vector instead (performs a deep copy)
+    std::vector<byte> getByteVector() const ;
 
     /* Numbers passed from javascript could be int, double, or float depending on how they're writtten or stored
     This function detects what type came in and converts it to a 32 bit float */
