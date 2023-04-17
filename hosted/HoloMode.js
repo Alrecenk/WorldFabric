@@ -50,7 +50,9 @@ class HoloMode extends ExecutionMode{
     drawFrame(frame_id){
         // Get any mesh updates pending in the module
         if(frame_id == 0){
-            //TODO 
+            //TODO extract remote holograms from web-asembly module
+            
+            //TODO need to warm up API by calling something even thogh we never use it (this is so dumb)
             let new_buffer_data = tools.API.call("getUpdatedHologramBuffers", null, new Serializer());
             for(let id in new_buffer_data){
                 tools.renderer.prepareBuffer(id, new_buffer_data[id]);
@@ -58,7 +60,7 @@ class HoloMode extends ExecutionMode{
             
         }
         // Draw the hologram
-        tools.renderer.drawHologram("default_hologram", this.model_pose);
+        tools.renderer.drawHologram("default_holo", this.model_pose);
         
     }
 

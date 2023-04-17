@@ -312,6 +312,9 @@ function loadFile() {
                 views = m.views ;
                 panels=m.panels;
                 tools.buttons["views_label"].text = "views: " + views;
+
+                tools.renderer.addHologramFile("default_holo", load_data); 
+
             }else{
                 console.log("file extension not recognized:" + ext);
             }

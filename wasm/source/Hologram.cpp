@@ -374,7 +374,7 @@ void Hologram::unpack(Variant& total,std::vector<float>& floats, std::vector<int
     int num_floats = i_ptr[0];
     int num_ints = i_ptr[1];
     int num_bytes = i_ptr[2];
-    //printf("unpack floats: %d, ints: %d, bytes, %d\n", num_floats, num_ints, num_bytes);
+    printf("unpack floats: %d, ints: %d, bytes, %d\n", num_floats, num_ints, num_bytes);
     float* f_ptr = (float*)(ptr+12);
     //printf("1\n");
     for(int k=0;k<num_floats;k++){

@@ -30,7 +30,7 @@ class HoloRenderer{
 
     hold_ui_context = false; 
 
-    texture_width = 1024 ; // fixed texture width for 1D data because there's no1d texture support
+    static texture_width = 1024 ; // fixed texture width for 1D data because there's no1d texture support
 
     
     // Performs the set-up for openGL canvas and shaders on construction
@@ -47,8 +47,8 @@ class HoloRenderer{
         let gl = this.gl ;
         gl.clearColor(0.0, 0.0, 0.0, 1.0);
         gl.enable(gl.DEPTH_TEST);
-        gl.enable(gl.CULL_FACE);
-        gl.cullFace(gl.BACK);
+        gl.disable(gl.CULL_FACE);
+        //gl.cullFace(gl.BACK);
         console.log(gl.getParameter(gl.VERSION));
         console.log(gl.getParameter(gl.SHADING_LANGUAGE_VERSION));
         console.log(gl.getParameter(gl.VENDOR));
@@ -138,7 +138,7 @@ class HoloRenderer{
 
         this.shaderProgram.floats = gl.getUniformLocation(this.shaderProgram, "floats");
         this.shaderProgram.ints = gl.getUniformLocation(this.shaderProgram, "ints");
-        this.shaderProgram.bytes = gl.getUniformLocation(this.shaderProgram, "floats");
+        this.shaderProgram.bytes = gl.getUniformLocation(this.shaderProgram, "bytes");
         
     }
 
@@ -362,13 +362,19 @@ class HoloRenderer{
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);	
             //generate texture from raw Float32Array in buffer data	
-            var height = Math.ceil(buffer_data.floats.length/(1.0*texture_width));	
-            gl.texImage2D(gl.TEXTURE_2D, 0, gl.R32F, texture_width, height, 0, gl.RED, gl.FLOAT, buffer_data.floats);
+            var height = Math.ceil(buffer_data.floats.length/(1.0*HoloRenderer.texture_width));
+
+            let padded = new Float32Array(HoloRenderer.texture_width*height);
+            for(let k = 0 ; k < buffer_data.floats.length;k++){
+                padded[k] = buffer_data.floats[k];
+            }
+
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.R32F, HoloRenderer.texture_width, height, 0, gl.RED, gl.FLOAT, padded);
             // Bind the data texture to a slot (fixed at 2 for this) and set the shader uniform to point at the same slot
             //these 3 lines are laos what you need to do to draw, but doing it at load time "warms it up" for later maybe
             gl.activeTexture(gl.TEXTURE0 + 2);
 		    gl.bindTexture(gl.TEXTURE_2D, this.buffers[id].floats);
-		    gl.uniform1i(shaderProgram.floats, 2);
+		    gl.uniform1i(this.shaderProgram.floats, 2);
         }
 
         if(buffer_data.ints){
@@ -379,13 +385,19 @@ class HoloRenderer{
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);	
             //generate texture from raw Float32Array in buffer data	
-            var height = Math.ceil(buffer_data.ints.length/(1.0*texture_width));	
-            gl.texImage2D(gl.TEXTURE_2D, 0, gl.R32I, texture_width, height, 0, gl.RED_INTEGER, gl.INT, buffer_data.ints);
+            var height = Math.ceil(buffer_data.ints.length/(1.0*HoloRenderer.texture_width));	
+
+            let padded = new Int32Array(HoloRenderer.texture_width*height);
+            for(let k = 0 ; k < buffer_data.ints.length;k++){
+                padded[k] = buffer_data.ints[k];
+            }
+
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.R32I, HoloRenderer.texture_width, height, 0, gl.RED_INTEGER, gl.INT, padded);
             // Bind the data texture to a slot (fixed at 3 for this) and set the shader uniform to point at the same slot
             //these 3 lines are laos what you need to do to draw, but doing it at load time "warms it up" for later maybe
             gl.activeTexture(gl.TEXTURE0 + 3);
 		    gl.bindTexture(gl.TEXTURE_2D, this.buffers[id].ints);
-		    gl.uniform1i(shaderProgram.ints, 3);
+		    gl.uniform1i(this.shaderProgram.ints, 3);
         }
 
         if(buffer_data.bytes){
@@ -396,13 +408,17 @@ class HoloRenderer{
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);	
             //generate texture from raw Float32Array in buffer data	
-            var height = Math.ceil(buffer_data.bytes.length/(1.0*texture_width));	
-            gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8UI, texture_width, height, 0, gl.RED, gl.UNSIGNED_BYTE, buffer_data.bytes);
+            var height = Math.ceil(buffer_data.bytes.length/(1.0*HoloRenderer.texture_width));	
+            let padded = new Uint8Array(HoloRenderer.texture_width*height);
+            for(let k = 0 ; k < buffer_data.bytes.length;k++){
+                padded[k] = buffer_data.bytes[k];
+            }
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8UI, HoloRenderer.texture_width, height, 0, gl.RED_INTEGER, gl.UNSIGNED_BYTE, padded);
             // Bind the data texture to a slot (fixed at 3 for this) and set the shader uniform to point at the same slot
             //these 3 lines are laos what you need to do to draw, but doing it at load time "warms it up" for later maybe
             gl.activeTexture(gl.TEXTURE0 + 4);
 		    gl.bindTexture(gl.TEXTURE_2D, this.buffers[id].bytes);
-		    gl.uniform1i(shaderProgram.bytes, 4);
+		    gl.uniform1i(this.shaderProgram.bytes, 4);
         }
 
 
@@ -425,11 +441,11 @@ class HoloRenderer{
 
             gl.activeTexture(gl.TEXTURE0 + 3);
             gl.bindTexture(gl.TEXTURE_2D, buffer.ints);
-            gl.uniform1i(shaderProgram.ints, 3);
+            gl.uniform1i(this.shaderProgram.ints, 3);
 
             gl.activeTexture(gl.TEXTURE0 + 4);
             gl.bindTexture(gl.TEXTURE_2D, buffer.bytes);
-            gl.uniform1i(shaderProgram.bytes, 4);
+            gl.uniform1i(this.shaderProgram.bytes, 4);
 
 
             gl.drawArrays(gl.TRIANGLES, 0, position_buffer.numItems);
@@ -452,12 +468,121 @@ class HoloRenderer{
         this.gl.uniform3fv(this.shaderProgram.view_position, view_pos);
 
         if(holo_name in this.buffers){
-            this.drawHologramBuffer(this.buffers[buffer_name]);
+            this.drawHologramBuffer(this.buffers[holo_name]);
         }
     }
 
     removeHologram(holo_name){
         delete this.buffers[holo_name] ;
+    }
+
+
+    static deserializeInt(array_buffer, ptr) {
+        let bytes = new Uint8Array(array_buffer, ptr, 4);
+        return bytes[0] + (bytes[1]<<8) +(bytes[2] <<16) + (bytes[3] << 24) ;
+    }
+
+    static deserializeShort(array_buffer, ptr) {
+        let bytes = new Uint8Array(array_buffer, ptr, 2);
+        return bytes[0] + (bytes[1]<<8) ;
+    }
+
+    static deserializeByte(array_buffer, ptr) {
+        return new Int8Array(array_buffer, ptr, 1)[0];
+    }
+
+    static deserializeFloat(array_buffer, ptr) {
+        return new Float32Array(array_buffer.slice(ptr, ptr + 4), 0, 1)[0];
+    }
+
+    static deserializeDouble(array_buffer, ptr) {
+        return new Float64Array(array_buffer.slice(ptr, ptr + 8), 0, 1)[0];
+    }
+
+    static deserializeIntArray(array_buffer, ptr, length) {
+        return new Int32Array(array_buffer.slice(ptr, ptr + 4 * length), 0, length);
+    }
+
+    static deserializeShortArray(array_buffer, ptr, length) {
+        return new Int16Array(array_buffer.slice(ptr, ptr + 2 * length), 0, length);
+    }
+
+    static deserializeByteArray(array_buffer, ptr, length) {
+        return new Uint8Array(array_buffer, ptr, length);
+    }
+
+    static deserializeFloatArray(array_buffer, ptr, length) {
+        return new Float32Array(array_buffer.slice(ptr, ptr + 4 * length), 0, length);
+    }
+
+    static deserializeDoubleArray(array_buffer, ptr, length) {
+        return new Float64Array(array_buffer.slice(ptr, ptr + 8 * length), 0, length);
+    }
+
+    //data is an int8array of the raw bytes of a file exported with the downloadHologram function in the c++ API
+    addHologramFile(holo_name, data, r = 10.0){
+        let file_buffer = data.buffer ;
+
+        //let holo_size = deserializeInt(file_buffer, 0) ;
+        let num_floats = HoloRenderer.deserializeInt(file_buffer, 4) ;
+        let num_ints = HoloRenderer.deserializeInt(file_buffer, 8) ;
+        let num_bytes = HoloRenderer.deserializeInt(file_buffer, 12) ;
+        console.log("floats:" + num_floats +" ints: " + num_ints +" bytes:" + num_bytes);
+        let buffer = {};
+        
+        buffer.floats = HoloRenderer.deserializeFloatArray(file_buffer, 16,num_floats);
+        buffer.ints = HoloRenderer.deserializeIntArray(file_buffer, 16 + num_floats*4, num_ints);
+        buffer.bytes = HoloRenderer.deserializeByteArray(file_buffer, 16 + num_floats*4 + num_ints*4, num_bytes);
+
+        // triangles that form an octahedron around 0,0,0 of radius r as a flattened array
+        /*
+        buffer.position = new Float32Array(8*3*3);
+
+        let v = [
+            [0, 0 - r, 0], // 0
+            [0 - r, 0, 0], // 1
+            [0, 0, 0 - r], // 2
+            [0, 0 + r, 0], // 3
+            [0 + r, 0, 0], // 4
+            [0, 0, 0 + r] // 5
+        ]; 
+
+        let f = [
+            [0, 1, 2],
+            [0, 2, 4],
+            [1, 0, 5],
+            [5, 0, 4],
+            [1, 5, 3],
+            [5, 4, 3],
+            [2, 1, 3],
+            [4, 2, 3]
+        ];
+
+        for(let k=0;k<f.length;k++){
+            let j = k*9;
+            let A = v[f[k][0]];
+            buffer.position[j] = A[0];
+            buffer.position[j+1] = A[1];
+            buffer.position[j+2] = A[2];
+            let B = v[f[k][1]];
+            buffer.position[j+3] = B[0];
+            buffer.position[j+4] = B[1];
+            buffer.position[j+5] = B[2];
+            let C = v[f[k][2]];
+            buffer.position[j+6] = C[0];
+            buffer.position[j+7] = C[1];
+            buffer.position[j+8] = C[2];
+        }
+        console.log(buffer.position);
+        */
+        buffer.position = new Float32Array([0, -r, 0, -r, 0, 0, 0, 0, -r, 0, -r, 0, 0, 0, -r, r, 0, 0, -r, 
+            0, 0, 0, -r, 0, 0, 0, r, 0, 0, r, 0, -r, 0, r, 0, 0, -r, 0, 0, 0, 0, r, 0, r, 0, 0, 0, r, r,
+             0, 0, 0, r, 0, 0, 0, -r, -r, 0, 0, 0, r, 0, r, 0, 0, 0, 0, -r, 0, r, 0]);
+        buffer.vertices = 24 ;
+
+        this.prepareBuffer(holo_name, buffer);
+
+
     }
 
     startXRSession(){
@@ -559,8 +684,8 @@ class HoloRenderer{
             // Clear the framebuffer
             gl.clearColor(tools.renderer.bgColor[0]/255.0, tools.renderer.bgColor[1]/255.0, tools.renderer.bgColor[2]/255.0, 1.0);
             gl.enable(gl.DEPTH_TEST);
-            gl.enable(gl.CULL_FACE);
-            gl.cullFace(gl.BACK);
+            gl.disable(gl.CULL_FACE);
+            //gl.cullFace(gl.BACK);
             gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
             
             let frame_id = 0 ;
