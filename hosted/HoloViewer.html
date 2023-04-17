@@ -35,116 +35,40 @@ body {
 <script type="text/javascript" src="TableClient.js"></script>
 
 <script id="shader-fs" type="x-shader/x-fragment">#version 300 es
-    // A simple fragment shader with a single point light
+    // Fragment shader for rendering multi-image holograms
     precision mediump float;
 
-    in vec4 v_color;
-	in vec3 v_position;
-	in vec3 v_normal;
-    in vec2 v_texcoord;
+    
+    uniform vec3 view_position ; //camera position
+	in vec3 v_position; // point on render mesh in world space
 	
-	uniform vec3 u_light_point;
-    uniform sampler2D u_texture;
-    uniform int u_has_texture ;
-    uniform float u_alpha_cutoff ;
-    uniform float u_nearness_cutoff ;
+    // Hologram packeted into textures by type
+    const int texture_width = 1024;
+    uniform sampler2D floats;
+    uniform mediump isampler2D ints;
+    uniform lowp usampler2D bytes;
 	
-	out vec4 frag_color;
 
-	float lightFrom(vec3 light_point){
-		vec3 light_ray = v_position - light_point;
-		float direct = max(0., -dot(light_ray, v_normal)/length(light_ray));
-		return direct ;
-	}
-	
+	out vec4 frag_color; // output color
+
     void main(void) {
-		float direct = lightFrom(u_light_point) ;
-		float indirect = 1.;
-		float l = 0.5*indirect + 0.5 * direct ; // Add some ambient light
-        frag_color = vec4(l *v_color.r ,l * v_color.g,l*v_color.b , v_color.a) ;
-        if(u_has_texture > 0){
-            vec4 t_color = texture(u_texture, v_texcoord);
-            frag_color.r *= t_color.r ;
-            frag_color.g *= t_color.g ;
-            frag_color.b *= t_color.b ;
-            frag_color.a *= t_color.a ;
-        }
 
-        if(frag_color.a < u_alpha_cutoff || dot(v_position,v_position) < u_nearness_cutoff ){
-            discard ;
-        }		
+		frag_color = vec4(1.0f, 0.5f, 1.0f, 1.0f);	
     }
 </script>
 
 <script id="shader-vs" type="x-shader/x-vertex">#version 300 es
-    // A Very simple passthrough vertex shader
-	in vec3 aVertexPosition;
-    in vec4 aVertexColor;
-	in vec3 aNormal;
-    in vec2 aTexcoord;
-    in vec4 aJoints;
-    in vec4 aWeights;
+    // A very simple passthrough vertex shader
+	in vec3 input_vertex_position;
+   
+    uniform mat4 mv_matrix;
+    uniform mat4 p_matrix;
 
-    uniform mat4 uMVMatrix;
-    uniform mat4 uPMatrix;
-    uniform sampler2D bones_texture;
-    uniform int boneless ;
-
-    out vec4 v_color;
 	out vec3 v_position;
-	out vec3 v_normal;
-    out vec2 v_texcoord;
-
-    vec4 getBoneElem(int index){
-        int y = index/32;
-		int x = index - (y*32) ;
-		return texelFetch(bones_texture, ivec2(x, y), 0);
-	}
-
-    mat4 getBone(float index){
-        int i = int(round(index));
-        mat4 bone ;
-        bone[0] = getBoneElem(4*i);
-        bone[1] = getBoneElem(4*i+1);
-        bone[2] = getBoneElem(4*i+2);
-        bone[3] = getBoneElem(4*i+3);
-        return bone ;
-    }
 
     void main(void) {
-        if(boneless == 1){
-            v_position = aVertexPosition ;
-            v_normal = aNormal ;
-        }else{
-            vec4 x = vec4(aVertexPosition, 1) ;
-
-            v_position = vec3(getBone(aJoints[0]) * x * aWeights[0] + 
-                            getBone(aJoints[1]) * x * aWeights[1] + 
-                            getBone(aJoints[2]) * x * aWeights[2] + 
-                            getBone(aJoints[3]) * x * aWeights[3] );
-
-            vec4 n = vec4(aNormal,0);
-
-            v_normal = vec3(getBone(aJoints[0]) * n * aWeights[0] + 
-                            getBone(aJoints[1]) * n * aWeights[1] + 
-                            getBone(aJoints[2]) * n * aWeights[2] + 
-                            getBone(aJoints[3]) * n * aWeights[3] );
-
-            v_normal = normalize(v_normal); 
-        }              
-        v_color = aVertexColor;
-        if(length(v_position) < 0.01f){
-            v_position = aVertexPosition;
-            v_color = vec4(1.0,0.0,0.0, 1.0);            
-        }
-
-		//v_position = aVertexPosition; 
-		//v_normal = aNormal;
-        v_texcoord = aTexcoord;
-        
-        gl_Position = uPMatrix * uMVMatrix * vec4(v_position, 1.0);
-        v_position = vec3(uMVMatrix * vec4(v_position, 1.0));
-        v_normal = vec3(uMVMatrix * vec4(v_normal, 0.0));
+        gl_Position = p_matrix * mv_matrix * vec4(input_vertex_position, 1.0);
+		v_position = input_vertex_position; 
     }
 </script>
 
@@ -407,10 +331,8 @@ function getCameraTraceInput(){
     trace_input.width = tools.canvas.width;
     trace_input.height = tools.canvas.height;
     trace_input.camera_pos = new Float32Array(3);
-    trace_input.light_point = new Float32Array(3);
     for(var k=0;k<3;k++){
         trace_input.camera_pos[k] = tools.renderer.camera_pos[k];
-        trace_input.light_point[k] = tools.renderer.light_point[k];
     }
     trace_input.pMatrix = new Float32Array(16);
     trace_input.mvMatrix = new Float32Array(16);

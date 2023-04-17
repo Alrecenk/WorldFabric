@@ -30,6 +30,8 @@ class HoloRenderer{
 
     hold_ui_context = false; 
 
+    texture_width = 1024 ; // fixed texture width for 1D data because there's no1d texture support
+
     
     // Performs the set-up for openGL canvas and shaders on construction
     constructor(webgl_canvas_id, ui_canvas_id , fragment_shader_id, vertex_shader_id, space_underneath_app){
@@ -56,8 +58,6 @@ class HoloRenderer{
         mat4.perspective(this.pMatrix, 45, gl.viewportWidth / gl.viewportHeight, 0.1, 3000.0);
         this.setDefaultView();
 
-        //console.log(gl);
-        this.setLightPosition([this.camera_pos[0], this.camera_pos[1] , this.camera_pos[2]]);
 
         requestAnimationFrame(HoloRenderer.onFrame); // Timer at 60 hertz.
     }
@@ -128,25 +128,18 @@ class HoloRenderer{
         }
 
         gl.useProgram(this.shaderProgram);
-        this.shaderProgram.vertexPositionAttribute = gl.getAttribLocation(this.shaderProgram, "aVertexPosition");
-        gl.enableVertexAttribArray(this.shaderProgram.vertexPositionAttribute);
-        this.shaderProgram.vertexNormalAttribute = gl.getAttribLocation(this.shaderProgram, "aNormal");
-        gl.enableVertexAttribArray(this.shaderProgram.vertexNormalAttribute);
-        this.shaderProgram.vertexTexcoordAttribute = gl.getAttribLocation(this.shaderProgram, "aTexcoord");
-        gl.enableVertexAttribArray(this.shaderProgram.vertexTexcoordAttribute);
-        this.shaderProgram.vertexColorAttribute = gl.getAttribLocation(this.shaderProgram, "aVertexColor");
-        gl.enableVertexAttribArray(this.shaderProgram.vertexColorAttribute);
-        this.shaderProgram.jointsAttribute = gl.getAttribLocation(this.shaderProgram, "aJoints");
-        gl.enableVertexAttribArray(this.shaderProgram.jointsAttribute);
-        this.shaderProgram.weightsAttribute = gl.getAttribLocation(this.shaderProgram, "aWeights");
-        gl.enableVertexAttribArray(this.shaderProgram.weightsAttribute);
-        this.shaderProgram.pMatrixUniform = gl.getUniformLocation(this.shaderProgram, "uPMatrix");
-        this.shaderProgram.mvMatrixUniform = gl.getUniformLocation(this.shaderProgram, "uMVMatrix");
-        this.shaderProgram.light_point = gl.getUniformLocation(this.shaderProgram, "u_light_point");
-        this.shaderProgram.texture = gl.getUniformLocation(this.shaderProgram, "u_texture");
-        this.shaderProgram.has_texture = gl.getUniformLocation(this.shaderProgram, "u_has_texture");
-        this.shaderProgram.alpha_cutoff = gl.getUniformLocation(this.shaderProgram, "u_alpha_cutoff");
-        this.shaderProgram.nearness_cutoff = gl.getUniformLocation(this.shaderProgram, "u_nearness_cutoff");
+        this.shaderProgram.input_vertex_position = gl.getAttribLocation(this.shaderProgram, "input_vertex_position");
+        gl.enableVertexAttribArray(this.shaderProgram.input_vertex_position);
+
+        this.shaderProgram.p_matrix= gl.getUniformLocation(this.shaderProgram, "p_matrix");
+        this.shaderProgram.mv_matrix = gl.getUniformLocation(this.shaderProgram, "mv_matrix");
+        this.shaderProgram.view_position = gl.getUniformLocation(this.shaderProgram, "view_position");
+
+
+        this.shaderProgram.floats = gl.getUniformLocation(this.shaderProgram, "floats");
+        this.shaderProgram.ints = gl.getUniformLocation(this.shaderProgram, "ints");
+        this.shaderProgram.bytes = gl.getUniformLocation(this.shaderProgram, "floats");
+        
     }
 
     static onFrame(){
@@ -195,7 +188,7 @@ class HoloRenderer{
             gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
             gl.clearColor(r.bgColor[0]/255.0, r.bgColor[1]/255.0, r.bgColor[2]/255.0, 1.0);
             gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-            gl.uniformMatrix4fv(r.shaderProgram.pMatrixUniform, false, r.pMatrix);
+            gl.uniformMatrix4fv(r.shaderProgram.p_matrix, false, r.pMatrix);
             tools.current_mode.drawFrame(0);
             gl.finish();
         }
@@ -262,8 +255,6 @@ class HoloRenderer{
         this.start_pointer = pointer ;
         this.start_camera = mat4.clone(this.mvMatrix);
 
-        this.setLightPosition([this.camera_pos[0], this.camera_pos[1] , this.camera_pos[2]]);
-
     }
 
     moveCamera(move){
@@ -293,12 +284,6 @@ class HoloRenderer{
        return t ;
     }    
 
-    // Sets light position
-    //TODO very shader specific, not a fan, needed it to migrate old code
-    setLightPosition(light_point){
-        this.gl.uniform3fv(this.shaderProgram.light_point, light_point);
-        this.light_point = light_point ;
-    }
 
     // Given a 3D point return the point on the canvas it would be on
     projectToScreen(point){
@@ -353,13 +338,9 @@ class HoloRenderer{
         if(!(id in this.buffers)){ // New buffer
             this.buffers[id] = {};
             this.buffers[id].position = gl.createBuffer();
-            this.buffers[id].color = gl.createBuffer();
-            this.buffers[id].normal = gl.createBuffer();
-            this.buffers[id].tex_coord = gl.createBuffer();
-            this.buffers[id].double_sided = false ;
-            this.buffers[id].joints = gl.createBuffer();
-            this.buffers[id].weights= gl.createBuffer();
-            this.buffers[id].has_texture = false;
+            this.buffers[id].floats = gl.createTexture();
+            this.buffers[id].ints = gl.createTexture();
+            this.buffers[id].bytes = gl.createTexture();
         }
         let num_vertices = buffer_data.vertices ;
         if(num_vertices == 0){
@@ -373,120 +354,83 @@ class HoloRenderer{
             this.buffers[id].position.numItems = num_vertices;
         }
 
-        if(buffer_data.color){
-            gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers[id].color );
-            gl.bufferData(gl.ARRAY_BUFFER, buffer_data.color, gl.STATIC_DRAW);
-            this.buffers[id].color.itemSize = 4;
-            this.buffers[id].color.numItems = num_vertices;
+        if(buffer_data.floats){
+            //set up texture on buffer
+            gl.bindTexture(gl.TEXTURE_2D, this.buffers[id].floats);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);	
+            //generate texture from raw Float32Array in buffer data	
+            var height = Math.ceil(buffer_data.floats.length/(1.0*texture_width));	
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.R32F, texture_width, height, 0, gl.RED, gl.FLOAT, buffer_data.floats);
+            // Bind the data texture to a slot (fixed at 2 for this) and set the shader uniform to point at the same slot
+            //these 3 lines are laos what you need to do to draw, but doing it at load time "warms it up" for later maybe
+            gl.activeTexture(gl.TEXTURE0 + 2);
+		    gl.bindTexture(gl.TEXTURE_2D, this.buffers[id].floats);
+		    gl.uniform1i(shaderProgram.floats, 2);
         }
 
-        if(buffer_data.normal){
-            gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers[id].normal );
-            gl.bufferData(gl.ARRAY_BUFFER, buffer_data.normal, gl.STATIC_DRAW);
-            this.buffers[id].normal.itemSize = 3;
-            this.buffers[id].normal.numItems = num_vertices;
+        if(buffer_data.ints){
+            //set up texture on buffer
+            gl.bindTexture(gl.TEXTURE_2D, this.buffers[id].ints);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);	
+            //generate texture from raw Float32Array in buffer data	
+            var height = Math.ceil(buffer_data.ints.length/(1.0*texture_width));	
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.R32I, texture_width, height, 0, gl.RED_INTEGER, gl.INT, buffer_data.ints);
+            // Bind the data texture to a slot (fixed at 3 for this) and set the shader uniform to point at the same slot
+            //these 3 lines are laos what you need to do to draw, but doing it at load time "warms it up" for later maybe
+            gl.activeTexture(gl.TEXTURE0 + 3);
+		    gl.bindTexture(gl.TEXTURE_2D, this.buffers[id].ints);
+		    gl.uniform1i(shaderProgram.ints, 3);
         }
 
-        if(buffer_data.tex_coord){
-            gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers[id].tex_coord );
-            gl.bufferData(gl.ARRAY_BUFFER, buffer_data.tex_coord, gl.STATIC_DRAW);
-            this.buffers[id].tex_coord.itemSize = 2;
-            this.buffers[id].tex_coord.numItems = num_vertices;
+        if(buffer_data.bytes){
+            //set up texture on buffer
+            gl.bindTexture(gl.TEXTURE_2D, this.buffers[id].bytes);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);	
+            //generate texture from raw Float32Array in buffer data	
+            var height = Math.ceil(buffer_data.bytes.length/(1.0*texture_width));	
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8UI, texture_width, height, 0, gl.RED, gl.UNSIGNED_BYTE, buffer_data.bytes);
+            // Bind the data texture to a slot (fixed at 3 for this) and set the shader uniform to point at the same slot
+            //these 3 lines are laos what you need to do to draw, but doing it at load time "warms it up" for later maybe
+            gl.activeTexture(gl.TEXTURE0 + 4);
+		    gl.bindTexture(gl.TEXTURE_2D, this.buffers[id].bytes);
+		    gl.uniform1i(shaderProgram.bytes, 4);
         }
 
-        if(buffer_data.weights){
-            gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers[id].weights );
-            gl.bufferData(gl.ARRAY_BUFFER, buffer_data.weights, gl.STATIC_DRAW);
-            this.buffers[id].weights.itemSize = 4;
-            this.buffers[id].weights.numItems = num_vertices;
-        }
-
-        if(buffer_data.joints){
-            
-            gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers[id].joints );
-            gl.bufferData(gl.ARRAY_BUFFER, buffer_data.joints, gl.STATIC_DRAW);
-            this.buffers[id].joints.itemSize = 4;
-            this.buffers[id].joints.numItems = num_vertices;
-        }
-
-        if(buffer_data.material){
-            //console.log("Javascript preparebuffer got material:\n");
-            let mat = buffer_data.material ;
-            //console.log(mat);
-            this.buffers[id].double_sided = (mat.double_sided == 1) ;
-            if(mat.has_texture == 1){
-                this.buffers[id].texture = gl.createTexture();
-                gl.bindTexture(gl.TEXTURE_2D, this.buffers[id].texture);
-                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
-                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
-                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-
-                if(mat.image_channels == 3){
-                    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, 
-                        mat.image_width, mat.image_height, 
-                        0, gl.RGB, gl.UNSIGNED_BYTE, mat.image_data);
-                }else if(mat.image_channels == 4){
-                    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 
-                        mat.image_width, mat.image_height, 
-                        0, gl.RGBA, gl.UNSIGNED_BYTE, mat.image_data);
-                }else{
-                    console.log("Failed to load texture because of number of channels (" + mat.image_channels +")");
-                }
-
-                this.buffers[id].has_texture = true;
-                gl.activeTexture(gl.TEXTURE0 + 2);
-                gl.bindTexture(gl.TEXTURE_2D, this.buffers[id].texture );
-                gl.uniform1i(this.shaderProgram.texture, 2 );
-                
-            }
-        }
 
         this.buffers[id].ready = true;
     }
 
-    drawModel(buffer){
+    drawHologramBuffer(buffer){
         //console.log(buffer);
         let gl = this.gl ;
         if(buffer.ready){
             let position_buffer = buffer.position;
-            let color_buffer = buffer.color;
-            let normal_buffer = buffer.normal;
-            let tex_coord_buffer = buffer.tex_coord;
-            let joints_buffer = buffer.joints;
-            let weights_buffer = buffer.weights;
-            gl.bindBuffer(gl.ARRAY_BUFFER, position_buffer);
-            gl.vertexAttribPointer(this.shaderProgram.vertexPositionAttribute, position_buffer.itemSize, gl.FLOAT, false, 0, 0);
-            gl.bindBuffer(gl.ARRAY_BUFFER, normal_buffer);
-            gl.vertexAttribPointer(this.shaderProgram.vertexNormalAttribute, normal_buffer.itemSize, gl.FLOAT, false, 0, 0);
-            gl.bindBuffer(gl.ARRAY_BUFFER, tex_coord_buffer);
-            gl.vertexAttribPointer(this.shaderProgram.vertexTexcoordAttribute, tex_coord_buffer.itemSize, gl.FLOAT, false, 0, 0);
-            gl.bindBuffer(gl.ARRAY_BUFFER, color_buffer);
-            gl.vertexAttribPointer(this.shaderProgram.vertexColorAttribute, color_buffer.itemSize, gl.FLOAT, false, 0, 0);
-            gl.bindBuffer(gl.ARRAY_BUFFER, joints_buffer);
-            gl.vertexAttribPointer(this.shaderProgram.jointsAttribute, joints_buffer.itemSize, gl.FLOAT, false, 0, 0);
-            gl.bindBuffer(gl.ARRAY_BUFFER, weights_buffer);
-            gl.vertexAttribPointer(this.shaderProgram.weightsAttribute, weights_buffer.itemSize, gl.FLOAT, false, 0, 0);
+           
+            gl.bindBuffer(gl.ARRAY_BUFFER, buffer.position);
+            gl.vertexAttribPointer(this.shaderProgram.input_vertex_position, buffer.position.itemSize, gl.FLOAT, false, 0, 0);
+            
 
+            gl.activeTexture(gl.TEXTURE0 + 2 );
+            gl.bindTexture(gl.TEXTURE_2D, buffer.floats);
+            gl.uniform1i(this.shaderProgram.floats, 2 );
 
-            if(buffer.has_texture){
-                gl.activeTexture(gl.TEXTURE0 + 2 );
-                gl.bindTexture(gl.TEXTURE_2D, buffer.texture );
-                gl.uniform1i(this.shaderProgram.texture, 2 );
+            gl.activeTexture(gl.TEXTURE0 + 3);
+            gl.bindTexture(gl.TEXTURE_2D, buffer.ints);
+            gl.uniform1i(shaderProgram.ints, 3);
 
-                gl.uniform1i(this.shaderProgram.has_texture, 1 );
-            }else{
-                gl.uniform1i(this.shaderProgram.has_texture, 0 );
-            }
+            gl.activeTexture(gl.TEXTURE0 + 4);
+            gl.bindTexture(gl.TEXTURE_2D, buffer.bytes);
+            gl.uniform1i(shaderProgram.bytes, 4);
 
-            gl.uniform1f(this.shaderProgram.alpha_cutoff, 0.5 );
-            gl.uniform1f(this.shaderProgram.nearness_cutoff, 0.2*0.2 );
-
-            if(buffer.double_sided){
-                gl.disable(gl.CULL_FACE);
-            }else{
-                gl.enable(gl.CULL_FACE);
-            }
 
             gl.drawArrays(gl.TRIANGLES, 0, position_buffer.numItems);
         }
@@ -499,60 +443,21 @@ class HoloRenderer{
         }
         let M = mat4.create();
         mat4.multiply(M,this.mvMatrix, transform);
-        this.gl.uniformMatrix4fv(this.shaderProgram.mvMatrixUniform, false, M);
-        if(holo_name in this.buffer_lookup){ // cache holo_name to material buffers mapping
-            for(let buffer_name of this.buffer_lookup[holo_name]){
-                this.drawModel(this.buffers[buffer_name]);
-            }
-        }else{
-            this.buffer_lookup[holo_name] = [];
-            for(let buffer_name in this.buffers){
-                //console.log(buffer_name);
-                //console.log(buffer_name.substring(0,holo_name.length));
-                if(buffer_name.substring(0,holo_name.length+3) == holo_name+"-m="){
-                    this.drawModel(this.buffers[buffer_name]);
-                    this.buffer_lookup[holo_name].push(buffer_name);
-                }
-            }
+        this.gl.uniformMatrix4fv(this.shaderProgram.mv_matrix, false, M);
+        
+        // extract view position from MV matrix (can't use camera_pos as it doesn't move with VR head poses)
+        let mvi = mat4.create();
+        mat4.invert(mvi,M);
+        let view_pos = new Float32Array([mvi[12], mvi[13], mvi[14]]);
+        this.gl.uniform3fv(this.shaderProgram.view_position, view_pos);
+
+        if(holo_name in this.buffers){
+            this.drawHologramBuffer(this.buffers[buffer_name]);
         }
     }
 
-    hasMesh(holo_name){
-        for(let buffer_name in this.buffers){
-            //console.log(buffer_name);
-            //console.log(buffer_name.substring(0,holo_name.length));
-            if(buffer_name.substring(0,holo_name.length+3) == holo_name+"-m="){
-                return true ;
-            }
-        }
-        return false;
-    }
-
-    removeMesh(holo_name){
-        let to_delete = [];
-        for(let buffer_name in this.buffers){
-            if(buffer_name.substring(0,holo_name.length) == holo_name){
-                to_delete.push(buffer_name);
-            }
-        }
-        for(let d of to_delete){
-            delete this.buffers[d] ;
-        }
-        delete this.buffer_lookup[holo_name] ;
-    }
-
-    setMeshDoubleSided(holo_name, double_sided){
-        if(holo_name in this.buffer_lookup){ // cache holo_name to material buffers mapping
-            for(let buffer_name of this.buffer_lookup[holo_name]){
-                this.buffers[buffer_name].double_sided = double_sided ;
-            }
-        }else{
-            for(let buffer_name in this.buffers){
-                if(buffer_name.substring(0,holo_name.length) == holo_name){
-                    this.buffers[buffer_name].double_sided = double_sided ;
-                }
-            }
-        }
+    removeHologram(holo_name){
+        delete this.buffers[holo_name] ;
     }
 
     startXRSession(){
@@ -664,7 +569,7 @@ class HoloRenderer{
                 gl.viewport(viewport.x, viewport.y,
                             viewport.width, viewport.height);
 
-                gl.uniformMatrix4fv(tools.renderer.shaderProgram.pMatrixUniform, false, view.projectionMatrix);
+                gl.uniformMatrix4fv(tools.renderer.shaderProgram.p_matrix, false, view.projectionMatrix);
 
                 tools.renderer.mvMatrix = view.transform.inverse.matrix ;
                 tools.current_mode.drawFrame(frame_id);
