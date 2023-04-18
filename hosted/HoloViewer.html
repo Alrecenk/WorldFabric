@@ -43,17 +43,194 @@ body {
 	in vec3 v_position; // point on render mesh in world space
 	
     // Hologram packeted into textures by type
-    const int texture_width = 1024;
+    const int texture_width = 1024;// needs to match the texture_width in HoloRenderer
     uniform sampler2D floats;
     uniform mediump isampler2D ints;
     uniform lowp usampler2D bytes;
+
 	
 
 	out vec4 frag_color; // output color
 
+    // Pull a value out of the textures by index
+    float getFloat(int index){
+        int y = index/texture_width;
+        int x = index - (y*texture_width) ;
+        return texelFetch(floats, ivec2(x, y), 0).r;
+    }
+
+    int getInt(int index){
+        int y = index/texture_width;
+        int x = index - (y*texture_width) ;
+        return texelFetch(ints, ivec2(x, y), 0).r;
+    }
+
+    uint getByte(int index){
+        int y = index/texture_width;
+        int x = index - (y*texture_width) ;
+        return texelFetch(bytes, ivec2(x, y), 0).r;
+    }
+
+    // get the indices for the start of each panel
+    int getPanelFloatPointer(int which){
+        return getInt(2+which*3);
+    }
+
+    int getPanelIntPointer(int which){
+        return getInt(2+ which*3+1);
+    }
+
+    int getPanelBytePointer(int which){
+        return getInt(2 + which*3+2);
+    }
+
+    //get the indices for the start of each view
+    int getViewFloatPointer(int which, int num_panels){
+        return getInt(2+ which*3 + num_panels*3);
+    }
+
+    int getViewIntPointer(int which, int num_panels){
+        return getInt(2 + which*3+1 + num_panels*3);
+    }
+
+    int getViewBytePointer(int which, int num_panels){
+        return getInt(2 + which*3+2 + num_panels*3);
+    }
+
+    vec3 getPanelZero(int panel_float_pointer){
+        return vec3(getFloat(panel_float_pointer), getFloat(panel_float_pointer+1), getFloat(panel_float_pointer+2));
+    }
+
+    vec3 getPanelX(int panel_float_pointer){
+        return vec3(getFloat(panel_float_pointer+3), getFloat(panel_float_pointer+4), getFloat(panel_float_pointer+5));
+    }
+
+    vec3 getPanelY(int panel_float_pointer){
+        return vec3(getFloat(panel_float_pointer+6), getFloat(panel_float_pointer+7), getFloat(panel_float_pointer+8));
+    }
+
+    vec3 getPanelZ(int panel_float_pointer){
+        return vec3(getFloat(panel_float_pointer+9), getFloat(panel_float_pointer+10), getFloat(panel_float_pointer+11));
+    }
+
+    int getPanelWidth(int panel_int_pointer){
+        return getInt(panel_int_pointer);
+    }
+
+    int getPanelHeight(int panel_int_pointer){
+        return getInt(panel_int_pointer+1);
+    }
+
+    uint getPanelDepthTexel(int panel_byte_pointer, int x, int y, int width){
+        return getByte(panel_byte_pointer + width * y + x);
+    }
+
+    float getPanelDepthMap(int panel_float_pointer, int i){
+        return getFloat(panel_float_pointer + 12 + i);
+    }
+
+
+    float rayPlaneIntersect(vec3 p, vec3 v, vec3 N, float d){
+        return (-d - dot(N,p)) / dot(N,v) ;
+    }
+
+    // returns the position where the given ray first intersects the bounding box of this panel
+    // or returns p if p is inside the panel already
+    // returns 0,0,0 if the ray does not intersect the box TODO remove magic number
+    vec3 getFirstPointInBox(vec3 p, vec3 v, vec3 zero_position, vec3 X, vec3 Y, vec3 Z, int width, int height, float max_depth_value){
+    
+        // Get t value intersection with the 6 sides of the bounding box
+        vec3 N = X ;
+        float d = -1.0f* dot(N, zero_position);
+        float t1 = rayPlaneIntersect(p,v,N,d);
+        d = -1.0f* dot(N, zero_position + X*float(width));
+        float t2 = rayPlaneIntersect(p,v,N,d);
+        float xmint = min(t1,t2);
+        float xmaxt = max(t1,t2);
+
+        N = Y ;
+        d = -1.0f* dot(N, zero_position);
+        t1 = rayPlaneIntersect(p,v,N,d);
+        d = -1.0f* dot(N, zero_position + Y*float(height));
+        t2 = rayPlaneIntersect(p,v,N,d);
+        float ymint = min(t1,t2);
+        float ymaxt = max(t1,t2);
+
+        N = Z ;
+        d = -1.0f* dot(N, zero_position);
+        t1 = rayPlaneIntersect(p,v,N,d);
+        d = -1.0f* dot(N, zero_position + Z*max_depth_value);
+        t2 = rayPlaneIntersect(p,v,N,d);
+        float zmint = min(t1,t2);
+        float zmaxt = max(t1,t2);
+
+        // get range of t intersection
+        float mint = max(max(xmint,ymint),zmint) ;
+        float maxt = min(min(xmaxt,ymaxt),zmaxt) ;
+
+        vec3 result = vec3(0,0,0); 
+        if(maxt >= mint && maxt >= 0.0){ // hits box
+            float t = max(mint,0.0) ; // if started inside, then use that
+            result = p + v * t; // return enter p
+        }
+        
+        return result ;
+
+    }
+
+
+
     void main(void) {
 
-		frag_color = vec4(1.0f, 0.5f, 1.0f, 1.0f);	
+        int num_panels = getInt(0);
+        int num_views = getInt(1);
+        int p1f = getPanelFloatPointer(1);
+        int p1i = getPanelIntPointer(1);
+        int p1b = getPanelBytePointer(1);
+
+        int v1f = getViewFloatPointer(1, num_panels);
+        int v1i = getViewIntPointer(1, num_panels);
+        int v1b = getViewBytePointer(1, num_panels);
+
+        /*
+        //4556, 423908, 1048576
+        float r = 0.0f ;
+        float g = 0.0f ;
+        float b = 0.0f ;
+        if(v1f == 4556){
+            r = 1.0f ;
+        }
+        if(v1i == 423908){
+            g = 1.0f ;
+        }
+        if(v1b == 1048576){
+            b = 1.0f ;
+        }
+
+        
+
+		frag_color = vec4(r, g, b, 1.0f);	
+
+        */
+
+        vec3 p = view_position ;
+        vec3 v = v_position - p ;
+
+        vec3 zero = getPanelZero(p1f);
+        vec3 X = getPanelX(p1f);
+        vec3 Y = getPanelY(p1f);
+        vec3 Z = getPanelZ(p1f);
+        float max_depth_value = getPanelDepthMap(p1f,255);
+        int width = getPanelWidth(p1i);
+        int height= getPanelHeight(p1i);
+
+        vec3 first_point_in_box = getFirstPointInBox(p, v, zero, X, Y, Z, width, height, max_depth_value);
+        if(dot(first_point_in_box,first_point_in_box) > 0.01f){
+            frag_color = vec4(1.0f, 1.0f, 1.0f, 1.0f);	
+        }else{
+            frag_color = vec4(0.0f, 0.0f, 0.0f, 1.0f);	
+        }
+
     }
 </script>
 

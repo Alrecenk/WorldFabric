@@ -330,6 +330,7 @@ void Hologram::setFrom(std::vector<float>& floats, std::vector<int>& ints, std::
         int p_int = ints[int_ptr++] ;
         int p_byte = ints[int_ptr++];
         panel.emplace_back(floats, ints, bytes, p_float, p_int, p_byte);
+        printf("panel %d: %d, %d, %d\n", k, p_float, p_int, p_byte);
     }
 
     view = vector<HologramView>();
@@ -338,6 +339,7 @@ void Hologram::setFrom(std::vector<float>& floats, std::vector<int>& ints, std::
         int p_int = ints[int_ptr++] ;
         int p_byte = ints[int_ptr++];
         view.emplace_back(floats, ints, bytes, p_float, p_int, p_byte);
+        printf("view %d: %d, %d, %d\n", k, p_float, p_int, p_byte);
     }
 }
 
