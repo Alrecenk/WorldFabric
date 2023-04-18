@@ -414,6 +414,66 @@ vec3 firstPointHit(vec3 p, vec3 v, vec3 zero_position, vec3 X, vec3 Y, vec3 Z, i
         
     }
 
+
+
+    float viewBlendWeight(int which_view, vec3 p0, vec3 intersect, int num_panels){
+        int view_float_pointer = getViewFloatPointer(which_view, num_panels);
+        int view_int_pointer = getViewIntPointer(which_view, num_panels);
+        
+        bool visible = checkVisibility(intersect, view_float_pointer, view_int_pointer);
+        if(!visible){
+            return 0.0 ;
+        }
+        vec3 position = getViewPosition(view_float_pointer);
+        vec3 v0 = p0-intersect;
+        vec3 vi = position-intersect ;
+        // minimize angle between ray to user view and ray to this image 
+        float cos = dot(v0,vi)/ sqrt(dot(v0,v0) * dot(vi,vi));
+        if(cos > 0.0){
+            return 1.0/((1.0-cos+0.001)*(1.0-cos+0.001));
+        }else{
+            return 0.0 ; 
+        }
+    }
+
+    vec3 getColor(vec3 point, vec3 view_position){
+        int num_panels = getInt(0);
+        int num_views = getInt(1);
+        vec3 total_color = vec3(0.0,0.0,0.0);
+        float total_weight = 0.0 ;
+        for(int k=0;k<num_views;k++){
+            float weight = viewBlendWeight(k,view_position, point, num_panels);
+            if(weight >0.0){
+                vec3 color = getViewColor(k, point, num_panels);
+                total_color += color*weight ;
+                total_weight +=weight ;
+            }
+        }
+        return total_color/total_weight ;
+    }
+
+    float scorePanel(int which_panel, vec3 p, vec3 v){
+        
+        vec3 Z = getPanelZ(getPanelFloatPointer(which_panel));
+        float vv = dot(v,v);
+        float vn = dot(v, Z);
+        return vn/sqrt(vv); // -1 is perfect alignment, 0 is perpendicular
+    }
+
+    int getBestPanel(vec3 p, vec3 v){
+        int best = 0 ;
+        float best_score = scorePanel(0, p , v);
+        int num_panels = getInt(0);
+        for(int k=1;k<num_panels;k++){
+            float score = scorePanel(k, p , v);
+            if(score < best_score){
+                best_score = score ;
+                best = k ;
+            }
+        }
+        return best ;
+    }
+
     void main(void) {
 
         vec3 p = view_position ;
@@ -422,22 +482,26 @@ vec3 firstPointHit(vec3 p, vec3 v, vec3 zero_position, vec3 X, vec3 Y, vec3 Z, i
         int num_panels = getInt(0);
         int num_views = getInt(1);
         
+        int which = getBestPanel(p,v) ;
 
-
-        vec3 point = getPointHit(0, p,v);
+        vec3 point = getPointHit(which, p,v);
         if(dot(point,point) > 0.01f ){
 
-            int view_float_pointer = getViewFloatPointer(0, num_panels);
-            int view_int_pointer = getViewIntPointer(0, num_panels);
-            bool visiblefrom0 = checkVisibility(point, view_float_pointer, view_int_pointer) ;
+            /*
+            int view_float_pointer = getViewFloatPointer(which, num_panels);
+            int view_int_pointer = getViewIntPointer(which, num_panels);
+            bool visiblefrom = checkVisibility(point, view_float_pointer, view_int_pointer) ;
 
         
             if(visiblefrom0){
-                vec3 color = getViewColor(0,point,num_panels);
+                vec3 color = getViewColor(which,point,num_panels);
                 frag_color = vec4(color, 1.0);
             }else{
-                frag_color = vec4(0.0f, 0.0f, 0.1f, 1.0f);
+                
+                frag_color = vec4(0.0f, 0.0f, 1.0f, 1.0f);
             }
+            */
+            frag_color = vec4(getColor(point,p),1.0);
 
         }else{
             frag_color = vec4(0.0f, 0.0f, 0.0f, 1.0f);
