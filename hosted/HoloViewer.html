@@ -121,8 +121,12 @@ body {
         return getInt(panel_int_pointer+1);
     }
 
-    uint getPanelDepthTexel(int panel_byte_pointer, int x, int y, int width){
-        return getByte(panel_byte_pointer + width * y + x);
+    int getPanelDepthTexel(int panel_byte_pointer, int x, int y, int width){
+        return int(getByte(panel_byte_pointer + width * y + x));
+    }
+    
+    int getPanelDepthTexel(int panel_byte_pointer, int i){
+        return int(getByte(panel_byte_pointer + i));
     }
 
     float getPanelDepthMap(int panel_float_pointer, int i){
@@ -133,6 +137,42 @@ body {
     float rayPlaneIntersect(vec3 p, vec3 v, vec3 N, float d){
         return (-d - dot(N,p)) / dot(N,v) ;
     }
+
+
+    vec3 getViewPosition(int view_float_pointer){
+        return vec3(getFloat(view_float_pointer), getFloat(view_float_pointer+1), getFloat(view_float_pointer+2));
+    }
+
+    vec3 getViewNormal(int view_float_pointer){
+        return vec3(getFloat(view_float_pointer+3), getFloat(view_float_pointer+4), getFloat(view_float_pointer+5));
+    }
+
+    mat3 getViewToPixel(int view_float_pointer){
+        //TODO check for transpose
+        return mat3(getFloat(view_float_pointer+6), getFloat(view_float_pointer+7), getFloat(view_float_pointer+8),
+        getFloat(view_float_pointer+9), getFloat(view_float_pointer+10), getFloat(view_float_pointer+11),
+        0.0, 0.0, 0.0);
+    }
+
+    float getViewDepthMap(int view_float_pointer, int i){
+        return getFloat(view_float_pointer + 12 + i);
+    }
+
+    int getViewWidth(int view_int_pointer){
+        return getInt(view_int_pointer);
+    }
+
+    int getViewHeight(int view_int_pointer){
+        return getInt(view_int_pointer+1);
+    }
+
+    // [Red, Green, Blue, Depth]
+    ivec4 getViewPixel(int view_int_pointer, int x, int y, int width){
+        uint pix = uint(getInt(view_int_pointer+2 + y*width + x));
+        return ivec4(int(pix)&0xff, int(pix>>8)&0xff, int(pix>>16)&0xff, int(pix>>24)&0xff);
+    }
+
+
 
     // returns the position where the given ray first intersects the bounding box of this panel
     // or returns p if p is inside the panel already
@@ -178,58 +218,232 @@ body {
 
     }
 
+    // Returns the t for ray p+v*t  of the first pixel the given ray hits.
+// returns -1 if no hit
+// This function steps 1 pixel at a time, so you'll want to use other methods to step the ray closer to its intersection point before calling this
+vec3 firstPointHit(vec3 p, vec3 v, vec3 zero_position, vec3 X, vec3 Y, vec3 Z, int width, int height, float max_depth_value, int panel_float_pointer, int panel_byte_pointer){
+    float first_x = dot(p-zero_position, X)/dot(X,X);
+    float first_y = dot(p-zero_position, Y)/dot(Y,Y);
+    float first_z = dot(p-zero_position, Z)/dot(Z,Z);
 
+    // get t value on sides of pixel column by intersecting ray with planes of pixel boundary
+    float left_t = rayPlaneIntersect(p,v, X, - dot(X, zero_position + X*float(floor(first_x))));
+    float right_t = rayPlaneIntersect(p,v, X, - dot(X, zero_position + X*float(floor(first_x)+1.0)));
+    float top_t = rayPlaneIntersect(p,v, Y, - dot(Y, zero_position + Y*float(floor(first_y))));
+    float bottom_t = rayPlaneIntersect(p,v, Y, - dot(Y, zero_position + Y*float(floor(first_y)+1.0)));
 
-    void main(void) {
+    // how ray t changes with movement in texture coordinates
+    float tperx = right_t-left_t ;
+    float tpery = bottom_t-top_t ;
+    float zpert = dot(v, Z)/dot(Z,Z) ;
 
-        int num_panels = getInt(0);
-        int num_views = getInt(1);
-        int p1f = getPanelFloatPointer(1);
-        int p1i = getPanelIntPointer(1);
-        int p1b = getPanelBytePointer(1);
+    float max_z = max_depth_value+0.001f ;
+    //compute t that leaves the image outside loop so we only need to check one axis in the loop
+    float exit_t = 99999.0 ;
+    if(zpert > 0.0){
+        exit_t = min(exit_t, (max_z-first_z)/zpert) ;
+    }else{
+        exit_t = min(exit_t, (0.0-first_z)/zpert) ;
+    }
 
-        int v1f = getViewFloatPointer(1, num_panels);
-        int v1i = getViewIntPointer(1, num_panels);
-        int v1b = getViewBytePointer(1, num_panels);
+    if(tperx > 0.0){
+        exit_t = min(exit_t, (float(width)-1.0-first_x)*tperx);
+    }else{
+        exit_t = min(exit_t, (1.0-first_x)*tperx);
+    }
 
-        /*
-        //4556, 423908, 1048576
-        float r = 0.0f ;
-        float g = 0.0f ;
-        float b = 0.0f ;
-        if(v1f == 4556){
-            r = 1.0f ;
+    if(tpery > 0.0){
+        exit_t = min(exit_t, (float(height)-1.0-first_y)*tpery);
+    }else{
+        exit_t = min(exit_t, (1.0-first_y)*tpery);
+    }
+
+    int xstep  ;
+    float nextx ;
+    if(right_t > left_t){
+        xstep = 1 ;
+        nextx = right_t ;
+    }else{
+        xstep = -1;
+        nextx = left_t ;
+    }
+
+    int ystep  ;
+    float nexty ;
+    if(bottom_t > top_t){
+        ystep = 1 ;
+        nexty = bottom_t ;
+    }else{
+        ystep = -1;
+        nexty = top_t ;
+    }
+
+    int x = int(first_x) ;
+    int y = int(first_y) ;
+    float t = 0.0 ;
+    float z = first_z ;
+
+    // loop until z is in range or past the edge
+    int i = y * width + x ;
+    int yistep = width*ystep;
+    int xistep = xstep;
+    int depth = getPanelDepthTexel(panel_byte_pointer, i) ;
+    float depth_value = getPanelDepthMap(panel_float_pointer,depth) ;
+    float tperxstep = tperx*float(xstep) ;
+    float tperystep = tpery*float(ystep) ;
+    //while(z < max_z && x >=0 && x < width && y >=0 && y < height && z > getPanelDepthMap(panel_float_pointer,depth) && (depth > 0 || z >0)){
+    while(t < exit_t && z > depth_value){ // while in box and not hitting a bar
+        // step horizontally or vertically based on which you would hit next
+        float next_t = nextx < nexty ? nextx : nexty ;
+        z += zpert*(next_t-t) ;
+        if(z > depth_value){ // if we wouldn't hit the bar before exiting this pixel
+            // step to next pixel
+            t = next_t ;
+            if(nextx < nexty){
+                nextx += tperxstep;
+                x += xstep;
+                i += xistep;
+            }else{
+                nexty += tperystep;
+                y += ystep;
+                i += yistep;
+            }
+            //fetch depth index and value
+            depth = getPanelDepthTexel(panel_byte_pointer, i) ; //i = (y * width + x)*channels + depth_channel ;
+            depth_value = getPanelDepthMap(panel_float_pointer,depth) ;
         }
-        if(v1i == 423908){
-            g = 1.0f ;
+    }
+
+    if(z < max_z && x >=0 && x < width && y >=0 && y < height && depth > 0){
+        return p+t*v;
+    }else{
+        return vec3(0.0,0.0,0.0) ;
+    }
+}
+
+
+    vec3 getPointHit(int which_panel, vec3 p, vec3 v){
+        int panel_float_pointer = getPanelFloatPointer(which_panel);
+        int panel_int_pointer= getPanelIntPointer(which_panel);
+        int panel_byte_pointer = getPanelBytePointer(which_panel);
+
+        vec3 zero = getPanelZero(panel_float_pointer);
+        vec3 X = getPanelX(panel_float_pointer);
+        vec3 Y = getPanelY(panel_float_pointer);
+        vec3 Z = getPanelZ(panel_float_pointer);
+        float max_depth_value = getPanelDepthMap(panel_float_pointer,255);
+        int width = getPanelWidth(panel_int_pointer);
+        int height= getPanelHeight(panel_int_pointer);
+
+        vec3 point = getFirstPointInBox(p, v, zero, X, Y, Z, width, height, max_depth_value);
+
+        if(dot(point,point) > 0.01f){
+            point = firstPointHit(p, v, zero, X, Y, Z, width, height, max_depth_value, panel_float_pointer, panel_byte_pointer) ;
         }
-        if(v1b == 1048576){
-            b = 1.0f ;
+        return point ;
+    }
+
+    // return texturecoordinates given a direction vector from the image's viewpoint
+    vec2 getTextureCoordinates(vec3 v, int view_float_pointer){
+        mat3 to_pixel = getViewToPixel(view_float_pointer);
+        vec3 normal = getViewNormal(view_float_pointer);
+        vec3 iv = v / dot(v,normal); // project to plane of image 
+        return vec2(iv * to_pixel) ;
+    }
+    
+    vec3 getColor(int tx, int ty, int width, int view_int_pointer){
+        ivec4 pixel = getViewPixel(view_int_pointer, tx, ty, width) ;
+        return vec3(float(pixel[0])/255.0, float(pixel[1])/255.0, float(pixel[2])/255.0);
+    }
+
+    // get the color of a point this image can see
+    vec3 getColor(vec3 p, int view_float_pointer, int view_int_pointer){
+        vec3 position = getViewPosition(view_float_pointer);
+        int width = getViewWidth(view_int_pointer);
+        int height = getViewHeight(view_int_pointer);
+        vec3 v = p - position ;
+        vec2 tex = getTextureCoordinates(v, view_float_pointer);
+        int tx = int(tex.x) ;
+        int ty = int(tex.y) ;
+        if(tx>= 0 && ty >= 0 && tx < width && ty < height){
+            return getColor(tx,ty, width, view_int_pointer);
+        }else{
+            return vec3(0, 0, 0);
         }
+    }
+    
+
+    vec3 getViewColor(int which_view, vec3 point, int num_panels){
+        int view_float_pointer = getViewFloatPointer(which_view, num_panels);
+        int view_int_pointer = getViewIntPointer(which_view, num_panels);
+        return getColor(point, view_float_pointer, view_int_pointer);
+
+    }
+
+
+    // return true if the given point is visible by this image
+    bool checkVisibility(vec3 p, int view_float_pointer, int view_int_pointer){
+        vec3 normal = getViewNormal(view_float_pointer);
+        vec3 position = getViewPosition(view_float_pointer);
+        int width = getViewWidth(view_int_pointer);
+        int height = getViewHeight(view_int_pointer);
+        vec3 v = p - position ;
+        float depth = dot(v,normal) ;
 
         
+        if(depth < 0.0){ // behind camera
+            return false;
+        }
+        
+        
+        vec2 tex = getTextureCoordinates(v, view_float_pointer);
+        int tx = int(tex.x) ;
+        int ty = int(tex.y) ;
+        if(tx <= 0 || ty <= 0 || tx >= width || ty >= height){ // not in frame taken
+            return false;
+        }
+        
+        
+        int di = getViewPixel(view_int_pointer, tx, ty, width)[3];
+        if(di == 0 ){ // transparent pixel
+            return true; // is visible cause we saw all the way through
+        }
+        float image_depth = getViewDepthMap(view_float_pointer, di) ;
+        
+        return depth <= image_depth*1.015 && depth >= image_depth*0.5; // occlusion check
+        
+    }
 
-		frag_color = vec4(r, g, b, 1.0f);	
-
-        */
+    void main(void) {
 
         vec3 p = view_position ;
         vec3 v = v_position - p ;
 
-        vec3 zero = getPanelZero(p1f);
-        vec3 X = getPanelX(p1f);
-        vec3 Y = getPanelY(p1f);
-        vec3 Z = getPanelZ(p1f);
-        float max_depth_value = getPanelDepthMap(p1f,255);
-        int width = getPanelWidth(p1i);
-        int height= getPanelHeight(p1i);
+        int num_panels = getInt(0);
+        int num_views = getInt(1);
+        
 
-        vec3 first_point_in_box = getFirstPointInBox(p, v, zero, X, Y, Z, width, height, max_depth_value);
-        if(dot(first_point_in_box,first_point_in_box) > 0.01f){
-            frag_color = vec4(1.0f, 1.0f, 1.0f, 1.0f);	
+
+        vec3 point = getPointHit(0, p,v);
+        if(dot(point,point) > 0.01f ){
+
+            int view_float_pointer = getViewFloatPointer(0, num_panels);
+            int view_int_pointer = getViewIntPointer(0, num_panels);
+            bool visiblefrom0 = checkVisibility(point, view_float_pointer, view_int_pointer) ;
+
+        
+            if(visiblefrom0){
+                vec3 color = getViewColor(0,point,num_panels);
+                frag_color = vec4(color, 1.0);
+            }else{
+                frag_color = vec4(0.0f, 0.0f, 0.1f, 1.0f);
+            }
+
         }else{
-            frag_color = vec4(0.0f, 0.0f, 0.0f, 1.0f);	
+            frag_color = vec4(0.0f, 0.0f, 0.0f, 1.0f);
         }
+
+        
 
     }
 </script>

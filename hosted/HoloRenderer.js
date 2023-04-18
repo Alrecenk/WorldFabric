@@ -465,6 +465,8 @@ class HoloRenderer{
         let mvi = mat4.create();
         mat4.invert(mvi,M);
         let view_pos = new Float32Array([mvi[12], mvi[13], mvi[14]]);
+        //console.log("viewpos:" + view_pos[0] +", " + view_pos[1] +", " + view_pos[2]);
+        //console.log("camerap:" + this.camera_pos[0] +", " + this.camera_pos[1] +", " + this.camera_pos[2]);
         this.gl.uniform3fv(this.shaderProgram.view_position, view_pos);
 
         if(holo_name in this.buffers){
