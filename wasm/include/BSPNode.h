@@ -18,7 +18,7 @@ class BSPNode{
         bool leaf = true;
         bool leaf_inside = false;
         std::vector<Polygon> shape;
-        static constexpr double EPSILON = 0.0000001;
+        static constexpr double EPSILON = 0.00001;
         double volume_inside = 0;
         double volume_outside = 0;
 

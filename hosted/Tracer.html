@@ -205,7 +205,7 @@ function canvasApp() {
             if(needs_updated && !updating && tools.renderer.hold_ui_context){
                 updating = true;
                 if(views > 0 && panels > 0){
-                    holoTrace();
+                    //holoTrace();
                 }
                 
                 needs_updated = false;
@@ -515,7 +515,7 @@ function addHologramPanel(){
     
     let trace_input = getCameraTraceInput();
 
-    trace_input.size = 256;
+    trace_input.size = 512;
     trace_input.block_size = 16;
     
     //console.log("trace_input:");
@@ -544,7 +544,7 @@ function addHologramView(){
 
     //console.log(image);
     //context.putImageData(image, 0, 0);
-    tools.renderer.hold_ui_context = true;
+    //tools.renderer.hold_ui_context = true;
     views++;
     console.log("View complete! Panel tracing...");
     addHologramPanel();

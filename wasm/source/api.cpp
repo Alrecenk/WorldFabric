@@ -1094,7 +1094,7 @@ byte* addHologramPanel(byte* ptr){
     vec3 normal(pv.x/pv.w-pos.x, pv.y/pv.w-pos.y, pv.z/pv.w-pos.z) ;
     normal = -glm::normalize(normal);
     vec3 center = vec3(0,0,0);
-    float radius = 1 ;
+    float radius = 0.8 ;
     int width = image_size, height = image_size, channels = 3;
 
     // Make a basis where panel Y roughly matches real world Y
@@ -1188,16 +1188,17 @@ byte* addHologramView(byte* ptr){
             int i = (y * width + x)*4 ;
             vec3 color = vec3(0,0,0);
             float d = 0.01f ; // make sure the one we don't trace occlude
-            if(x > 50 && y > 50 && x < width-50 && y < height-50){ // border to save time
+            //if(x > 50 && y > 50 && x < width-50 && y < height-50){ // border to save time
                 d = -1.0f;
                 // Get the pixel vector in screen space using viewport parameters.
                 v = getPixelRay(x, y, width, height, pos, invMatrix) ;
                 float t =  root->rayTrace(pos,v);
+                //float t = model->rayTrace(pos, v);
                 if(t > 0 && t < 999999.0){
                     color = model->rayTraceColor(pos,v, light_point, 0.7f, 0.3f);
                     d = t ;
                 }
-            }
+            //}
             image_data[i] = (byte)(255*color[0]) ;
             image_data[i+1] = (byte)(255*color[1]) ;
             image_data[i+2] = (byte)(255*color[2]) ;
@@ -1238,13 +1239,13 @@ byte* getHologramTraceImage(byte* ptr){
     for(int x=0;x< width; x++){
         for(int y = 0; y < height; y++){
             vec3 color = vec3(0,0,0);
-            if(x > 50 && y > 50 && x < width-50 && y < height-50){ // border to save time
+            //if(x > 50 && y > 50 && x < width-50 && y < height-50){ // border to save time
 
                 // Get the pixel vector in screen space using viewport parameters.
                 vec3 v = getPixelRay(x, y, width, height, pos, invMatrix) ;
                 
                 color = hologram.getColor(pos,v);
-            }
+            //}
             int i = (y * width + x)*4 ;
             image_data[i] = (byte)(255*color[0]) ;
             image_data[i+1] = (byte)(255*color[1]) ;
