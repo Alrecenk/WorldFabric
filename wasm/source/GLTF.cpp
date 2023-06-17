@@ -310,9 +310,11 @@ Variant GLTF::getChangedBuffer(int selected_material){
         }
 
         buffers["color"] = this->getFloatBuffer(color, selected_material);
-        buffers["tex_coord"] = this->getFloatBuffer(tex_coord, selected_material);    
-        buffers["weights"] = this->getFloatBuffer(weights, selected_material);
-        buffers["joints"] = this->getFloatBuffer(joints, selected_material);  
+        buffers["tex_coord"] = this->getFloatBuffer(tex_coord, selected_material);
+        if(!boneless){
+            buffers["weights"] = this->getFloatBuffer(weights, selected_material);
+            buffers["joints"] = this->getFloatBuffer(joints, selected_material);  
+        }
 
         const auto& mat = this->materials[selected_material] ;
         map<string,Variant> mat_map;
@@ -337,9 +339,10 @@ Variant GLTF::getChangedBuffer(int selected_material){
     }
 
     if(model_changed || position_changed){
-        buffers["bones"] = getBoneData();
-        buffers["boneless"] = Variant(boneless ? 1 : 0) ;
+        buffers["bones"] = getBoneData(); 
+        buffers["boneless"] = Variant(boneless ? 1 : 0) ;  
     }
+    
 
     return Variant(buffers);
 }
@@ -502,6 +505,7 @@ void GLTF::setModel(const byte* data, int data_length){
                     materials[0] = m;
                 }
 
+                boneless = true ; // will be set to false if loaded points find rigging data
                 if(json["skins"].defined()){
                     vector<Variant> skins = json["skins"].getVariantArray();;
                     for(int s = 0; s < skins.size(); s++){
@@ -839,6 +843,7 @@ void GLTF::addPrimitive(std::vector<Vertex>& vertices, std::vector<Triangle>& tr
                             joint_to_node[skin_id][joint_data[4*k+3]]) ;
             float scale = 1.0/(v.weights[0] + v.weights[1]+v.weights[2] + v.weights[3]);
             v.weights *= scale; ;
+            boneless = false ; 
         }else{
             v.weights = vec4(1,0,0,0);
             v.joints = ivec4(node_id,0,0,0);

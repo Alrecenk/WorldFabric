@@ -1,4 +1,4 @@
-var max_packet_size = 100000000; // maximum paramters or return size in bytes
+var max_packet_size = 500000000; // maximum parameters or return size in bytes
 var packet_ptr;
 
 function _serializeToHeap(thing, serializer) {

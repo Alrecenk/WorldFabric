@@ -51,7 +51,7 @@ class Renderer{
         gl.getExtension('OES_texture_float');
         
 
-        mat4.perspective(this.pMatrix, 45, gl.viewportWidth / gl.viewportHeight, 0.1, 3000.0);
+        mat4.perspective(this.pMatrix, 45, gl.viewportWidth / gl.viewportHeight, 0.1, 10000.0);
         this.camera_pos = [1,1,1];
         mat4.lookAt(this.mvMatrix, this.camera_pos, [0,0,0], [0,1,0] );
 
@@ -444,10 +444,17 @@ class Renderer{
             gl.vertexAttribPointer(this.shaderProgram.vertexTexcoordAttribute, tex_coord_buffer.itemSize, gl.FLOAT, false, 0, 0);
             gl.bindBuffer(gl.ARRAY_BUFFER, color_buffer);
             gl.vertexAttribPointer(this.shaderProgram.vertexColorAttribute, color_buffer.itemSize, gl.FLOAT, false, 0, 0);
-            gl.bindBuffer(gl.ARRAY_BUFFER, joints_buffer);
-            gl.vertexAttribPointer(this.shaderProgram.jointsAttribute, joints_buffer.itemSize, gl.FLOAT, false, 0, 0);
-            gl.bindBuffer(gl.ARRAY_BUFFER, weights_buffer);
-            gl.vertexAttribPointer(this.shaderProgram.weightsAttribute, weights_buffer.itemSize, gl.FLOAT, false, 0, 0);
+            if(buffer.boneless == 0){
+                gl.bindBuffer(gl.ARRAY_BUFFER, joints_buffer);
+                gl.vertexAttribPointer(this.shaderProgram.jointsAttribute, joints_buffer.itemSize, gl.FLOAT, false, 0, 0);
+                gl.bindBuffer(gl.ARRAY_BUFFER, weights_buffer);
+                gl.vertexAttribPointer(this.shaderProgram.weightsAttribute, weights_buffer.itemSize, gl.FLOAT, false, 0, 0);
+            }else{// no bones so won't be read but need to be bound so set them to color (which is the correct size)
+                gl.bindBuffer(gl.ARRAY_BUFFER, color_buffer);
+                gl.vertexAttribPointer(this.shaderProgram.jointsAttribute, color_buffer.itemSize, gl.FLOAT, false, 0, 0);
+                gl.bindBuffer(gl.ARRAY_BUFFER, color_buffer);
+                gl.vertexAttribPointer(this.shaderProgram.weightsAttribute, color_buffer.itemSize, gl.FLOAT, false, 0, 0);
+            }
 
             if(!bones){
                 bones = buffer.bones ;
@@ -469,6 +476,9 @@ class Renderer{
                     gl.uniform1i(this.shaderProgram.bones_texture, 1);
                 }
                 
+            }else{
+                gl.uniform1i(this.shaderProgram.boneless, 1);
+
             }
 
             if(buffer.has_texture){
@@ -502,7 +512,7 @@ class Renderer{
         let M = mat4.create();
         mat4.multiply(M,this.mvMatrix, transform);
         this.gl.uniformMatrix4fv(this.shaderProgram.mvMatrixUniform, false, M);
-        if(mesh_name in this.buffer_lookup){ // cache mesh_name to material buffers mapping
+        if(mesh_name in this.buffer_lookup && Math.random()>0.05){ // cache mesh_name to material buffers mapping (perdiocially check in case there's a partialchange)
             for(let buffer_name of this.buffer_lookup[mesh_name]){
                 this.drawModel(this.buffers[buffer_name],bones);
             }

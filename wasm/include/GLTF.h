@@ -144,6 +144,7 @@ class GLTF : public OptimizationProblem, public TableInterface {
         bool bones_changed = false;
         int last_traced_tri ; // Index of last triangle hit by raytrace
 
+        int buffer_stopped_material_index = 0; // if buffer collection fails due to memory limits this is where it should pick up 
         // Constructor
         GLTF();
 

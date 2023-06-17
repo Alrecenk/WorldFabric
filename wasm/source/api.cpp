@@ -30,6 +30,7 @@
 #include "MoveSimpleSolid.h"
 #include "SetConvexSolid.h"
 #include "BSPNode.h"
+#include "Subcurve.h"
 
 
 using std::vector;
@@ -252,19 +253,37 @@ byte* getUpdatedBuffers(byte* ptr){
     map<string,Variant> buffers;
     vector<string> mesh_keys = meshes.getAllKeys();
     bool has_hand = false;
+    auto st = now();
+    int total_size = 0 ;
     for(auto &name : mesh_keys){
         std::shared_ptr<GLTF> mesh = meshes[name];
-        //st = now();
+        
         if(mesh->position_changed || mesh->model_changed || mesh->bones_changed){
+            bool completed_mesh = true ;
             for(auto const & [material_id, mat]: mesh->materials){
-                std::stringstream ss;
-                ss << name << "-m=" << material_id;
-                string s_id = ss.str();
-                buffers[s_id] = mesh->getChangedBuffer(material_id) ;
+                if(material_id >= mesh->buffer_stopped_material_index){
+
+                    std::stringstream ss;
+                    ss << name << "-m=" << material_id;
+                    string s_id = ss.str();
+                    buffers[s_id] = mesh->getChangedBuffer(material_id) ;
+                    int size = buffers[s_id].getSize() ;
+                    total_size +=size ;
+                    printf("got buffer: %s  size: %d\n", s_id.c_str(),size );
+                    if(total_size > 50000000 && size != total_size){
+                        buffers.erase(s_id) ;
+                        mesh->buffer_stopped_material_index = material_id;
+                        completed_mesh = false ;
+                        break ; 
+                    }
+                }
             }
-            mesh->position_changed = false;
-            mesh->model_changed = false;
-            mesh->bones_changed = false;                
+            if(completed_mesh){
+                mesh->position_changed = false;
+                mesh->model_changed = false;
+                mesh->bones_changed = false;
+                mesh->buffer_stopped_material_index = 0 ;
+            }                
         }
         if(name == "HAND"){
             has_hand = true;
@@ -276,8 +295,11 @@ byte* getUpdatedBuffers(byte* ptr){
         meshes.addLocalShapeMesh("HAND", shape, vec3(0.85, 0.85, 1.0));
     }
 
-    //ms = millisBetween(st, now());
-    //printf("api get all buffers: %d ms\n", ms);
+
+    int ms = millisBetween(st, now());
+    if(total_size > 0){
+        printf("api get all buffers: %d ms total size: %d\n", ms, total_size);
+    }
     return pack(buffers) ;
 }
 
@@ -835,6 +857,38 @@ byte* setIKParams(byte* ptr){
     }
 
     return emptyReturn();
+}
+
+byte* smoothLine(byte* ptr){
+    auto obj = Variant::deserializeObject(ptr);
+    Variant in_array = obj["input"];
+    float window = obj["window"].getNumberAsFloat();
+    int degree = (int)obj["degree"].getNumberAsFloat();
+    vector<vec3> input ;
+    for(int k=0;k<in_array.getArrayLength();k++){
+        input.push_back(in_array[k].getVec3());
+    }
+    vector<vec3> output ;
+    Subcurve curve(degree) ;
+    for(int k=0;k<input.size();k++){
+        curve.addTarget(input[k][1],input[k][2],input[k][0]); 
+  
+    }
+    curve.solve();
+
+    for(float t = 0; t <=1;t+=0.01){
+        glm::vec2 p = curve.valueNormalized(t) ;
+        output.push_back(vec3(t,p.x,p.y));
+    }
+
+    
+    vector<Variant> out_array ;
+    for(int k=0;k<output.size();k++){
+        out_array.push_back(Variant(output[k]));
+    }
+    map<string, Variant> ret_map ;
+    ret_map["result"] = Variant(out_array);
+    return pack(ret_map);
 }
 
 }// end extern C
